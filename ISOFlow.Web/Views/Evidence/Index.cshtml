@@ -1,0 +1,359 @@
+@using ISOFlow.Domain.Enums
+@model List<ISOFlow.Domain.Entities.Evidence>
+@{
+    ViewData["Title"] = "Objective Evidence Vault";
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-paperclip text-success me-2"></i> Objective Evidence Vault</h4>
+        <p class="text-muted small mb-0">Verified compliance artifacts, audit samples, approval logs, and system reports.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addEvidenceModal">
+            <i class="bi bi-upload me-1"></i> Upload Evidence
+        </button>
+    </div>
+</div>
+
+<!-- ── Advance Search & Filter Toolbar ── -->
+<div class="card-enterprise p-3 mb-4 bg-light border">
+    <div class="row g-2 align-items-center">
+        <div class="col-12 col-md-4">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="eviSearchInput" class="form-control border-start-0" placeholder="Search by Evidence ID, file name, control, task..." />
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <select id="eviTypeFilter" class="form-select form-select-sm">
+                <option value="all">All Evidence Types</option>
+                <option value="Report">Report</option>
+                <option value="LogFile">Log File</option>
+                <option value="ApprovalRecord">Approval Record</option>
+                <option value="Screenshot">Screenshot</option>
+                <option value="PolicyDocument">Policy Document</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <select id="eviStatusFilter" class="form-select form-select-sm">
+                <option value="all">All Statuses</option>
+                <option value="Verified">Verified</option>
+                <option value="PendingReview">Pending Review</option>
+                <option value="Expired">Expired</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-2 d-flex justify-content-end">
+            <button type="button" id="eviResetBtn" class="btn btn-sm btn-outline-secondary w-100" title="Reset Filters">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+            </button>
+        </div>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top small text-muted">
+        <span id="eviResultsCounter">Showing <strong>@Model.Count</strong> of <strong>@Model.Count</strong> records</span>
+        <span class="badge bg-success-subtle text-success"><i class="bi bi-funnel me-1"></i> Live Filter</span>
+    </div>
+</div>
+
+<div class="card-enterprise p-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Evidence ID</th>
+                    <th>Document Name</th>
+                    <th>Type</th>
+                    <th>Control</th>
+                    <th>Requirement</th>
+                    <th>Task</th>
+                    <th>Uploaded By</th>
+                    <th>Expiry Date</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="evidenceTableBody">
+                @foreach (var ev in Model)
+                {
+                    <tr class="@(ev.Id == "EVI-2026-001" ? "table-success" : "")">
+                        <td class="fw-bold text-success">@ev.Code</td>
+                        <td>
+                            <div class="fw-semibold text-dark"><i class="bi bi-file-earmark-pdf text-danger me-1"></i> @ev.Name</div>
+                            <div class="text-muted small">@ev.FileUrl</div>
+                        </td>
+                        <td><span class="badge bg-light text-dark border">@ev.Type</span></td>
+                        <td><a asp-controller="Controls" asp-action="Detail" asp-route-id="@ev.ControlId" class="badge bg-info text-white text-decoration-none">@ev.ControlId</a></td>
+                        <td><span class="badge bg-light text-dark border">@ev.RequirementId</span></td>
+                        <td><span class="badge bg-light text-secondary border">@ev.TaskId</span></td>
+                        <td class="small">@ev.UploadedBy</td>
+                        <td class="small">@ev.ExpiryDate.ToString("dd-MMM-yyyy")</td>
+                        <td>
+                            @{
+                                var evBadge = ev.Status switch {
+                                    "Verified" => "bg-success text-white",
+                                    "PendingReview" => "bg-warning text-dark",
+                                    _ => "bg-secondary text-white"
+                                };
+                            }
+                            <span class="badge @evBadge">@ev.Status</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="@ev.FileUrl" class="btn btn-outline-primary" target="_blank" title="View Evidence Artifact">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-secondary" title="Edit Evidence"
+                                        onclick="openEditEvidenceModal('@ev.Id', '@ev.Code', '@Html.Raw(Html.Encode(ev.Name))', '@((int)ev.Type)', '@ev.ControlId', '@ev.RequirementId', '@ev.TaskId', '@ev.AuditId', '@Html.Raw(Html.Encode(ev.UploadedBy))', '@ev.ExpiryDate.ToString("yyyy-MM-dd")', '@ev.Status', '@Html.Raw(Html.Encode(ev.FileUrl))')">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" title="Delete Evidence"
+                                        onclick="openDeleteEvidenceModal('@ev.Id', '@ev.Code', '@Html.Raw(Html.Encode(ev.Name))')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Empty State -->
+    <div id="eviEmptyState" class="text-center py-5" style="display: none;">
+        <i class="bi bi-search text-muted" style="font-size: 2.5rem;"></i>
+        <h6 class="fw-bold mt-2 mb-1">No matching evidence records found</h6>
+        <p class="text-muted small mb-0">Try adjusting your keyword search, type, or status filters.</p>
+    </div>
+</div>
+
+<!-- Modal: Add Evidence -->
+<div class="modal fade" id="addEvidenceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-upload me-2"></i> Upload Objective Compliance Evidence</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Evidence" asp-action="Create" method="post">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Evidence Code <span class="text-danger">*</span></label>
+                            <input type="text" name="Code" class="form-control form-control-sm" placeholder="e.g. EVI-2026-003" required />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Artifact Name / Title <span class="text-danger">*</span></label>
+                            <input type="text" name="Name" class="form-control form-control-sm" placeholder="e.g. Quarterly Firewall Ruleset Inspection Report" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Evidence Type</label>
+                            <select name="Type" class="form-select form-select-sm">
+                                <option value="0">Document</option>
+                                <option value="1" selected>Report</option>
+                                <option value="2">ApprovalRecord</option>
+                                <option value="3">LogFile</option>
+                                <option value="4">Screenshot</option>
+                                <option value="5">PolicyDocument</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Linked Control ID</label>
+                            <input type="text" name="ControlId" class="form-control form-control-sm" placeholder="e.g. CTRL-001" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Linked Requirement ID</label>
+                            <input type="text" name="RequirementId" class="form-control form-control-sm" placeholder="e.g. REQ-A5-18" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Linked Task ID</label>
+                            <input type="text" name="TaskId" class="form-control form-control-sm" placeholder="e.g. TASK-2026-003" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Linked Audit ID</label>
+                            <input type="text" name="AuditId" class="form-control form-control-sm" placeholder="e.g. AUD-2026-001" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Uploaded By</label>
+                            <input type="text" name="UploadedBy" class="form-control form-control-sm" placeholder="e.g. David Chen (IT Manager)" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Evidence Expiry Date</label>
+                            <input type="date" name="ExpiryDate" class="form-control form-control-sm" value="@DateTime.UtcNow.AddYears(1).ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Status</label>
+                            <select name="Status" class="form-select form-select-sm">
+                                <option value="Verified" selected>Verified</option>
+                                <option value="PendingReview">Pending Review</option>
+                                <option value="Expired">Expired</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Storage URL / File Path</label>
+                            <input type="text" name="FileUrl" class="form-control form-control-sm" placeholder="/evidence/2026/Q4-Firewall-Audit-Log.pdf" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check2-circle me-1"></i> Save Evidence</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Edit Evidence -->
+<div class="modal fade" id="editEvidenceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Edit Evidence Metadata</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Evidence" asp-action="Edit" method="post">
+                <input type="hidden" name="Id" id="editEviId" />
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Evidence Code</label>
+                            <input type="text" name="Code" id="editEviCode" class="form-control form-control-sm" readonly />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Artifact Name <span class="text-danger">*</span></label>
+                            <input type="text" name="Name" id="editEviName" class="form-control form-control-sm" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Type</label>
+                            <select name="Type" id="editEviType" class="form-select form-select-sm">
+                                <option value="0">Document</option>
+                                <option value="1">Report</option>
+                                <option value="2">ApprovalRecord</option>
+                                <option value="3">LogFile</option>
+                                <option value="4">Screenshot</option>
+                                <option value="5">PolicyDocument</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Control ID</label>
+                            <input type="text" name="ControlId" id="editEviControl" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Requirement ID</label>
+                            <input type="text" name="RequirementId" id="editEviReq" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Task ID</label>
+                            <input type="text" name="TaskId" id="editEviTask" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Audit ID</label>
+                            <input type="text" name="AuditId" id="editEviAudit" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Uploaded By</label>
+                            <input type="text" name="UploadedBy" id="editEviUploader" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Expiry Date</label>
+                            <input type="date" name="ExpiryDate" id="editEviExpiry" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Status</label>
+                            <select name="Status" id="editEviStatus" class="form-select form-select-sm">
+                                <option value="Verified">Verified</option>
+                                <option value="PendingReview">Pending Review</option>
+                                <option value="Expired">Expired</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">File URL</label>
+                            <input type="text" name="FileUrl" id="editEviUrl" class="form-control form-control-sm" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dark btn-sm"><i class="bi bi-check2-circle me-1"></i> Update Evidence</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Delete Evidence -->
+<div class="modal fade" id="deleteEvidenceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Delete Evidence Record</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Evidence" asp-action="Delete" method="post">
+                <input type="hidden" name="id" id="deleteEviId" />
+                <div class="modal-body p-4">
+                    <p class="mb-1">Are you sure you want to delete evidence artifact <strong id="deleteEviCode"></strong> (<span id="deleteEviName"></span>)?</p>
+                    <p class="text-muted small mb-0">This verified compliance record will be removed from the vault.</p>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash me-1"></i> Confirm Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        new AdvanceSearch({
+            containerId: 'evidenceTableBody',
+            searchInputId: 'eviSearchInput',
+            counterId: 'eviResultsCounter',
+            resetBtnId: 'eviResetBtn',
+            emptyStateId: 'eviEmptyState',
+            filterSelects: [
+                { id: 'eviTypeFilter', colIndex: 2 },
+                { id: 'eviStatusFilter', colIndex: 8 }
+            ]
+        });
+    });
+
+    function openEditEvidenceModal(id, code, name, type, ctrlId, reqId, taskId, auditId, uploader, expiry, status, url) {
+        document.getElementById('editEviId').value = id;
+        document.getElementById('editEviCode').value = code;
+        document.getElementById('editEviName').value = name;
+        document.getElementById('editEviType').value = type;
+        document.getElementById('editEviControl').value = ctrlId;
+        document.getElementById('editEviReq').value = reqId;
+        document.getElementById('editEviTask').value = taskId;
+        document.getElementById('editEviAudit').value = auditId;
+        document.getElementById('editEviUploader').value = uploader;
+        document.getElementById('editEviExpiry').value = expiry;
+        document.getElementById('editEviStatus').value = status;
+        document.getElementById('editEviUrl').value = url;
+        new bootstrap.Modal(document.getElementById('editEvidenceModal')).show();
+    }
+
+    function openDeleteEvidenceModal(id, code, name) {
+        document.getElementById('deleteEviId').value = id;
+        document.getElementById('deleteEviCode').textContent = code;
+        document.getElementById('deleteEviName').textContent = name;
+        new bootstrap.Modal(document.getElementById('deleteEvidenceModal')).show();
+    }
+</script>

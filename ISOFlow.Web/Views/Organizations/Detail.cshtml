@@ -1,0 +1,132 @@
+@model ISOFlow.Domain.Entities.Organization
+@{
+    ViewData["Title"] = $"{Model.Name} - Organization Profile";
+    var users = ViewBag.Users as List<ISOFlow.Domain.Entities.User> ?? new List<ISOFlow.Domain.Entities.User>();
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <a asp-controller="Organizations" asp-action="Index" class="text-decoration-none small text-muted mb-2 d-inline-block">
+            <i class="bi bi-arrow-left me-1"></i> Back to Organization Directory
+        </a>
+        <h4 class="fw-bold mb-1"><i class="bi bi-building text-primary me-2"></i> @Model.Name</h4>
+        <p class="text-muted small mb-0">Tenant Code: <strong>@Model.Code</strong> • Industry: <strong>@Model.Industry</strong> • Status: <span class="badge bg-success-subtle text-success">@Model.Status</span></p>
+    </div>
+    <div class="d-flex gap-2">
+        <form asp-controller="Account" asp-action="SwitchTenant" method="post">
+            <input type="hidden" name="orgId" value="@Model.Id" />
+            <button type="submit" class="btn btn-info btn-sm text-dark fw-bold">
+                <i class="bi bi-box-arrow-in-right me-1"></i> Switch Active Tenant Context
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Key Statistics -->
+    <div class="col-12 col-md-3">
+        <div class="card-enterprise p-3 text-center">
+            <div class="text-muted small mb-1">Overall Compliance Score</div>
+            <div class="display-6 fw-bold text-success">@Model.CompliancePercentage%</div>
+            <div class="small text-muted mt-1"><i class="bi bi-award me-1"></i> Standard: @Model.PrimaryStandard</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-3">
+        <div class="card-enterprise p-3 text-center">
+            <div class="text-muted small mb-1">Total Employees</div>
+            <div class="display-6 fw-bold text-primary">@Model.Employees</div>
+            <div class="small text-muted mt-1"><i class="bi bi-people me-1"></i> Staff Directory</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-3">
+        <div class="card-enterprise p-3 text-center">
+            <div class="text-muted small mb-1">Active Locations</div>
+            <div class="display-6 fw-bold text-info">@Model.Locations.Count</div>
+            <div class="small text-muted mt-1">@string.Join(", ", Model.Locations)</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-3">
+        <div class="card-enterprise p-3 text-center">
+            <div class="text-muted small mb-1">Registered Personnel</div>
+            <div class="display-6 fw-bold text-dark">@users.Count</div>
+            <div class="small text-muted mt-1">System Users</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Organization Staff Directory -->
+    <div class="col-12 col-md-8">
+        <div class="card-enterprise p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-people text-primary me-2"></i> Assigned Personnel & Governance Roles</h6>
+
+            @if (users.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th>Name & Email</th>
+                                <th>Role</th>
+                                <th>Department</th>
+                                <th>Location</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in users)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <img src="@user.AvatarUrl" class="rounded-circle" width="32" height="32" alt="@user.Name" />
+                                            <div>
+                                                <div class="fw-bold small">@user.Name</div>
+                                                <div class="text-muted" style="font-size: 0.75rem;">@user.Email</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge bg-primary-subtle text-primary">@user.Role</span></td>
+                                    <td class="small text-muted">@user.Department</td>
+                                    <td class="small text-muted">@user.Location</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-light text-center py-4 mb-0">No users registered under this tenant yet.</div>
+            }
+        </div>
+    </div>
+
+    <!-- Tenant Profile Details -->
+    <div class="col-12 col-md-4">
+        <div class="card-enterprise p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-info-circle text-primary me-2"></i> Tenant Metadata</h6>
+            <ul class="list-group list-group-flush small">
+                <li class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Tenant ID:</span>
+                    <strong class="text-dark">@Model.Id</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Tenant Code:</span>
+                    <strong class="text-primary">@Model.Code</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Primary Contact:</span>
+                    <strong class="text-dark">@(string.IsNullOrEmpty(Model.ContactEmail) ? "compliance@org.com" : Model.ContactEmail)</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Registration Date:</span>
+                    <strong class="text-dark">@Model.CreatedAt.ToString("MMM dd, yyyy")</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Primary Standard:</span>
+                    <strong class="text-info">@Model.PrimaryStandard</strong>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>

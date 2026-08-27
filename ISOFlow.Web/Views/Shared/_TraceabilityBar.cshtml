@@ -1,0 +1,79 @@
+@{
+    var activeEntity = ViewData["ActiveTraceabilityId"]?.ToString() ?? "CTRL-001";
+}
+
+<div class="traceability-bar-container">
+    <div class="traceability-bar-title">
+        <i class="bi bi-diagram-2 text-primary"></i> ISOFlow End-to-End Compliance Traceability Chain (Acme Scenario)
+    </div>
+    <div class="traceability-chain">
+        <a asp-controller="Standards" asp-action="Detail" asp-route-id="ISO-27001-2022" class="traceability-node @(activeEntity == "ISO-27001-2022" ? "active" : "")" title="Standard">
+            <i class="bi bi-journal-bookmark"></i> ISO 27001:2022
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Standards" asp-action="Detail" asp-route-id="ISO-27001-2022" class="traceability-node @(activeEntity == "REQ-A5-18" ? "active" : "")" title="Requirement">
+            <i class="bi bi-list-check"></i> A.5.18 Access Rights
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Controls" asp-action="Detail" asp-route-id="CTRL-001" class="traceability-node @(activeEntity == "CTRL-001" ? "active" : "")" title="Control">
+            <i class="bi bi-shield-lock"></i> CTRL-001 Access Management
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Risks" asp-action="Detail" asp-route-id="RISK-001" class="traceability-node @(activeEntity == "RISK-001" ? "active" : "")" title="Risk">
+            <i class="bi bi-exclamation-triangle"></i> RISK-001 Unauthorized Access
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Risks" asp-action="Detail" asp-route-id="RISK-001" class="traceability-node @(activeEntity == "TRT-001" ? "active" : "")" title="Risk Treatment">
+            <i class="bi bi-bandaid"></i> TRT-001 Implement JML
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Documents" asp-action="Policies" class="traceability-node @(activeEntity == "POL-001" ? "active" : "")" title="Policy">
+            <i class="bi bi-file-earmark-text"></i> Access Control Policy
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Documents" asp-action="Processes" class="traceability-node @(activeEntity == "PROC-001" ? "active" : "")" title="Process">
+            <i class="bi bi-diagram-3"></i> Joiner-Mover-Leaver
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Tasks" asp-action="Index" class="traceability-node @(activeEntity == "TASK-2026-003" ? "active" : "")" title="Task">
+            <i class="bi bi-check2-square"></i> Q3 Access Review Task
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Evidence" asp-action="Index" class="traceability-node @(activeEntity == "EVI-2026-001" ? "active" : "")" title="Evidence">
+            <i class="bi bi-paperclip"></i> Access Review Evidence
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Audits" asp-action="Detail" asp-route-id="AUD-2026-001" class="traceability-node @(activeEntity == "AUD-2026-001" ? "active" : "")" title="Audit">
+            <i class="bi bi-clipboard-check"></i> AUD-2026-001 Internal Audit
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Findings" asp-action="Detail" asp-route-id="FIND-001" class="traceability-node @(activeEntity == "FIND-001" ? "active" : "")" title="Finding">
+            <i class="bi bi-bug"></i> FIND-001 Access Not Removed
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Capa" asp-action="Detail" asp-route-id="CAPA-001" class="traceability-node @(activeEntity == "CAPA-001" ? "active" : "")" title="CAPA">
+            <i class="bi bi-tools"></i> CAPA-001 Automate Access
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="ManagementReview" asp-action="Index" class="traceability-node @(activeEntity == "REV-2026-Q4" ? "active" : "")" title="Management Review">
+            <i class="bi bi-briefcase"></i> Q4 Management Review
+        </a>
+        <i class="bi bi-chevron-right traceability-arrow"></i>
+
+        <a asp-controller="Improvement" asp-action="Index" class="traceability-node @(activeEntity == "IMP-001" ? "active" : "")" title="Continual Improvement">
+            <i class="bi bi-graph-up-arrow"></i> IMP-001 Access Automation
+        </a>
+    </div>
+</div>

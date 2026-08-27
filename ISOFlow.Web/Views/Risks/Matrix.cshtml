@@ -1,0 +1,70 @@
+@model List<ISOFlow.Application.DTOs.RiskMatrixCellDto>
+@{
+    ViewData["Title"] = "Risk Matrix (5 x 5)";
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-grid-3x3-gap text-danger me-2"></i> 5 × 5 Risk Assessment Matrix</h4>
+        <p class="text-muted small mb-0">Likelihood vs Impact heatmap visualization for enterprise risk prioritization.</p>
+    </div>
+</div>
+
+<div class="card-enterprise p-4 mb-4">
+    <div class="row">
+        <div class="col-md-9">
+            <h6 class="fw-bold mb-3">Risk Heatmap Grid</h6>
+            <div class="table-responsive">
+                <table class="risk-matrix-table" style="height: 380px;">
+                    @for (int l = 5; l >= 1; l--)
+                    {
+                        <tr>
+                            <td class="fw-bold text-muted px-2 align-middle" style="width: 120px;">
+                                @(l switch { 5 => "5 - Almost Certain", 4 => "4 - Likely", 3 => "3 - Possible", 2 => "2 - Unlikely", _ => "1 - Rare" })
+                            </td>
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                var cell = Model.FirstOrDefault(c => c.Likelihood == l && c.Impact == i);
+                                int score = l * i;
+                                string colorClass = score >= 15 ? "cell-critical" : score >= 10 ? "cell-high" : score >= 5 ? "cell-medium" : "cell-low";
+                                <td class="risk-matrix-cell @colorClass" onclick="window.location.href='/Risks'">
+                                    <div class="fs-4">@(cell?.Count > 0 ? cell.Count.ToString() : "0")</div>
+                                    <div class="small opacity-75">Score: @score</div>
+                                </td>
+                            }
+                        </tr>
+                    }
+                    <tr>
+                        <td></td>
+                        <td class="text-center fw-bold small text-muted pt-2">1 - Negligible</td>
+                        <td class="text-center fw-bold small text-muted pt-2">2 - Minor</td>
+                        <td class="text-center fw-bold small text-muted pt-2">3 - Moderate</td>
+                        <td class="text-center fw-bold small text-muted pt-2">4 - Major</td>
+                        <td class="text-center fw-bold small text-muted pt-2">5 - Critical</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div class="col-md-3 border-start">
+            <h6 class="fw-bold mb-3">Legend & Severity</h6>
+            <div class="list-group list-group-flush small">
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div><span class="badge bg-danger p-2 me-2"></span> Critical (Score 15-25)</div>
+                    <span class="fw-bold text-danger">1 Risk</span>
+                </div>
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div><span class="badge bg-warning p-2 me-2"></span> High (Score 10-14)</div>
+                    <span class="fw-bold text-warning">2 Risks</span>
+                </div>
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div><span class="badge bg-primary p-2 me-2"></span> Medium (Score 5-9)</div>
+                    <span class="fw-bold">1 Risk</span>
+                </div>
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div><span class="badge bg-success p-2 me-2"></span> Low (Score 1-4)</div>
+                    <span class="fw-bold text-success">1 Risk</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

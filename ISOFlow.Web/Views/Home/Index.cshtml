@@ -1,0 +1,159 @@
+@model ISOFlow.Web.Models.DashboardViewModel
+@{
+    ViewData["Title"] = "Executive Compliance Dashboard";
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-speedometer2 text-primary me-2"></i> Executive Overview</h4>
+        <p class="text-muted small mb-0">Acme Technologies Pvt. Ltd. • Primary Standard: <strong>ISO 27001:2022</strong></p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-controller="Controls" asp-action="Detail" asp-route-id="CTRL-001" class="btn btn-primary btn-sm"><i class="bi bi-play-circle me-1"></i> Start Golden Scenario</a>
+        <a asp-controller="Reports" asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i> Export Report</a>
+    </div>
+</div>
+
+<!-- 8 KPI Cards Grid -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card-enterprise kpi-card border-start border-primary border-4">
+            <div>
+                <div class="kpi-title">Overall Compliance</div>
+                <div class="kpi-value text-primary">82.5%</div>
+                <div class="small text-success mt-1"><i class="bi bi-arrow-up-short"></i> +3.2% vs last quarter</div>
+            </div>
+            <div class="kpi-icon bg-primary-subtle text-primary"><i class="bi bi-shield-check"></i></div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card-enterprise kpi-card border-start border-success border-4">
+            <div>
+                <div class="kpi-title">Controls</div>
+                <div class="kpi-value">87 <span class="fs-6 text-muted font-normal">/ 105</span></div>
+                <div class="small text-muted mt-1">82.8% Implementation</div>
+            </div>
+            <div class="kpi-icon bg-success-subtle text-success"><i class="bi bi-shield-lock"></i></div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card-enterprise kpi-card border-start border-warning border-4">
+            <div>
+                <div class="kpi-title">Open Risks</div>
+                <div class="kpi-value text-warning">@Model.Kpis.OpenRisksCount</div>
+                <div class="small text-danger mt-1">@Model.Kpis.HighRisksCount Critical/High Risks</div>
+            </div>
+            <div class="kpi-icon bg-warning-subtle text-warning"><i class="bi bi-exclamation-triangle"></i></div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card-enterprise kpi-card border-start border-danger border-4">
+            <div>
+                <div class="kpi-title">Open Findings</div>
+                <div class="kpi-value text-danger">@Model.Kpis.OpenFindingsCount</div>
+                <div class="small text-danger mt-1">FIND-001 Major NC active</div>
+            </div>
+            <div class="kpi-icon bg-danger-subtle text-danger"><i class="bi bi-bug"></i></div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card-enterprise kpi-card border-start border-info border-4">
+            <div>
+                <div class="kpi-title">Overdue Actions</div>
+                <div class="kpi-value text-danger">5</div>
+                <div class="small text-muted mt-1">Requires immediate follow-up</div>
+            </div>
+            <div class="kpi-icon bg-info-subtle text-info"><i class="bi bi-clock-history"></i></div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card-enterprise kpi-card border-start border-secondary border-4">
+            <div>
+                <div class="kpi-title">Pending Evidence</div>
+                <div class="kpi-value">12</div>
+                <div class="small text-warning mt-1">4 Expiring within 30 days</div>
+            </div>
+            <div class="kpi-icon bg-secondary-subtle text-secondary"><i class="bi bi-paperclip"></i></div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card-enterprise kpi-card border-start border-primary border-4">
+            <div>
+                <div class="kpi-title">Open CAPA</div>
+                <div class="kpi-value text-primary">3</div>
+                <div class="small text-muted mt-1">CAPA-001 In Progress</div>
+            </div>
+            <div class="kpi-icon bg-primary-subtle text-primary"><i class="bi bi-tools"></i></div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card-enterprise kpi-card border-start border-success border-4">
+            <div>
+                <div class="kpi-title">Audit Readiness</div>
+                <div class="kpi-value text-success">88%</div>
+                <div class="small text-success mt-1"><i class="bi bi-check-all"></i> Target reached</div>
+            </div>
+            <div class="kpi-icon bg-success-subtle text-success"><i class="bi bi-clipboard-check"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts & Matrix Section -->
+<div class="row g-4 mb-4">
+    <!-- Compliance Trend Chart -->
+    <div class="col-12 col-lg-7">
+        <div class="card-enterprise p-3 h-100">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="fw-bold mb-0"><i class="bi bi-graph-up text-primary me-2"></i> Compliance Trend (2026)</h6>
+                <span class="badge bg-light text-muted border">Monthly Progress</span>
+            </div>
+            <div style="height: 260px;">
+                <canvas id="complianceChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5x5 Risk Matrix -->
+    <div class="col-12 col-lg-5">
+        <div class="card-enterprise p-3 h-100">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="fw-bold mb-0"><i class="bi bi-grid-3x3-gap text-danger me-2"></i> Risk Matrix (5 × 5)</h6>
+                <a asp-controller="Risks" asp-action="Matrix" class="small text-decoration-none">Full Matrix <i class="bi bi-arrow-right"></i></a>
+            </div>
+            <div class="table-responsive">
+                <table class="risk-matrix-table">
+                    @for (int l = 5; l >= 1; l--)
+                    {
+                        <tr>
+                            <td class="small fw-bold text-muted px-1">L@(l)</td>
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                var cell = Model.RiskMatrix.FirstOrDefault(c => c.Likelihood == l && c.Impact == i);
+                                int score = l * i;
+                                string colorClass = score >= 15 ? "cell-critical" : score >= 10 ? "cell-high" : score >= 5 ? "cell-medium" : "cell-low";
+                                <td class="risk-matrix-cell @colorClass" onclick="window.location.href='/Risks'">
+                                    @(cell?.Count > 0 ? cell.Count.ToString() : "-")
+                                </td>
+                            }
+                        </tr>
+                    }
+                    <tr>
+                        <td></td>
+                        <td class="text-center small text-muted">I1</td>
+                        <td class="text-center small text-muted">I2</td>
+                        <td class="text-center small text-muted">I3</td>
+                        <td class="text-center small text-muted">I4</td>
+                        <td class="text-center small text-muted">I5</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Related Compliance Component Showcase -->
+@await Component.InvokeAsync("RelatedComplianceItems", new { controlId = "CTRL-001" })
+
+@section Scripts {
+    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+}

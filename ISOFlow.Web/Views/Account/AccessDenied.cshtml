@@ -1,0 +1,106 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "Access Denied — ISOFlow";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            display: flex; align-items: center; justify-content: center;
+            padding: 2rem;
+        }
+        body::before {
+            content:''; position:fixed; inset:0;
+            background-image: radial-gradient(circle at 20% 50%, rgba(239,68,68,.12) 0%, transparent 45%),
+                              radial-gradient(circle at 80% 30%, rgba(124,58,237,.1) 0%, transparent 40%);
+            pointer-events:none;
+        }
+        .card {
+            max-width: 520px; width: 100%;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 24px;
+            padding: 3rem 2.5rem;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 25px 60px rgba(0,0,0,.5);
+            text-align: center;
+            animation: pop .4s cubic-bezier(.175,.885,.32,1.275);
+        }
+        @@keyframes pop { from { opacity:0; transform:scale(.88); } to { opacity:1; transform:scale(1); } }
+
+        .icon-circle {
+            width: 80px; height: 80px; border-radius: 50%;
+            background: rgba(239,68,68,.15);
+            border: 2px solid rgba(239,68,68,.35);
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 2.5rem; color: #f87171; margin-bottom: 1.75rem;
+            box-shadow: 0 0 40px rgba(239,68,68,.2);
+        }
+        h1 { font-size: 1.75rem; font-weight: 800; color: #fff; margin-bottom: .5rem; }
+        .sub { font-size: .95rem; color: rgba(255,255,255,.55); margin-bottom: 2rem; line-height: 1.6; }
+        .role-info {
+            background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+            border-radius: 14px; padding: 1rem 1.25rem; margin-bottom: 2rem;
+            display: flex; align-items: center; gap: .75rem; text-align: left;
+        }
+        .role-info i { font-size: 1.4rem; color: #fbbf24; flex-shrink: 0; }
+        .role-info-text { font-size: .83rem; color: rgba(255,255,255,.6); line-height: 1.5; }
+        .role-info-text strong { color: #fff; }
+
+        .btn-back {
+            display: inline-flex; align-items: center; gap: .5rem;
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            border: none; border-radius: 12px; color: #fff;
+            font-weight: 700; font-size: .9rem; padding: .75rem 1.75rem;
+            text-decoration: none; cursor: pointer;
+            transition: transform .15s, box-shadow .15s;
+            box-shadow: 0 8px 24px rgba(124,58,237,.4);
+        }
+        .btn-back:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(124,58,237,.5); color:#fff; }
+        .btn-logout { background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); color:rgba(255,255,255,.65); margin-left:.75rem; }
+        .btn-logout:hover { background: rgba(255,255,255,.14); color:#fff; }
+    </style>
+</head>
+<body>
+    @{
+        var currentRole = Context.Session.GetString("ActiveUserSystemRole") ?? "Unknown";
+        var currentName = Context.Session.GetString("ActiveUserName") ?? "User";
+    }
+    <div class="card">
+        <div class="icon-circle"><i class="bi bi-shield-x"></i></div>
+        <h1>Access Denied</h1>
+        <p class="sub">
+            You don't have permission to access this section.<br />
+            This area is restricted to <strong style="color:#c4b5fd;">Super Admins</strong> only.
+        </p>
+        <div class="role-info">
+            <i class="bi bi-person-badge"></i>
+            <div class="role-info-text">
+                You are signed in as <strong>@currentName</strong> with role
+                <strong>@currentRole</strong>. Please contact your Super Admin
+                if you believe you need access.
+            </div>
+        </div>
+        <div>
+            <a asp-controller="Home" asp-action="Index" class="btn-back" id="btnGoToDashboard">
+                <i class="bi bi-speedometer2"></i> Go to Dashboard
+            </a>
+            <a asp-controller="Account" asp-action="Logout" class="btn-back btn-logout" id="btnSignOut">
+                <i class="bi bi-box-arrow-right"></i> Sign Out
+            </a>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

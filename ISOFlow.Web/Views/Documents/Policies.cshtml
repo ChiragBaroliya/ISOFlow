@@ -1,0 +1,310 @@
+@model List<ISOFlow.Domain.Entities.Policy>
+@{
+    ViewData["Title"] = "Policies Repository";
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-file-earmark-text text-primary me-2"></i> Policies Repository</h4>
+        <p class="text-muted small mb-0">Topic-specific security policies aligned with ISO 27001 Annex A controls.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-controller="Documents" asp-action="Processes" class="btn btn-outline-primary btn-sm"><i class="bi bi-diagram-3 me-1"></i> View Business Processes</a>
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addPolicyModal">
+            <i class="bi bi-plus-circle me-1"></i> Add Policy
+        </button>
+    </div>
+</div>
+
+<!-- ── Advance Search & Filter Toolbar ── -->
+<div class="card-enterprise p-3 mb-4 bg-light border">
+    <div class="row g-2 align-items-center">
+        <div class="col-12 col-md-5">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="polSearchInput" class="form-control border-start-0" placeholder="Search by Policy ID, title, owner, controls, file..." />
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <select id="polOwnerFilter" class="form-select form-select-sm">
+                <option value="all">All Policy Owners</option>
+                <option value="David Chen">David Chen (IT / CISO)</option>
+                <option value="Elena Rostova">Elena Rostova (Compliance)</option>
+                <option value="Sarah Jenkins">Sarah Jenkins (HR)</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-3 d-flex justify-content-end">
+            <button type="button" id="polResetBtn" class="btn btn-sm btn-outline-secondary w-100" title="Reset Filters">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+            </button>
+        </div>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top small text-muted">
+        <span id="polResultsCounter">Showing <strong>@Model.Count</strong> of <strong>@Model.Count</strong> records</span>
+        <span class="badge bg-primary-subtle text-primary"><i class="bi bi-funnel me-1"></i> Live Filter</span>
+    </div>
+</div>
+
+<div class="card-enterprise p-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Policy ID</th>
+                    <th>Policy Title</th>
+                    <th>Version</th>
+                    <th>Owner</th>
+                    <th>Effective Date</th>
+                    <th>Next Review</th>
+                    <th>Linked Controls</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="policiesTableBody">
+                @foreach (var pol in Model)
+                {
+                    <tr class="@(pol.Id == "POL-001" ? "table-primary" : "")">
+                        <td class="fw-bold text-primary">@pol.Code</td>
+                        <td>
+                            <div class="fw-semibold">@pol.Title</div>
+                            <div class="text-muted small">@pol.FilePath</div>
+                        </td>
+                        <td><span class="badge bg-light text-dark border">v@(pol.Version)</span></td>
+                        <td class="small">@pol.Owner</td>
+                        <td class="small">@pol.EffectiveDate.ToString("dd-MMM-yyyy")</td>
+                        <td class="small text-danger fw-semibold">@pol.NextReviewDate.ToString("dd-MMM-yyyy")</td>
+                        <td>
+                            @foreach (var ctrl in pol.LinkedControlIds)
+                            {
+                                <a asp-controller="Controls" asp-action="Detail" asp-route-id="@ctrl" class="badge bg-info text-white text-decoration-none me-1"><i class="bi bi-shield-lock"></i> @ctrl</a>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a asp-controller="Documents" asp-action="Processes" class="btn btn-outline-primary" title="View Traceability">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-secondary" title="Edit Policy"
+                                        onclick="openEditPolicyModal('@pol.Id', '@pol.Code', '@Html.Raw(Html.Encode(pol.Title))', '@pol.Version', '@Html.Raw(Html.Encode(pol.Owner))', '@pol.EffectiveDate.ToString("yyyy-MM-dd")', '@pol.NextReviewDate.ToString("yyyy-MM-dd")', '@pol.Status', '@Html.Raw(Html.Encode(pol.FilePath))', '@string.Join(", ", pol.LinkedControlIds)')">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" title="Delete Policy"
+                                        onclick="openDeletePolicyModal('@pol.Id', '@pol.Code', '@Html.Raw(Html.Encode(pol.Title))')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Empty State -->
+    <div id="polEmptyState" class="text-center py-5" style="display: none;">
+        <i class="bi bi-search text-muted" style="font-size: 2.5rem;"></i>
+        <h6 class="fw-bold mt-2 mb-1">No matching security policies found</h6>
+        <p class="text-muted small mb-0">Try adjusting your search query or owner filter.</p>
+    </div>
+</div>
+
+<!-- Modal: Add Policy -->
+<div class="modal fade" id="addPolicyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-plus me-2"></i> Add Security Policy</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Documents" asp-action="CreatePolicy" method="post">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Policy Code <span class="text-danger">*</span></label>
+                            <input type="text" name="Code" class="form-control form-control-sm" placeholder="e.g. POL-004" required />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Policy Title <span class="text-danger">*</span></label>
+                            <input type="text" name="Title" class="form-control form-control-sm" placeholder="e.g. Remote Working & Telecommuting Policy" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Version</label>
+                            <input type="text" name="Version" class="form-control form-control-sm" value="1.0" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Policy Owner</label>
+                            <input type="text" name="Owner" class="form-control form-control-sm" placeholder="e.g. David Chen (IT Manager)" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Status</label>
+                            <select name="Status" class="form-select form-select-sm">
+                                <option value="Active" selected>Active</option>
+                                <option value="Draft">Draft</option>
+                                <option value="InReview">In Review</option>
+                                <option value="Archived">Archived</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Effective Date</label>
+                            <input type="date" name="EffectiveDate" class="form-control form-control-sm" value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Next Review Date</label>
+                            <input type="date" name="NextReviewDate" class="form-control form-control-sm" value="@DateTime.UtcNow.AddYears(1).ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Document Repository Path / URL</label>
+                            <input type="text" name="FilePath" class="form-control form-control-sm" placeholder="/policies/POL-004-Remote-Working-Policy.pdf" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Linked Control IDs (comma-separated)</label>
+                            <input type="text" name="linkedControlsRaw" class="form-control form-control-sm" placeholder="e.g. CTRL-001, CTRL-002" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check2-circle me-1"></i> Save Policy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Edit Policy -->
+<div class="modal fade" id="editPolicyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Edit Policy Metadata</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Documents" asp-action="EditPolicy" method="post">
+                <input type="hidden" name="Id" id="editPolId" />
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Policy Code</label>
+                            <input type="text" name="Code" id="editPolCode" class="form-control form-control-sm" readonly />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Policy Title <span class="text-danger">*</span></label>
+                            <input type="text" name="Title" id="editPolTitle" class="form-control form-control-sm" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Version</label>
+                            <input type="text" name="Version" id="editPolVersion" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Policy Owner</label>
+                            <input type="text" name="Owner" id="editPolOwner" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Status</label>
+                            <select name="Status" id="editPolStatus" class="form-select form-select-sm">
+                                <option value="Active">Active</option>
+                                <option value="Draft">Draft</option>
+                                <option value="InReview">In Review</option>
+                                <option value="Archived">Archived</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Effective Date</label>
+                            <input type="date" name="EffectiveDate" id="editPolEffective" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Next Review Date</label>
+                            <input type="date" name="NextReviewDate" id="editPolReview" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">File Path</label>
+                            <input type="text" name="FilePath" id="editPolFile" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Linked Control IDs</label>
+                            <input type="text" name="linkedControlsRaw" id="editPolControls" class="form-control form-control-sm" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dark btn-sm"><i class="bi bi-check2-circle me-1"></i> Update Policy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Delete Policy -->
+<div class="modal fade" id="deletePolicyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Delete Security Policy</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Documents" asp-action="DeletePolicy" method="post">
+                <input type="hidden" name="id" id="deletePolId" />
+                <div class="modal-body p-4">
+                    <p class="mb-1">Are you sure you want to delete policy <strong id="deletePolCode"></strong> (<span id="deletePolTitle"></span>)?</p>
+                    <p class="text-muted small mb-0">This document reference will be permanently removed.</p>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash me-1"></i> Confirm Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        new AdvanceSearch({
+            containerId: 'policiesTableBody',
+            searchInputId: 'polSearchInput',
+            counterId: 'polResultsCounter',
+            resetBtnId: 'polResetBtn',
+            emptyStateId: 'polEmptyState',
+            filterSelects: [
+                { id: 'polOwnerFilter', colIndex: 3 }
+            ]
+        });
+    });
+
+    function openEditPolicyModal(id, code, title, version, owner, effective, review, status, file, controls) {
+        document.getElementById('editPolId').value = id;
+        document.getElementById('editPolCode').value = code;
+        document.getElementById('editPolTitle').value = title;
+        document.getElementById('editPolVersion').value = version;
+        document.getElementById('editPolOwner').value = owner;
+        document.getElementById('editPolEffective').value = effective;
+        document.getElementById('editPolReview').value = review;
+        document.getElementById('editPolStatus').value = status;
+        document.getElementById('editPolFile').value = file;
+        document.getElementById('editPolControls').value = controls;
+        new bootstrap.Modal(document.getElementById('editPolicyModal')).show();
+    }
+
+    function openDeletePolicyModal(id, code, title) {
+        document.getElementById('deletePolId').value = id;
+        document.getElementById('deletePolCode').textContent = code;
+        document.getElementById('deletePolTitle').textContent = title;
+        new bootstrap.Modal(document.getElementById('deletePolicyModal')).show();
+    }
+</script>

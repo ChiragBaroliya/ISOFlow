@@ -1,0 +1,290 @@
+@model List<ISOFlow.Domain.Entities.ManagementReview>
+@{
+    ViewData["Title"] = "ISO Management Review";
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-briefcase text-primary me-2"></i> Executive Management Review (ISO Clause 9.3)</h4>
+        <p class="text-muted small mb-0">High-level executive evaluation of compliance performance, audit results, risks, and CAPA decisions.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-controller="Improvement" asp-action="Index" class="btn btn-outline-success btn-sm"><i class="bi bi-graph-up-arrow me-1"></i> Continual Improvements</a>
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addReviewModal">
+            <i class="bi bi-plus-circle me-1"></i> Schedule Review
+        </button>
+    </div>
+</div>
+
+<!-- ── Advance Search & Filter Toolbar ── -->
+<div class="card-enterprise p-3 mb-4 bg-light border">
+    <div class="row g-2 align-items-center">
+        <div class="col-12 col-md-6">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="revSearchInput" class="form-control border-start-0" placeholder="Search by Review Code, title, chairperson, summary..." />
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <select id="revStatusFilter" class="form-select form-select-sm">
+                <option value="all">All Review Statuses</option>
+                <option value="Completed">Completed</option>
+                <option value="Scheduled">Scheduled</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-2 d-flex justify-content-end">
+            <button type="button" id="revResetBtn" class="btn btn-sm btn-outline-secondary w-100" title="Reset Filters">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+            </button>
+        </div>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top small text-muted">
+        <span id="revResultsCounter">Showing <strong>@Model.Count</strong> of <strong>@Model.Count</strong> records</span>
+        <span class="badge bg-primary-subtle text-primary"><i class="bi bi-funnel me-1"></i> Live Filter</span>
+    </div>
+</div>
+
+<div id="reviewsContainer">
+    @foreach (var rev in Model)
+    {
+        <div class="card-enterprise p-4 border-start border-primary border-4 mb-4 rev-card-item">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <div>
+                    <span class="badge bg-primary me-2">@rev.Code</span>
+                    <span class="badge @(rev.Status == "Completed" ? "bg-success" : "bg-warning text-dark")">Status: @rev.Status</span>
+                    <h4 class="fw-bold text-dark mt-1 mb-1">@rev.Title</h4>
+                    <p class="text-muted small mb-0">Chairperson: <strong>@rev.ChairPerson</strong> | Period: <strong>@rev.Period</strong> | Date: <strong>@rev.ReviewDate.ToString("dd-MMM-yyyy")</strong></p>
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-secondary" title="Edit Review"
+                            onclick="openEditReviewModal('@rev.Id', '@rev.Code', '@Html.Raw(Html.Encode(rev.Title))', '@rev.Period', '@rev.ReviewDate.ToString("yyyy-MM-dd")', '@Html.Raw(Html.Encode(rev.ChairPerson))', '@rev.Status', '@Html.Raw(Html.Encode(rev.Summary))', '@string.Join(", ", rev.Attendees)')">
+                        <i class="bi bi-pencil me-1"></i> Edit
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" title="Delete Review"
+                            onclick="openDeleteReviewModal('@rev.Id', '@rev.Code', '@Html.Raw(Html.Encode(rev.Title))')">
+                        <i class="bi bi-trash me-1"></i> Delete
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-3 bg-light rounded border mb-3">
+                <h6 class="fw-bold mb-1">Executive Summary</h6>
+                <p class="small text-muted mb-0">@rev.Summary</p>
+            </div>
+
+            @if (rev.Decisions != null && rev.Decisions.Any())
+            {
+                <h6 class="fw-bold mb-2 text-success"><i class="bi bi-check-circle me-1"></i> Management Decisions &amp; Action Items</h6>
+                @foreach (var dec in rev.Decisions)
+                {
+                    <div class="p-3 bg-success-subtle rounded border border-success d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <strong class="text-dark">Decision: @dec.DecisionText</strong>
+                            <div class="small text-muted">Owner: @dec.Owner | Target Date: @dec.DueDate.ToString("dd-MMM-yyyy")</div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(dec.ImprovementId))
+                        {
+                            <a asp-controller="Improvement" asp-action="Index" class="btn btn-sm btn-success">Trace @dec.ImprovementId <i class="bi bi-arrow-right"></i></a>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+<!-- Empty State -->
+<div id="revEmptyState" class="text-center py-5" style="display: none;">
+    <i class="bi bi-search text-muted" style="font-size: 2.5rem;"></i>
+    <h6 class="fw-bold mt-2 mb-1">No matching management reviews found</h6>
+    <p class="text-muted small mb-0">Try adjusting your keyword search or status filter.</p>
+</div>
+
+<!-- Modal: Add Review -->
+<div class="modal fade" id="addReviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-calendar-plus me-2"></i> Schedule Executive Management Review</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="ManagementReview" asp-action="Create" method="post">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Review Code <span class="text-danger">*</span></label>
+                            <input type="text" name="Code" class="form-control form-control-sm" placeholder="e.g. REV-2027-Q1" required />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Review Meeting Title <span class="text-danger">*</span></label>
+                            <input type="text" name="Title" class="form-control form-control-sm" placeholder="e.g. Management Review — Q1 2027" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Period</label>
+                            <input type="text" name="Period" class="form-control form-control-sm" placeholder="e.g. Q1 2027" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Review Date</label>
+                            <input type="date" name="ReviewDate" class="form-control form-control-sm" value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Status</label>
+                            <select name="Status" class="form-select form-select-sm">
+                                <option value="Scheduled">Scheduled</option>
+                                <option value="Completed" selected>Completed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Chairperson</label>
+                            <input type="text" name="ChairPerson" class="form-control form-control-sm" placeholder="e.g. Elena Rostova (Executive Leadership)" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Attendees (comma-separated)</label>
+                            <input type="text" name="attendeesRaw" class="form-control form-control-sm" placeholder="Elena Rostova, Chirag Baroliya, David Chen" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Executive Summary &amp; Agenda</label>
+                            <textarea name="Summary" class="form-control form-control-sm" rows="3" placeholder="Summary of compliance review findings, risk landscape, resource allocation, and strategic direction..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check2-circle me-1"></i> Save Review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Edit Review -->
+<div class="modal fade" id="editReviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Edit Management Review</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="ManagementReview" asp-action="Edit" method="post">
+                <input type="hidden" name="Id" id="editRevId" />
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Review Code</label>
+                            <input type="text" name="Code" id="editRevCode" class="form-control form-control-sm" readonly />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Meeting Title <span class="text-danger">*</span></label>
+                            <input type="text" name="Title" id="editRevTitle" class="form-control form-control-sm" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Period</label>
+                            <input type="text" name="Period" id="editRevPeriod" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Review Date</label>
+                            <input type="date" name="ReviewDate" id="editRevDate" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Status</label>
+                            <select name="Status" id="editRevStatus" class="form-select form-select-sm">
+                                <option value="Scheduled">Scheduled</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Chairperson</label>
+                            <input type="text" name="ChairPerson" id="editRevChair" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Attendees</label>
+                            <input type="text" name="attendeesRaw" id="editRevAttendees" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Summary</label>
+                            <textarea name="Summary" id="editRevSummary" class="form-control form-control-sm" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dark btn-sm"><i class="bi bi-check2-circle me-1"></i> Update Review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Delete Review -->
+<div class="modal fade" id="deleteReviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Delete Management Review</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="ManagementReview" asp-action="Delete" method="post">
+                <input type="hidden" name="id" id="deleteRevId" />
+                <div class="modal-body p-4">
+                    <p class="mb-1">Are you sure you want to delete management review <strong id="deleteRevCode"></strong> (<span id="deleteRevTitle"></span>)?</p>
+                    <p class="text-muted small mb-0">This governance record will be removed.</p>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash me-1"></i> Confirm Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        new AdvanceSearch({
+            containerId: 'reviewsContainer',
+            searchInputId: 'revSearchInput',
+            counterId: 'revResultsCounter',
+            resetBtnId: 'revResetBtn',
+            emptyStateId: 'revEmptyState',
+            itemSelector: '.rev-card-item',
+            filterSelects: [
+                { id: 'revStatusFilter' }
+            ]
+        });
+    });
+
+    function openEditReviewModal(id, code, title, period, date, chair, status, summary, attendees) {
+        document.getElementById('editRevId').value = id;
+        document.getElementById('editRevCode').value = code;
+        document.getElementById('editRevTitle').value = title;
+        document.getElementById('editRevPeriod').value = period;
+        document.getElementById('editRevDate').value = date;
+        document.getElementById('editRevChair').value = chair;
+        document.getElementById('editRevStatus').value = status;
+        document.getElementById('editRevSummary').value = summary;
+        document.getElementById('editRevAttendees').value = attendees;
+        new bootstrap.Modal(document.getElementById('editReviewModal')).show();
+    }
+
+    function openDeleteReviewModal(id, code, title) {
+        document.getElementById('deleteRevId').value = id;
+        document.getElementById('deleteRevCode').textContent = code;
+        document.getElementById('deleteRevTitle').textContent = title;
+        new bootstrap.Modal(document.getElementById('deleteReviewModal')).show();
+    }
+</script>

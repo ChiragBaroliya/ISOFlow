@@ -1,0 +1,110 @@
+@model List<ISOFlow.Domain.Entities.StatementOfApplicability>
+@{
+    ViewData["Title"] = "Statement of Applicability (SoA)";
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-file-earmark-check text-primary me-2"></i> Statement of Applicability (SoA)</h4>
+        <p class="text-muted small mb-0">ISO 27001:2022 Annex A control applicability matrix and justification records.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-controller="Controls" asp-action="Index" class="btn btn-outline-primary btn-sm"><i class="bi bi-shield-lock me-1"></i> Controls Register</a>
+    </div>
+</div>
+
+<!-- ── Advance Search & Filter Toolbar ── -->
+<div class="card-enterprise p-3 mb-4 bg-light border">
+    <div class="row g-2 align-items-center">
+        <div class="col-12 col-md-5">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="soaSearchInput" class="form-control border-start-0" placeholder="Search by Control Code, Title, Justification, Owner..." />
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <select id="soaApplicableFilter" class="form-select form-select-sm">
+                <option value="all">All Applicability</option>
+                <option value="Yes">Applicable (Yes)</option>
+                <option value="No">Excluded (No)</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <select id="soaStatusFilter" class="form-select form-select-sm">
+                <option value="all">All Statuses</option>
+                <option value="Implemented">Implemented</option>
+                <option value="InDevelopment">In Development</option>
+                <option value="NotImplemented">Not Implemented</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-2 d-flex justify-content-end">
+            <button type="button" id="soaResetBtn" class="btn btn-sm btn-outline-secondary w-100" title="Reset Filters">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+            </button>
+        </div>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top small text-muted">
+        <span id="soaResultsCounter">Showing <strong>@Model.Count</strong> of <strong>@Model.Count</strong> records</span>
+        <span class="badge bg-primary-subtle text-primary"><i class="bi bi-funnel me-1"></i> Live Filter</span>
+    </div>
+</div>
+
+<div class="card-enterprise p-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Control</th>
+                    <th>Applicable?</th>
+                    <th>Justification</th>
+                    <th>Status</th>
+                    <th>Owner</th>
+                    <th>Evidence</th>
+                </tr>
+            </thead>
+            <tbody id="soaTableBody">
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            <a asp-controller="Controls" asp-action="Detail" asp-route-id="@item.ControlId" class="fw-bold text-primary text-decoration-none">@item.ControlCode</a>
+                            <div class="small text-dark fw-semibold">@item.ControlTitle</div>
+                        </td>
+                        <td>
+                            <span class="badge @(item.Applicable ? "bg-success" : "bg-secondary")">
+                                @(item.Applicable ? "Yes" : "No")
+                            </span>
+                        </td>
+                        <td class="small text-muted" style="max-width: 300px;">@item.Justification</td>
+                        <td><span class="badge bg-success-subtle text-success">@item.ImplementationStatus</span></td>
+                        <td class="small">@item.Owner</td>
+                        <td><span class="badge bg-light text-dark border">@item.EvidenceCount Records</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Empty State -->
+    <div id="soaEmptyState" class="text-center py-5" style="display: none;">
+        <i class="bi bi-search text-muted" style="font-size: 2.5rem;"></i>
+        <h6 class="fw-bold mt-2 mb-1">No matching SoA control records found</h6>
+        <p class="text-muted small mb-0">Try adjusting your keyword search or filter criteria.</p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        new AdvanceSearch({
+            containerId: 'soaTableBody',
+            searchInputId: 'soaSearchInput',
+            counterId: 'soaResultsCounter',
+            resetBtnId: 'soaResetBtn',
+            emptyStateId: 'soaEmptyState',
+            filterSelects: [
+                { id: 'soaApplicableFilter', colIndex: 1 },
+                { id: 'soaStatusFilter', colIndex: 3 }
+            ]
+        });
+    });
+</script>

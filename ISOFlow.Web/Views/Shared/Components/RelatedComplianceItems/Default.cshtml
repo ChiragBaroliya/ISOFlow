@@ -1,0 +1,58 @@
+@model ISOFlow.Application.DTOs.RelatedItemsCountDto
+
+<div class="related-items-card">
+    <div class="d-flex align-items-center justify-content-between">
+        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-link-45deg text-primary me-1"></i> Related Compliance Items</h6>
+        <span class="badge bg-light text-muted border">Traceability Engine</span>
+    </div>
+    <div class="related-items-grid">
+        <a asp-controller="Standards" asp-action="Detail" asp-route-id="ISO-27001-2022" class="related-item-pill">
+            <span>Requirements</span>
+            <span class="related-item-count">@Model.Requirements</span>
+        </a>
+        <a asp-controller="Controls" asp-action="Index" class="related-item-pill">
+            <span>Controls</span>
+            <span class="related-item-count">@Model.Controls</span>
+        </a>
+        <a asp-controller="Risks" asp-action="Index" class="related-item-pill">
+            <span>Risks</span>
+            <span class="related-item-count bg-danger text-white">@Model.Risks</span>
+        </a>
+        <a asp-controller="Risks" asp-action="Detail" asp-route-id="RISK-001" class="related-item-pill">
+            <span>Treatments</span>
+            <span class="related-item-count">@Model.Treatments</span>
+        </a>
+        <a asp-controller="Documents" asp-action="Policies" class="related-item-pill">
+            <span>Policies</span>
+            <span class="related-item-count">@Model.Policies</span>
+        </a>
+        <a asp-controller="Documents" asp-action="Processes" class="related-item-pill">
+            <span>Processes</span>
+            <span class="related-item-count">@Model.Processes</span>
+        </a>
+        <a asp-controller="Tasks" asp-action="Index" class="related-item-pill">
+            <span>Tasks</span>
+            <span class="related-item-count bg-warning text-dark">@Model.Tasks</span>
+        </a>
+        <a asp-controller="Evidence" asp-action="Index" class="related-item-pill">
+            <span>Evidence</span>
+            <span class="related-item-count bg-success text-white">@Model.Evidence</span>
+        </a>
+        <a asp-controller="Audits" asp-action="Index" class="related-item-pill">
+            <span>Audits</span>
+            <span class="related-item-count">@Model.Audits</span>
+        </a>
+        <a asp-controller="Findings" asp-action="Index" class="related-item-pill">
+            <span>Findings</span>
+            <span class="related-item-count bg-danger text-white">@Model.Findings</span>
+        </a>
+        <a asp-controller="Capa" asp-action="Index" class="related-item-pill">
+            <span>CAPA</span>
+            <span class="related-item-count bg-info text-white">@Model.Capa</span>
+        </a>
+        <a asp-controller="Improvement" asp-action="Index" class="related-item-pill">
+            <span>Improvements</span>
+            <span class="related-item-count">@Model.Improvements</span>
+        </a>
+    </div>
+</div>

@@ -1,0 +1,259 @@
+@model ISOFlow.Web.Models.ControlDetailViewModel
+@{
+    ViewData["Title"] = $"{Model.Control.Code} - {Model.Control.Title}";
+}
+
+<!-- Control Header Banner -->
+<div class="card-enterprise p-4 mb-4 border-start border-primary border-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary fs-6">@Model.Control.Code</span>
+                <span class="badge bg-success">@Model.Control.Status</span>
+                <span class="badge bg-light text-dark border">@Model.Control.Category</span>
+            </div>
+            <h3 class="fw-bold text-dark mb-1">@Model.Control.Title</h3>
+            <p class="text-muted mb-0">@Model.Control.Description</p>
+        </div>
+        <div class="d-flex align-items-center gap-4 text-center">
+            <div>
+                <div class="text-muted small">Compliance Score</div>
+                <div class="fs-3 fw-bold text-primary">@Model.Control.CompliancePercentage%</div>
+            </div>
+            <div>
+                <div class="text-muted small">Owner</div>
+                <div class="fw-semibold">@Model.Control.Owner</div>
+            </div>
+            <div>
+                <a asp-controller="Controls" asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Back to Register</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reusable Related Compliance Items Component -->
+<div class="mb-4">
+    @await Component.InvokeAsync("RelatedComplianceItems", new { controlId = Model.Control.Id })
+</div>
+
+<!-- 12 Multi-Tab Nav -->
+<div class="card-enterprise p-4">
+    <ul class="nav nav-pills mb-4 border-bottom pb-3 gap-1 overflow-x-auto flex-nowrap" id="controlTabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-overview"><i class="bi bi-info-circle me-1"></i> Overview</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-requirements"><i class="bi bi-list-check me-1"></i> Requirements (1)</button></li>
+        <li class="nav-item"><button class="nav-link text-danger" data-bs-toggle="pill" data-bs-target="#tab-risks"><i class="bi bi-exclamation-triangle me-1"></i> Risks (2)</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-treatment"><i class="bi bi-bandaid me-1"></i> Treatment (1)</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-policies"><i class="bi bi-file-earmark-text me-1"></i> Policies (1)</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-processes"><i class="bi bi-diagram-3 me-1"></i> Processes (1)</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-tasks"><i class="bi bi-check2-square me-1"></i> Tasks (4)</button></li>
+        <li class="nav-item"><button class="nav-link text-success" data-bs-toggle="pill" data-bs-target="#tab-evidence"><i class="bi bi-paperclip me-1"></i> Evidence (2)</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-audits"><i class="bi bi-clipboard-check me-1"></i> Audits (1)</button></li>
+        <li class="nav-item"><button class="nav-link text-danger" data-bs-toggle="pill" data-bs-target="#tab-findings"><i class="bi bi-bug me-1"></i> Findings (1)</button></li>
+        <li class="nav-item"><button class="nav-link text-info" data-bs-toggle="pill" data-bs-target="#tab-capa"><i class="bi bi-tools me-1"></i> CAPA (1)</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-history"><i class="bi bi-clock-history me-1"></i> History</button></li>
+    </ul>
+
+    <div class="tab-content" id="controlTabsContent">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="tab-overview">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <h6 class="fw-bold mb-2">Implementation Summary</h6>
+                    <p class="small text-muted mb-3">Enforce strict Joiner-Mover-Leaver (JML) access lifecycle, role-based access control (RBAC), and quarterly user access reviews across Okta, AWS, and GitHub repositories.</p>
+                    <div class="bg-light p-3 rounded">
+                        <div class="row g-2 small">
+                            <div class="col-6"><strong>Standard:</strong> ISO 27001:2022</div>
+                            <div class="col-6"><strong>Requirement:</strong> A.5.18 Access Rights</div>
+                            <div class="col-6"><strong>Applicability:</strong> Applicable</div>
+                            <div class="col-6"><strong>Next Review:</strong> 15-Nov-2026</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="fw-bold mb-2">Golden Scenario Quick Navigation</h6>
+                    <div class="list-group list-group-flush border rounded">
+                        <a asp-controller="Risks" asp-action="Detail" asp-route-id="RISK-001" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div><strong class="text-danger">RISK-001</strong> Unauthorized Access Risk</div>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                        <a asp-controller="Documents" asp-action="Policies" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div><strong>POL-001</strong> Access Control Policy</div>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                        <a asp-controller="Tasks" asp-action="Index" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div><strong>TASK-2026-003</strong> Q3 Access Review Task</div>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                        <a asp-controller="Findings" asp-action="Detail" asp-route-id="FIND-001" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div><strong class="text-danger">FIND-001</strong> Access Not Removed Finding</div>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                        <a asp-controller="Capa" asp-action="Detail" asp-route-id="CAPA-001" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div><strong class="text-info">CAPA-001</strong> Automate Access Lifecycle</div>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Requirements Tab -->
+        <div class="tab-pane fade" id="tab-requirements">
+            <h6 class="fw-bold mb-3">Linked ISO Requirements</h6>
+            <div class="p-3 bg-light rounded border">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="badge bg-primary me-2">A.5.18</span>
+                        <span class="fw-bold">Access Rights</span>
+                    </div>
+                    <a asp-controller="Standards" asp-action="Detail" asp-route-id="ISO-27001-2022" class="btn btn-sm btn-outline-primary">View Requirement</a>
+                </div>
+                <p class="small text-muted mt-2 mb-0">Access rights to information and associated assets shall be provisioned, reviewed, modified and removed in accordance with access control policy.</p>
+            </div>
+        </div>
+
+        <!-- Risks Tab -->
+        <div class="tab-pane fade" id="tab-risks">
+            <h6 class="fw-bold mb-3">Associated Organizational Risks</h6>
+            <table class="table table-sm table-hover align-middle">
+                <thead><tr><th>Risk ID</th><th>Title</th><th>Likelihood</th><th>Impact</th><th>Score</th><th>Level</th><th>Action</th></tr></thead>
+                <tbody>
+                    <tr class="table-danger">
+                        <td class="fw-bold text-danger">RISK-001</td>
+                        <td>Unauthorized System & Data Access</td>
+                        <td>4 (Likely)</td>
+                        <td>4 (Major)</td>
+                        <td class="fw-bold">16</td>
+                        <td><span class="badge bg-danger">Critical</span></td>
+                        <td><a asp-controller="Risks" asp-action="Detail" asp-route-id="RISK-001" class="btn btn-sm btn-danger py-0">View Risk</a></td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">RISK-002</td>
+                        <td>Excessive Admin Privileges</td>
+                        <td>3 (Possible)</td>
+                        <td>4 (Major)</td>
+                        <td class="fw-bold">12</td>
+                        <td><span class="badge bg-warning text-dark">High</span></td>
+                        <td><a asp-controller="Risks" asp-action="Detail" asp-route-id="RISK-001" class="btn btn-sm btn-outline-secondary py-0">View Risk</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Treatment Tab -->
+        <div class="tab-pane fade" id="tab-treatment">
+            <h6 class="fw-bold mb-3">Risk Treatment Plan</h6>
+            <div class="p-3 bg-light rounded border">
+                <div class="d-flex justify-content-between">
+                    <span class="fw-bold text-primary">TRT-001 Implement JML Workflow</span>
+                    <span class="badge bg-warning text-dark">In Progress</span>
+                </div>
+                <p class="small text-muted mt-2">Implement automated Joiner-Mover-Leaver workflow integrated with HR system (Workday/Okta).</p>
+                <div class="small fw-semibold text-success"><i class="bi bi-arrow-down-short"></i> Residual Risk Score: 2 (Low)</div>
+            </div>
+        </div>
+
+        <!-- Policies Tab -->
+        <div class="tab-pane fade" id="tab-policies">
+            <h6 class="fw-bold mb-3">Implementation Policies</h6>
+            <div class="d-flex align-items-center justify-content-between p-3 border rounded">
+                <div>
+                    <span class="badge bg-secondary me-2">POL-001</span>
+                    <span class="fw-bold">Access Control Policy v2.1</span>
+                </div>
+                <a asp-controller="Documents" asp-action="Policies" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-pdf"></i> View Policy</a>
+            </div>
+        </div>
+
+        <!-- Processes Tab -->
+        <div class="tab-pane fade" id="tab-processes">
+            <h6 class="fw-bold mb-3">Business Processes</h6>
+            <div class="d-flex align-items-center justify-content-between p-3 border rounded">
+                <div>
+                    <span class="badge bg-info text-white me-2">PROC-001</span>
+                    <span class="fw-bold">Joiner-Mover-Leaver Process</span>
+                </div>
+                <a asp-controller="Documents" asp-action="Processes" class="btn btn-sm btn-outline-primary"><i class="bi bi-diagram-3"></i> View Process Diagram</a>
+            </div>
+        </div>
+
+        <!-- Tasks Tab -->
+        <div class="tab-pane fade" id="tab-tasks">
+            <h6 class="fw-bold mb-3">Compliance Execution Tasks</h6>
+            <div class="list-group">
+                <a asp-controller="Tasks" asp-action="Index" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-success me-2">TASK-2026-003</span>
+                        <strong>Q3 User Access Review</strong>
+                    </div>
+                    <span class="badge bg-success">Completed</span>
+                </a>
+                <a asp-controller="Tasks" asp-action="Index" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-warning text-dark me-2">TASK-2026-004</span>
+                        <strong>Q4 User Access Review</strong>
+                    </div>
+                    <span class="badge bg-warning text-dark">In Progress</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Evidence Tab -->
+        <div class="tab-pane fade" id="tab-evidence">
+            <h6 class="fw-bold mb-3">Objective Evidence Library</h6>
+            <div class="p-3 border rounded mb-2 d-flex align-items-center justify-content-between">
+                <div>
+                    <i class="bi bi-file-earmark-pdf text-danger fs-4 me-2"></i>
+                    <strong class="small">Access_Review_Report_Q3_2026.pdf</strong>
+                </div>
+                <span class="badge bg-success">Verified</span>
+            </div>
+        </div>
+
+        <!-- Audits Tab -->
+        <div class="tab-pane fade" id="tab-audits">
+            <h6 class="fw-bold mb-3">Audit Inspections</h6>
+            <div class="p-3 border rounded d-flex justify-content-between">
+                <div>
+                    <span class="badge bg-primary me-2">AUD-2026-001</span>
+                    <strong>ISO 27001 Internal Audit 2026</strong>
+                </div>
+                <a asp-controller="Audits" asp-action="Detail" asp-route-id="AUD-2026-001" class="btn btn-sm btn-outline-primary">View Audit</a>
+            </div>
+        </div>
+
+        <!-- Findings Tab -->
+        <div class="tab-pane fade" id="tab-findings">
+            <h6 class="fw-bold mb-3">Audit Findings</h6>
+            <div class="p-3 bg-danger-subtle rounded border border-danger d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-danger me-2">FIND-001</span>
+                    <strong class="text-danger">Access not removed promptly for terminated employees</strong>
+                </div>
+                <a asp-controller="Findings" asp-action="Detail" asp-route-id="FIND-001" class="btn btn-sm btn-danger">View Finding</a>
+            </div>
+        </div>
+
+        <!-- CAPA Tab -->
+        <div class="tab-pane fade" id="tab-capa">
+            <h6 class="fw-bold mb-3">Corrective & Preventive Actions</h6>
+            <div class="p-3 bg-info-subtle rounded border border-info d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-info text-white me-2">CAPA-001</span>
+                    <strong class="text-dark">Automate Employee Access Lifecycle Management</strong>
+                </div>
+                <a asp-controller="Capa" asp-action="Detail" asp-route-id="CAPA-001" class="btn btn-sm btn-info text-white">View CAPA</a>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div class="tab-pane fade" id="tab-history">
+            <h6 class="fw-bold mb-3">Control Audit Log History</h6>
+            <ul class="timeline small text-muted list-unstyled">
+                <li class="mb-2"><i class="bi bi-clock me-2 text-primary"></i> <strong>25-Aug-2026</strong>: Q3 Access Review evidence attached by David Chen.</li>
+                <li class="mb-2"><i class="bi bi-clock me-2 text-warning"></i> <strong>22-Aug-2026</strong>: Finding FIND-001 logged by Sarah Wilson.</li>
+                <li class="mb-2"><i class="bi bi-clock me-2 text-success"></i> <strong>15-Jan-2026</strong>: Control activated by Chirag Baroliya.</li>
+            </ul>
+        </div>
+    </div>
+</div>

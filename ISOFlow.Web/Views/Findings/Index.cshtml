@@ -1,0 +1,363 @@
+@using ISOFlow.Domain.Enums
+@model List<ISOFlow.Domain.Entities.Finding>
+@{
+    ViewData["Title"] = "Audit Findings & Non-Conformities";
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-bug text-danger me-2"></i> Audit Findings &amp; Non-Conformities</h4>
+        <p class="text-muted small mb-0">Identified non-conformities, root cause evaluations, and corrective action assignments.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#addFindingModal">
+            <i class="bi bi-plus-circle me-1"></i> Log Finding
+        </button>
+    </div>
+</div>
+
+<!-- ── Advance Search & Filter Toolbar ── -->
+<div class="card-enterprise p-3 mb-4 bg-light border">
+    <div class="row g-2 align-items-center">
+        <div class="col-12 col-md-4">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="findSearchInput" class="form-control border-start-0" placeholder="Search by Finding ID, title, audit, control..." />
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <select id="findSeverityFilter" class="form-select form-select-sm">
+                <option value="all">All Severities</option>
+                <option value="MajorNonConformity">Major Non-Conformity</option>
+                <option value="MinorNonConformity">Minor Non-Conformity</option>
+                <option value="Observation">Observation</option>
+                <option value="OpportunityForImprovement">Opportunity for Improvement</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <select id="findStatusFilter" class="form-select form-select-sm">
+                <option value="all">All Statuses</option>
+                <option value="Open">Open</option>
+                <option value="CapaAssigned">CAPA Assigned</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Closed">Closed</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-2 d-flex justify-content-end">
+            <button type="button" id="findResetBtn" class="btn btn-sm btn-outline-secondary w-100" title="Reset Filters">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+            </button>
+        </div>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top small text-muted">
+        <span id="findResultsCounter">Showing <strong>@Model.Count</strong> of <strong>@Model.Count</strong> records</span>
+        <span class="badge bg-danger-subtle text-danger"><i class="bi bi-funnel me-1"></i> Live Filter</span>
+    </div>
+</div>
+
+<div class="card-enterprise p-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Finding ID</th>
+                    <th>Title</th>
+                    <th>Audit ID</th>
+                    <th>Requirement</th>
+                    <th>Control</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>CAPA ID</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="findingsTableBody">
+                @foreach (var find in Model)
+                {
+                    <tr class="@(find.Id == "FIND-001" ? "table-danger" : "")">
+                        <td class="fw-bold text-danger">@find.Code</td>
+                        <td>
+                            <a asp-controller="Findings" asp-action="Detail" asp-route-id="@find.Id" class="fw-semibold text-dark text-decoration-none">@find.Title</a>
+                            <div class="text-muted small">@find.Description</div>
+                        </td>
+                        <td><a asp-controller="Audits" asp-action="Detail" asp-route-id="@find.AuditId" class="badge bg-light text-primary border">@find.AuditId</a></td>
+                        <td><span class="badge bg-light text-secondary border">@find.RequirementId</span></td>
+                        <td><a asp-controller="Controls" asp-action="Detail" asp-route-id="@find.ControlId" class="badge bg-info text-white text-decoration-none">@find.ControlId</a></td>
+                        <td>
+                            @{
+                                var sevBadge = find.Severity switch {
+                                    FindingSeverity.MajorNonConformity => "bg-danger text-white",
+                                    FindingSeverity.MinorNonConformity => "bg-warning text-dark",
+                                    FindingSeverity.Observation => "bg-info text-dark",
+                                    _ => "bg-secondary text-white"
+                                };
+                            }
+                            <span class="badge @sevBadge">@find.Severity</span>
+                        </td>
+                        <td><span class="badge bg-light text-dark border">@find.Status</span></td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(find.CapaId))
+                            {
+                                <a asp-controller="Capa" asp-action="Detail" asp-route-id="@find.CapaId" class="badge bg-warning text-dark text-decoration-none fw-bold"><i class="bi bi-tools"></i> @find.CapaId</a>
+                            }
+                            else
+                            {
+                                <span class="badge bg-light text-muted border">None</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a asp-controller="Findings" asp-action="Detail" asp-route-id="@find.Id" class="btn btn-outline-primary" title="Trace Finding">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-secondary" title="Edit Finding"
+                                        onclick="openEditFindingModal('@find.Id', '@find.Code', '@Html.Raw(Html.Encode(find.Title))', '@find.AuditId', '@find.RequirementId', '@find.ControlId', '@((int)find.Severity)', '@((int)find.Status)', '@Html.Raw(Html.Encode(find.Auditor))', '@find.CapaId', '@Html.Raw(Html.Encode(find.Description))', '@Html.Raw(Html.Encode(find.RootCause))')">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" title="Delete Finding"
+                                        onclick="openDeleteFindingModal('@find.Id', '@find.Code', '@Html.Raw(Html.Encode(find.Title))')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Empty State -->
+    <div id="findEmptyState" class="text-center py-5" style="display: none;">
+        <i class="bi bi-search text-muted" style="font-size: 2.5rem;"></i>
+        <h6 class="fw-bold mt-2 mb-1">No matching audit findings found</h6>
+        <p class="text-muted small mb-0">Try adjusting your keyword search or severity filter.</p>
+    </div>
+</div>
+
+<!-- Modal: Add Finding -->
+<div class="modal fade" id="addFindingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-bug me-2"></i> Log Audit Non-Conformity / Finding</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Findings" asp-action="Create" method="post">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Finding Code <span class="text-danger">*</span></label>
+                            <input type="text" name="Code" class="form-control form-control-sm" placeholder="e.g. FIND-002" required />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Finding Title <span class="text-danger">*</span></label>
+                            <input type="text" name="Title" class="form-control form-control-sm" placeholder="e.g. Inadequate Backup Testing Schedule" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Associated Audit ID</label>
+                            <input type="text" name="AuditId" class="form-control form-control-sm" value="AUD-2026-001" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Clause / Requirement ID</label>
+                            <input type="text" name="RequirementId" class="form-control form-control-sm" placeholder="e.g. REQ-A5-18" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Linked Control ID</label>
+                            <input type="text" name="ControlId" class="form-control form-control-sm" placeholder="e.g. CTRL-001" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Severity</label>
+                            <select name="Severity" class="form-select form-select-sm">
+                                <option value="0">OpportunityForImprovement</option>
+                                <option value="1">Observation</option>
+                                <option value="2">MinorNonConformity</option>
+                                <option value="3" selected>MajorNonConformity</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Status</label>
+                            <select name="Status" class="form-select form-select-sm">
+                                <option value="0" selected>Open</option>
+                                <option value="1">InAnalysis</option>
+                                <option value="2">CapaAssigned</option>
+                                <option value="3">Resolved</option>
+                                <option value="4">Closed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Identified By (Auditor)</label>
+                            <input type="text" name="Auditor" class="form-control form-control-sm" placeholder="e.g. Sarah Jenkins" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Non-Conformity Description &amp; Evidence Observed</label>
+                            <textarea name="Description" class="form-control form-control-sm" rows="3" placeholder="Describe the deficiency observed against the standard requirement..."></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Initial Root Cause Analysis</label>
+                            <textarea name="RootCause" class="form-control form-control-sm" rows="2" placeholder="Underlying systemic deficiency..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-check2-circle me-1"></i> Save Finding</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Edit Finding -->
+<div class="modal fade" id="editFindingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Edit Audit Finding</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Findings" asp-action="Edit" method="post">
+                <input type="hidden" name="Id" id="editFindId" />
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Finding Code</label>
+                            <input type="text" name="Code" id="editFindCode" class="form-control form-control-sm" readonly />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Finding Title <span class="text-danger">*</span></label>
+                            <input type="text" name="Title" id="editFindTitle" class="form-control form-control-sm" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Audit ID</label>
+                            <input type="text" name="AuditId" id="editFindAudit" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Requirement ID</label>
+                            <input type="text" name="RequirementId" id="editFindReq" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Control ID</label>
+                            <input type="text" name="ControlId" id="editFindControl" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Severity</label>
+                            <select name="Severity" id="editFindSeverity" class="form-select form-select-sm">
+                                <option value="0">OpportunityForImprovement</option>
+                                <option value="1">Observation</option>
+                                <option value="2">MinorNonConformity</option>
+                                <option value="3">MajorNonConformity</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Status</label>
+                            <select name="Status" id="editFindStatus" class="form-select form-select-sm">
+                                <option value="0">Open</option>
+                                <option value="1">InAnalysis</option>
+                                <option value="2">CapaAssigned</option>
+                                <option value="3">Resolved</option>
+                                <option value="4">Closed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Auditor</label>
+                            <input type="text" name="Auditor" id="editFindAuditor" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Assigned CAPA ID</label>
+                            <input type="text" name="CapaId" id="editFindCapa" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Description</label>
+                            <textarea name="Description" id="editFindDesc" class="form-control form-control-sm" rows="3"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Root Cause</label>
+                            <textarea name="RootCause" id="editFindRoot" class="form-control form-control-sm" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dark btn-sm"><i class="bi bi-check2-circle me-1"></i> Update Finding</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Delete Finding -->
+<div class="modal fade" id="deleteFindingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Delete Audit Finding</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Findings" asp-action="Delete" method="post">
+                <input type="hidden" name="id" id="deleteFindId" />
+                <div class="modal-body p-4">
+                    <p class="mb-1">Are you sure you want to delete finding <strong id="deleteFindCode"></strong> (<span id="deleteFindTitle"></span>)?</p>
+                    <p class="text-muted small mb-0">This non-conformity log entry will be removed.</p>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash me-1"></i> Confirm Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        new AdvanceSearch({
+            containerId: 'findingsTableBody',
+            searchInputId: 'findSearchInput',
+            counterId: 'findResultsCounter',
+            resetBtnId: 'findResetBtn',
+            emptyStateId: 'findEmptyState',
+            filterSelects: [
+                { id: 'findSeverityFilter', colIndex: 5 },
+                { id: 'findStatusFilter', colIndex: 6 }
+            ]
+        });
+    });
+
+    function openEditFindingModal(id, code, title, auditId, reqId, ctrlId, severity, status, auditor, capaId, desc, rootCause) {
+        document.getElementById('editFindId').value = id;
+        document.getElementById('editFindCode').value = code;
+        document.getElementById('editFindTitle').value = title;
+        document.getElementById('editFindAudit').value = auditId;
+        document.getElementById('editFindReq').value = reqId;
+        document.getElementById('editFindControl').value = ctrlId;
+        document.getElementById('editFindSeverity').value = severity;
+        document.getElementById('editFindStatus').value = status;
+        document.getElementById('editFindAuditor').value = auditor;
+        document.getElementById('editFindCapa').value = capaId;
+        document.getElementById('editFindDesc').value = desc;
+        document.getElementById('editFindRoot').value = rootCause;
+        new bootstrap.Modal(document.getElementById('editFindingModal')).show();
+    }
+
+    function openDeleteFindingModal(id, code, title) {
+        document.getElementById('deleteFindId').value = id;
+        document.getElementById('deleteFindCode').textContent = code;
+        document.getElementById('deleteFindTitle').textContent = title;
+        new bootstrap.Modal(document.getElementById('deleteFindingModal')).show();
+    }
+</script>

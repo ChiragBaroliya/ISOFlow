@@ -1,0 +1,261 @@
+@using ISOFlow.Domain.Entities
+@using ISOFlow.Domain.Enums
+@model User
+@{
+    ViewData["Title"] = "My Profile — ISOFlow";
+    ViewData["ActiveMenu"] = "Profile";
+
+    var (sysRoleBg, sysRoleLabel, sysRoleIcon) = Model.SystemRole switch {
+        SystemRole.SuperAdmin => ("rgba(124,58,237,.2)", "Super Admin", "bi-shield-fill-check"),
+        SystemRole.Admin      => ("rgba(59,130,246,.2)", "Admin",       "bi-shield-fill"),
+        _                     => ("rgba(16,185,129,.2)", "User",        "bi-person-fill")
+    };
+    var (sysRoleBorder, sysRoleColor) = Model.SystemRole switch {
+        SystemRole.SuperAdmin => ("rgba(124,58,237,.4)", "#c4b5fd"),
+        SystemRole.Admin      => ("rgba(59,130,246,.4)", "#93c5fd"),
+        _                     => ("rgba(16,185,129,.4)", "#6ee7b7")
+    };
+
+    var orgName = Context.Session.GetString("ActiveOrgName") ?? "—";
+    var orgCode = Context.Session.GetString("ActiveOrgCode") ?? "—";
+
+    bool hasSuccess = TempData["SuccessMessage"] != null;
+    bool hasError   = TempData["ErrorMessage"]   != null;
+}
+
+<!-- Toast alerts -->
+@if (hasSuccess)
+{
+    <div id="toastSuccess" class="position-fixed top-0 end-0 p-3" style="z-index:9999;">
+        <div class="toast show align-items-center text-white border-0"
+             style="background:rgba(16,185,129,.9); border-radius:14px; backdrop-filter:blur(10px);">
+            <div class="d-flex">
+                <div class="toast-body fw-semibold"><i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+}
+@if (hasError)
+{
+    <div id="toastError" class="position-fixed top-0 end-0 p-3" style="z-index:9999;">
+        <div class="toast show align-items-center text-white border-0"
+             style="background:rgba(239,68,68,.9); border-radius:14px; backdrop-filter:blur(10px);">
+            <div class="d-flex">
+                <div class="toast-body fw-semibold"><i class="bi bi-exclamation-circle-fill me-2"></i>@TempData["ErrorMessage"]</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="mb-4">
+    <h4 class="fw-bold mb-1"><i class="bi bi-person-circle text-primary me-2"></i>My Profile</h4>
+    <p class="text-muted small mb-0">Manage your account details, contact information, and password.</p>
+</div>
+
+<div class="row g-4">
+
+    <!-- ── Left column: Profile card ───────────────────────────────────────── -->
+    <div class="col-lg-4">
+        <div class="card-enterprise p-4 text-center h-100">
+            <!-- Avatar -->
+            <div class="position-relative d-inline-block mb-3">
+                <img src="@Model.AvatarUrl" class="rounded-circle border border-3"
+                     style="width:96px; height:96px; border-color:rgba(255,255,255,.15) !important; box-shadow:0 8px 24px rgba(0,0,0,.3);"
+                     alt="@Model.Name" />
+                <span class="position-absolute bottom-0 end-0 rounded-circle d-flex align-items-center justify-content-center"
+                      style="width:26px; height:26px; background:linear-gradient(135deg,#4f46e5,#7c3aed); border:2px solid #fff;">
+                    <i class="bi bi-camera-fill" style="font-size:.6rem; color:#fff;"></i>
+                </span>
+            </div>
+
+            <h5 class="fw-bold mb-1">@Model.Name</h5>
+            <p class="text-muted small mb-3">@Model.Email</p>
+
+            <!-- Role badges -->
+            <div class="d-flex gap-2 justify-content-center flex-wrap mb-3">
+                <span class="badge rounded-pill fw-semibold px-3 py-2"
+                      style="background:@sysRoleBg; border:1px solid @sysRoleBorder; color:@sysRoleColor; font-size:.72rem;">
+                    <i class="bi @sysRoleIcon me-1"></i>@sysRoleLabel
+                </span>
+                <span class="badge rounded-pill bg-primary-subtle text-primary fw-semibold px-3 py-2" style="font-size:.72rem;">
+                    <i class="bi bi-briefcase me-1"></i>@Model.Role
+                </span>
+            </div>
+
+            <!-- Info rows -->
+            <div class="border-top pt-3 mt-1">
+                @{
+                    void InfoRow(string icon, string label, string val) {
+                        if (!string.IsNullOrEmpty(val)) {
+                        <div class="d-flex align-items-center gap-2 text-start mb-2 small">
+                            <i class="bi @icon text-primary" style="width:18px; flex-shrink:0;"></i>
+                            <div>
+                                <div style="font-size:.65rem; color:rgba(255,255,255,.35); text-transform:uppercase; letter-spacing:.05em;">@label</div>
+                                <div class="text-white fw-semibold" style="font-size:.82rem;">@val</div>
+                            </div>
+                        </div>
+                        }
+                    }
+                }
+                @{ InfoRow("bi-building", "Organization", $"{orgName} ({orgCode})"); }
+                @{ InfoRow("bi-layers",   "Department",   Model.Department); }
+                @{ InfoRow("bi-geo-alt",  "Location",     Model.Location); }
+                @{ InfoRow("bi-phone",    "Phone",        Model.Phone); }
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.Bio))
+            {
+                <div class="border-top pt-3 mt-2 text-start">
+                    <div style="font-size:.65rem; color:rgba(255,255,255,.35); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.4rem;">About</div>
+                    <p class="small" style="color:rgba(255,255,255,.65); line-height:1.6; margin:0;">@Model.Bio</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ── Right column: Edit forms ────────────────────────────────────────── -->
+    <div class="col-lg-8">
+
+        <!-- Edit Profile Form -->
+        <div class="card-enterprise p-4 mb-4">
+            <h6 class="fw-bold mb-1"><i class="bi bi-pencil-square text-primary me-2"></i>Edit Profile</h6>
+            <p class="text-muted small mb-4">Update your display name, contact details, and bio.</p>
+
+            <form asp-controller="Account" asp-action="Profile" method="post" id="profileForm">
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <label class="form-label small fw-semibold">Full Name <span class="text-danger">*</span></label>
+                        <input name="name" type="text" class="form-control form-control-sm rounded-3"
+                               value="@Model.Name" required maxlength="100" />
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label small fw-semibold">Phone</label>
+                        <input name="phone" type="tel" class="form-control form-control-sm rounded-3"
+                               value="@Model.Phone" maxlength="30" placeholder="+1 (555) 000-0000" />
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label small fw-semibold">Department</label>
+                        <input name="department" type="text" class="form-control form-control-sm rounded-3"
+                               value="@Model.Department" maxlength="100" />
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label small fw-semibold">Email <span class="text-muted">(read-only)</span></label>
+                        <input type="email" class="form-control form-control-sm rounded-3 bg-light-subtle"
+                               value="@Model.Email" readonly disabled />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Bio</label>
+                        <textarea name="bio" class="form-control form-control-sm rounded-3" rows="3"
+                                  maxlength="500" placeholder="A short description about yourself...">@Model.Bio</textarea>
+                        <div class="text-muted" style="font-size:.72rem; margin-top:.25rem;">Max 500 characters</div>
+                    </div>
+                </div>
+                <div class="mt-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm rounded-3 px-4 fw-bold" id="btnSaveProfile">
+                        <i class="bi bi-check2 me-1"></i> Save Changes
+                    </button>
+                    <button type="reset" class="btn btn-outline-secondary btn-sm rounded-3 px-3">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Change Password Form -->
+        <div class="card-enterprise p-4">
+            <h6 class="fw-bold mb-1"><i class="bi bi-shield-lock-fill text-warning me-2"></i>Change Password</h6>
+            <p class="text-muted small mb-4">Enter your current password and choose a new one.</p>
+
+            <form asp-controller="Account" asp-action="ChangePassword" method="post" id="changePasswordForm">
+                <div class="row g-3">
+                    <div class="col-sm-12">
+                        <label class="form-label small fw-semibold">Current Password</label>
+                        <div class="input-group">
+                            <input id="curPw" name="currentPassword" type="password"
+                                   class="form-control form-control-sm rounded-start-3"
+                                   placeholder="Your current password" autocomplete="current-password" required />
+                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-end-3" onclick="togglePw('curPw',this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label small fw-semibold">New Password</label>
+                        <div class="input-group">
+                            <input id="newPw" name="newPassword" type="password"
+                                   class="form-control form-control-sm rounded-start-3"
+                                   placeholder="Min. 6 characters" autocomplete="new-password"
+                                   required oninput="strengthCheck(this.value)" />
+                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-end-3" onclick="togglePw('newPw',this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="progress mt-1" style="height:4px; border-radius:4px;">
+                            <div class="progress-bar" id="pwStrength" style="width:0%; border-radius:4px; transition:all .3s;"></div>
+                        </div>
+                        <div id="pwStrengthLabel" class="text-muted" style="font-size:.68rem; margin-top:.2rem;"></div>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label small fw-semibold">Confirm New Password</label>
+                        <div class="input-group">
+                            <input id="confPw" name="confirmPassword" type="password"
+                                   class="form-control form-control-sm rounded-start-3"
+                                   placeholder="Repeat new password" autocomplete="new-password" required />
+                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-end-3" onclick="togglePw('confPw',this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hint box -->
+                <div class="mt-3 p-3 rounded-3" style="background:rgba(234,179,8,.07); border:1px solid rgba(234,179,8,.2);">
+                    <div class="small" style="color:rgba(255,255,255,.55);">
+                        <i class="bi bi-info-circle text-warning me-1"></i>
+                        <strong style="color:rgba(255,255,255,.7);">Mock mode:</strong>
+                        Current password is <code>Test@123</code> unless you've changed it.
+                        Changes persist for the current server session only.
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-warning btn-sm rounded-3 px-4 fw-bold text-dark" id="btnChangePw">
+                        <i class="bi bi-key-fill me-1"></i> Change Password
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    function togglePw(id, btn) {
+        const el = document.getElementById(id);
+        const isText = el.type === 'text';
+        el.type = isText ? 'password' : 'text';
+        btn.innerHTML = isText ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+    }
+    function strengthCheck(val) {
+        let score = 0;
+        if (val.length >= 6)  score++;
+        if (val.length >= 10) score++;
+        if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+        if (/[0-9]/.test(val)) score++;
+        if (/[^A-Za-z0-9]/.test(val)) score++;
+        const pct    = score * 20;
+        const colors = ['', '#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981'];
+        const labels = ['', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+        const bar    = document.getElementById('pwStrength');
+        bar.style.width      = pct + '%';
+        bar.style.background = colors[score] || '';
+        document.getElementById('pwStrengthLabel').textContent = labels[score] || '';
+    }
+    // Auto-dismiss toasts
+    setTimeout(() => document.querySelectorAll('.toast').forEach(t => {
+        const inst = bootstrap.Toast.getOrCreateInstance(t, { delay: 5000 });
+        inst.hide();
+    }), 5000);
+</script>

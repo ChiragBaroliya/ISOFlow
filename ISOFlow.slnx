@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="ISOFlow.Api/ISOFlow.Api.csproj" />
+  <Project Path="ISOFlow.Application/ISOFlow.Application.csproj" />
+  <Project Path="ISOFlow.Domain/ISOFlow.Domain.csproj" />
+  <Project Path="ISOFlow.Infrastructure/ISOFlow.Infrastructure.csproj" />
+  <Project Path="ISOFlow.Tests/ISOFlow.Tests.csproj" />
+  <Project Path="ISOFlow.Web/ISOFlow.Web.csproj" />
+</Solution>

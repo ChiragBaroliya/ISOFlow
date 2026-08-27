@@ -1,0 +1,959 @@
+@{
+    ViewData["Title"] = "ISOFlow — Real-Time Application Flow & Customer Guide";
+}
+
+<!-- html2pdf.js CDN for 1-Click Client-Side PDF Download -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<!-- ── Print & PDF Specific Stylesheet ── -->
+<style>
+    @@media print {
+        /* Hide UI Chrome */
+        aside, .sidebar, header, .topbar, #flowTab, .btn, .no-print, .sidebar-toggle, .global-search-container {
+            display: none !important;
+        }
+        
+        body, #app-layout, .main-wrapper, .content-container {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            width: 100% !important;
+        }
+
+        /* Show ALL Tab Content in Sequential Order for Print/PDF */
+        .tab-content > .tab-pane {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            margin-bottom: 2.5rem !important;
+        }
+
+        .accordion-collapse {
+            display: block !important;
+            height: auto !important;
+            visibility: visible !important;
+        }
+
+        .card-enterprise {
+            box-shadow: none !important;
+            border: 1px solid #d1d5db !important;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            margin-bottom: 1.5rem !important;
+        }
+
+        .pdf-page-break {
+            page-break-before: always;
+            break-before: page;
+            margin-top: 2rem;
+            padding-top: 1rem;
+        }
+
+        .pdf-cover-header {
+            display: block !important;
+        }
+    }
+
+    .pdf-cover-header {
+        display: none;
+    }
+
+    /* Styling for the PDF Export Container */
+    #pdfExportContainer {
+        background: #ffffff;
+    }
+
+    .pdf-section-title {
+        border-bottom: 2px solid #2563eb;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.25rem;
+        color: #0f172a;
+        font-weight: 700;
+    }
+
+    .step-badge-pill {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .step-feature-list {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 0.75rem;
+    }
+
+    .step-feature-list li {
+        position: relative;
+        padding-left: 1.25rem;
+        margin-bottom: 0.35rem;
+        font-size: 0.825rem;
+        color: #334155;
+    }
+
+    .step-feature-list li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #10b981;
+        font-weight: bold;
+    }
+
+    .example-box {
+        background-color: #f8fafc;
+        border-left: 3px solid #3b82f6;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0 0.375rem 0.375rem 0;
+        font-size: 0.8rem;
+        color: #475569;
+        margin-bottom: 0.75rem;
+    }
+</style>
+
+<!-- ── Page Header & Quick Actions ── -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2 no-print">
+    <div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary px-2 py-1"><i class="bi bi-diagram-3-fill me-1"></i> Interactive Architecture</span>
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Customer Presentation Ready</span>
+        </div>
+        <h3 class="fw-bold text-dark mt-2 mb-1">
+            <i class="bi bi-compass text-primary me-2"></i> ISOFlow End-to-End Application Flow &amp; Customer Guide
+        </h3>
+        <p class="text-muted small mb-0">
+            A comprehensive, step-by-step visual explanation of how ISOFlow manages your company's entire ISO compliance lifecycle from setup to audit certification.
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-speedometer2 me-1"></i> Go to Live Dashboard
+        </a>
+        <button type="button" class="btn btn-danger btn-sm shadow-sm" id="btnDownloadPdf" onclick="generatePdfDocument()">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i> <span id="pdfBtnText">Download Complete PDF</span>
+        </button>
+        <button type="button" class="btn btn-primary btn-sm shadow-sm" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i> Print / Save as PDF
+        </button>
+    </div>
+</div>
+
+<!-- ── Quick Nav Tabs (Interactive in Browser) ── -->
+<ul class="nav nav-pills nav-fill mb-4 p-2 bg-white rounded-3 shadow-sm border no-print" id="flowTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold py-2" id="lifecycle-tab" data-bs-toggle="tab" data-bs-target="#lifecycle" type="button" role="tab">
+            <i class="bi bi-arrow-repeat me-1"></i> 1. ISO 8-Step Lifecycle
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold py-2" id="scenarios-tab" data-bs-toggle="tab" data-bs-target="#scenarios" type="button" role="tab">
+            <i class="bi bi-play-circle me-1"></i> 2. Real-Time Scenarios
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold py-2" id="roles-tab" data-bs-toggle="tab" data-bs-target="#roles" type="button" role="tab">
+            <i class="bi bi-people-fill me-1"></i> 3. Role Responsibilities (RBAC)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold py-2" id="traceability-tab" data-bs-toggle="tab" data-bs-target="#traceability" type="button" role="tab">
+            <i class="bi bi-diagram-2 me-1"></i> 4. Data Traceability Map
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold py-2" id="presentation-tab" data-bs-toggle="tab" data-bs-target="#presentation" type="button" role="tab">
+            <i class="bi bi-stars me-1"></i> 5. Why Choose ISOFlow?
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold py-2" id="gujarati-tab" data-bs-toggle="tab" data-bs-target="#gujarati" type="button" role="tab">
+            <i class="bi bi-translate me-1"></i> 6. ગુજરાતી માર્ગદર્શિકા (Gujarati Guide)
+        </button>
+    </li>
+</ul>
+
+<!-- ── Main Content Container (Exported to PDF with ALL Sections) ── -->
+<div id="pdfExportContainer">
+
+    <!-- PDF Cover Header (Visible in PDF / Print) -->
+    <div class="p-4 mb-4 bg-light rounded border pdf-cover-header">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+            <div>
+                <h2 class="fw-bold text-primary mb-1">
+                    <i class="bi bi-shield-check me-2"></i> ISOFlow Compliance Management Platform
+                </h2>
+                <div class="text-muted fw-bold">Enterprise End-to-End Workflow &amp; Customer Presentation Manual</div>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-primary fs-6 px-3 py-2">ISO 27001 &amp; ISO 9001 Certified Ready</span>
+                <div class="small text-muted mt-1">Generated: @DateTime.Now.ToString("dd MMM yyyy, hh:mm tt")</div>
+            </div>
+        </div>
+        <p class="mb-0 text-dark small">
+            This document outlines the complete operational lifecycle of ISOFlow, including tenant onboarding, standard clause selection, risk assessments, security control mappings, routine evidence collection, audit inspection, and continual improvement loops.
+        </p>
+    </div>
+
+    <div class="tab-content" id="flowTabContent">
+
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <!-- SECTION 1: 8-STEP ISO COMPLIANCE LIFECYCLE (EXPANDED SIMPLE ENGLISH)             -->
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade show active" id="lifecycle" role="tabpanel">
+
+            <!-- High-level Visual Progress Bar -->
+            <div class="card-enterprise p-4 mb-4 bg-white border">
+                <h5 class="pdf-section-title"><i class="bi bi-signpost-split text-primary me-2"></i> 1. The 8 Core Phases of Real-Time ISO Management</h5>
+                <p class="text-muted small mb-3">
+                    Here is the complete step-by-step breakdown of how ISOFlow guides your organization from initial setup to full ISO audit certification:
+                </p>
+                <div class="row g-2 text-center mb-1">
+                    <div class="col-6 col-md-3 col-lg"><div class="p-2 rounded bg-primary text-white small fw-bold">1. Setup Company</div></div>
+                    <div class="col-6 col-md-3 col-lg"><div class="p-2 rounded bg-info text-white small fw-bold">2. Choose Standards</div></div>
+                    <div class="col-6 col-md-3 col-lg"><div class="p-2 rounded bg-warning text-dark small fw-bold">3. Assess Risks</div></div>
+                    <div class="col-6 col-md-3 col-lg"><div class="p-2 rounded bg-secondary text-white small fw-bold">4. Select Controls</div></div>
+                    <div class="col-6 col-md-3 col-lg"><div class="p-2 rounded bg-dark text-white small fw-bold">5. Write Policies</div></div>
+                    <div class="col-6 col-md-3 col-lg"><div class="p-2 rounded bg-success text-white small fw-bold">6. Upload Evidence</div></div>
+                    <div class="col-6 col-md-3 col-lg"><div class="p-2 rounded bg-danger text-white small fw-bold">7. Run Audits</div></div>
+                    <div class="col-6 col-md-3 col-lg"><div class="p-2 rounded text-white small fw-bold" style="background:#7c3aed;">8. Fix &amp; Review</div></div>
+                </div>
+            </div>
+
+            <!-- Detailed 8 Phase Cards -->
+            <div class="row g-4">
+
+                <!-- Step 1: Company Setup -->
+                <div class="col-md-6 col-lg-6">
+                    <div class="card-enterprise p-4 h-100 border-top border-primary border-4 shadow-sm d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge bg-primary px-2 py-1 step-badge-pill">Phase 1</span>
+                                <i class="bi bi-building fs-3 text-primary"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-1">1. Company &amp; User Setup (Multi-Tenancy)</h5>
+                            <p class="text-muted small mb-3">
+                                <strong>What happens here:</strong> Create your dedicated company workspace, register branches/departments, and set up your team members with secure logins.
+                            </p>
+
+                            <div class="mb-3">
+                                <div class="fw-bold text-dark small mb-1"><i class="bi bi-list-check text-primary me-1"></i> Key Activities:</div>
+                                <ul class="step-feature-list">
+                                    <li>Register organization name, business domain, and headquarters.</li>
+                                    <li>Assign user roles: <strong>SuperAdmin</strong> (global), <strong>Admin</strong> (company lead), <strong>User</strong> (staff), and <strong>Auditor</strong> (guest).</li>
+                                    <li>Complete data isolation ensuring each company’s data remains 100% private and protected.</li>
+                                </ul>
+                            </div>
+
+                            <div class="example-box">
+                                <strong><i class="bi bi-lightbulb text-warning me-1"></i> Real Example:</strong> An Admin creates "Apex Global Financial Ltd", invites 15 employees, and gives Auditor access to an external assessor.
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded small">
+                                <span><strong>Role:</strong> SuperAdmin / Admin</span>
+                                <span><strong class="text-success"><i class="bi bi-check2-circle me-1"></i> Output:</strong> Active Workspace</span>
+                            </div>
+                        </div>
+                        <div class="pt-3 border-top mt-3 no-print">
+                            <a asp-controller="Organizations" asp-action="Index" class="btn btn-sm btn-outline-primary w-100">
+                                Open Organizations <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Choose Standards -->
+                <div class="col-md-6 col-lg-6">
+                    <div class="card-enterprise p-4 h-100 border-top border-info border-4 shadow-sm d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge bg-info text-dark px-2 py-1 step-badge-pill">Phase 2</span>
+                                <i class="bi bi-journal-bookmark fs-3 text-info"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-1">2. Choose Standards &amp; Clauses</h5>
+                            <p class="text-muted small mb-3">
+                                <strong>What happens here:</strong> Select which ISO frameworks apply to your business (e.g. ISO 27001 for Information Security, ISO 9001 for Quality Management).
+                            </p>
+
+                            <div class="mb-3">
+                                <div class="fw-bold text-dark small mb-1"><i class="bi bi-list-check text-info me-1"></i> Key Activities:</div>
+                                <ul class="step-feature-list">
+                                    <li>Adopt pre-loaded standards like <strong>ISO/IEC 27001:2022</strong> or define custom internal frameworks.</li>
+                                    <li>Break standard clauses into clear, actionable requirements (Clause 4 to Clause 10).</li>
+                                    <li>Set organizational target compliance percentages (e.g., achieve &gt; 90% by Q4).</li>
+                                </ul>
+                            </div>
+
+                            <div class="example-box" style="border-left-color: #0ea5e9;">
+                                <strong><i class="bi bi-lightbulb text-warning me-1"></i> Real Example:</strong> The Compliance Manager selects "ISO-27001-2022", automatically loading all 93 Annex A security clauses into the company register.
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded small">
+                                <span><strong>Role:</strong> Compliance Lead / CISO</span>
+                                <span><strong class="text-success"><i class="bi bi-check2-circle me-1"></i> Output:</strong> Requirement Checklist</span>
+                            </div>
+                        </div>
+                        <div class="pt-3 border-top mt-3 no-print">
+                            <a asp-controller="Standards" asp-action="Index" class="btn btn-sm btn-outline-info text-dark w-100">
+                                Open Standards <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Assess Risks -->
+                <div class="col-md-6 col-lg-6">
+                    <div class="card-enterprise p-4 h-100 border-top border-warning border-4 shadow-sm d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge bg-warning text-dark px-2 py-1 step-badge-pill">Phase 3</span>
+                                <i class="bi bi-exclamation-triangle fs-3 text-warning"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-1">3. Risk Assessment &amp; 5x5 Heatmap</h5>
+                            <p class="text-muted small mb-3">
+                                <strong>What happens here:</strong> Identify potential threats to company data and assets, score their severity, and decide how to protect against them.
+                            </p>
+
+                            <div class="mb-3">
+                                <div class="fw-bold text-dark small mb-1"><i class="bi bi-list-check text-warning me-1"></i> Key Activities:</div>
+                                <ul class="step-feature-list">
+                                    <li>Catalog business assets (servers, customer databases, laptops, office premises).</li>
+                                    <li>Score threats by <strong>Likelihood (1-5) &times; Impact (1-5)</strong> to calculate Inherent Risk scores.</li>
+                                    <li>Select Risk Treatment options: <strong>Mitigate</strong> (apply controls), <strong>Accept</strong>, <strong>Transfer</strong> (insurance), or <strong>Avoid</strong>.</li>
+                                </ul>
+                            </div>
+
+                            <div class="example-box" style="border-left-color: #f59e0b;">
+                                <strong><i class="bi bi-lightbulb text-warning me-1"></i> Real Example:</strong> Threat "Unencrypted laptop hard drive" scores 4 &times; 4 = 16 (High Risk). Treatment: Enforce BitLocker encryption to reduce residual risk to 4 (Low).
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded small">
+                                <span><strong>Role:</strong> Risk Officer / IT Lead</span>
+                                <span><strong class="text-success"><i class="bi bi-check2-circle me-1"></i> Output:</strong> 5x5 Risk Heatmap</span>
+                            </div>
+                        </div>
+                        <div class="pt-3 border-top mt-3 no-print">
+                            <a asp-controller="Risks" asp-action="Index" class="btn btn-sm btn-outline-warning text-dark w-100">
+                                Open Risk Register <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Controls & SoA -->
+                <div class="col-md-6 col-lg-6">
+                    <div class="card-enterprise p-4 h-100 border-top border-secondary border-4 shadow-sm d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge bg-secondary px-2 py-1 step-badge-pill">Phase 4</span>
+                                <i class="bi bi-shield-lock fs-3 text-secondary"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-1">4. Select Controls &amp; Statement of Applicability (SoA)</h5>
+                            <p class="text-muted small mb-3">
+                                <strong>What happens here:</strong> Map mandatory security safeguards to your risks and generate the official Statement of Applicability (SoA) document.
+                            </p>
+
+                            <div class="mb-3">
+                                <div class="fw-bold text-dark small mb-1"><i class="bi bi-list-check text-secondary me-1"></i> Key Activities:</div>
+                                <ul class="step-feature-list">
+                                    <li>Review all <strong>93 Annex A Controls</strong> (Organizational, People, Physical, Technological).</li>
+                                    <li>Mark each control as <strong>Applicable</strong> or <strong>Not Applicable</strong> with written justification.</li>
+                                    <li>Link controls directly to identified risks and ISO clauses for 100% audit traceability.</li>
+                                </ul>
+                            </div>
+
+                            <div class="example-box" style="border-left-color: #64748b;">
+                                <strong><i class="bi bi-lightbulb text-warning me-1"></i> Real Example:</strong> Marking Control <code>A.5.18 (Access Rights)</code> as Applicable because all staff access customer databases, requiring MFA and quarterly access reviews.
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded small">
+                                <span><strong>Role:</strong> InfoSec Lead / CISO</span>
+                                <span><strong class="text-success"><i class="bi bi-check2-circle me-1"></i> Output:</strong> Official SoA Document</span>
+                            </div>
+                        </div>
+                        <div class="pt-3 border-top mt-3 no-print">
+                            <a asp-controller="Controls" asp-action="Soa" class="btn btn-sm btn-outline-secondary w-100">
+                                Open SoA Matrix <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5: Policies & SOPs -->
+                <div class="col-md-6 col-lg-6">
+                    <div class="card-enterprise p-4 h-100 border-top border-dark border-4 shadow-sm d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge bg-dark px-2 py-1 step-badge-pill">Phase 5</span>
+                                <i class="bi bi-file-earmark-text fs-3 text-dark"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-1">5. Policies &amp; Standard Operating Procedures (SOPs)</h5>
+                            <p class="text-muted small mb-3">
+                                <strong>What happens here:</strong> Create, version-control, and store formal security policies, employee guidelines, and visual business process workflows.
+                            </p>
+
+                            <div class="mb-3">
+                                <div class="fw-bold text-dark small mb-1"><i class="bi bi-list-check text-dark me-1"></i> Key Activities:</div>
+                                <ul class="step-feature-list">
+                                    <li>Publish governance documents: Password Policy, Access Control Policy, Incident Response Plan.</li>
+                                    <li>Track version numbers (e.g. v1.0, v2.1), review cycles, and management approval dates.</li>
+                                    <li>Build visual SOP flowcharts (e.g. Joiner-Mover-Leaver process) so staff know exact steps.</li>
+                                </ul>
+                            </div>
+
+                            <div class="example-box" style="border-left-color: #1e293b;">
+                                <strong><i class="bi bi-lightbulb text-warning me-1"></i> Real Example:</strong> Uploading the "Information Security Policy v2.0", setting annual review reminder, and mapping it to Control A.5.1.
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded small">
+                                <span><strong>Role:</strong> Policy Owners / HR / Legal</span>
+                                <span><strong class="text-success"><i class="bi bi-check2-circle me-1"></i> Output:</strong> Approved Policy Vault</span>
+                            </div>
+                        </div>
+                        <div class="pt-3 border-top mt-3 no-print">
+                            <a asp-controller="Documents" asp-action="Policies" class="btn btn-sm btn-outline-dark w-100">
+                                Open Policies <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 6: Tasks & Evidence Vault -->
+                <div class="col-md-6 col-lg-6">
+                    <div class="card-enterprise p-4 h-100 border-top border-success border-4 shadow-sm d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge bg-success px-2 py-1 step-badge-pill">Phase 6</span>
+                                <i class="bi bi-check2-square fs-3 text-success"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-1">6. Daily Tasks, Kanban &amp; Evidence Vault</h5>
+                            <p class="text-muted small mb-3">
+                                <strong>What happens here:</strong> Staff execute routine operational compliance checks and upload files as indisputable proof for the auditor.
+                            </p>
+
+                            <div class="mb-3">
+                                <div class="fw-bold text-dark small mb-1"><i class="bi bi-list-check text-success me-1"></i> Key Activities:</div>
+                                <ul class="step-feature-list">
+                                    <li>Manage recurring tasks (e.g. Monthly Backup Test, Quarterly Access Review, Annual Pen-Test).</li>
+                                    <li>Use interactive <strong>Kanban Board</strong> and <strong>Compliance Calendar</strong> with due dates.</li>
+                                    <li>Upload proof files (PDF reports, server logs, screenshots) directly into the secure <strong>Evidence Vault</strong>.</li>
+                                </ul>
+                            </div>
+
+                            <div class="example-box" style="border-left-color: #10b981;">
+                                <strong><i class="bi bi-lightbulb text-warning me-1"></i> Real Example:</strong> IT Engineer completes "Q3 Database Backup Restoration Test", uploads signed PDF test log, moving task to Completed. Live score jumps +5%!
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded small">
+                                <span><strong>Role:</strong> Everyday Staff &amp; Engineers</span>
+                                <span><strong class="text-success"><i class="bi bi-check2-circle me-1"></i> Output:</strong> Objective Proof Vault</span>
+                            </div>
+                        </div>
+                        <div class="pt-3 border-top mt-3 no-print">
+                            <a asp-controller="Evidence" asp-action="Index" class="btn btn-sm btn-outline-success w-100">
+                                Open Evidence Vault <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 7: Audits & Findings -->
+                <div class="col-md-6 col-lg-6">
+                    <div class="card-enterprise p-4 h-100 border-top border-danger border-4 shadow-sm d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge bg-danger px-2 py-1 step-badge-pill">Phase 7</span>
+                                <i class="bi bi-clipboard-check fs-3 text-danger"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-1">7. Internal &amp; External Audits &amp; Findings</h5>
+                            <p class="text-muted small mb-3">
+                                <strong>What happens here:</strong> Conduct internal audit inspections or host external certification assessors who verify live evidence against controls.
+                            </p>
+
+                            <div class="mb-3">
+                                <div class="fw-bold text-dark small mb-1"><i class="bi bi-list-check text-danger me-1"></i> Key Activities:</div>
+                                <ul class="step-feature-list">
+                                    <li>Schedule audit programs (e.g. "2026 ISO 27001 Stage 2 Certification Audit").</li>
+                                    <li>Auditor reviews live evidence attachments online without requesting paper files.</li>
+                                    <li>Log audit results: <strong>Conformity</strong> (passed), <strong>Minor Non-Conformity (NC)</strong>, <strong>Major NC</strong>, or <strong>Observation</strong>.</li>
+                                </ul>
+                            </div>
+
+                            <div class="example-box" style="border-left-color: #ef4444;">
+                                <strong><i class="bi bi-lightbulb text-warning me-1"></i> Real Example:</strong> The auditor discovers that 2 terminated employees still had active VPN accounts, logging a Minor Non-Conformity (<code>FIND-002</code>).
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded small">
+                                <span><strong>Role:</strong> Internal / External Auditor</span>
+                                <span><strong class="text-success"><i class="bi bi-check2-circle me-1"></i> Output:</strong> Audit Findings Report</span>
+                            </div>
+                        </div>
+                        <div class="pt-3 border-top mt-3 no-print">
+                            <a asp-controller="Audits" asp-action="Index" class="btn btn-sm btn-outline-danger w-100">
+                                Open Audit Programs <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 8: Fix & Review (CAPA) -->
+                <div class="col-md-6 col-lg-6">
+                    <div class="card-enterprise p-4 h-100 border-top border-4 shadow-sm d-flex flex-column justify-content-between" style="border-top-color:#7c3aed !important;">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge text-white px-2 py-1 step-badge-pill" style="background:#7c3aed;">Phase 8</span>
+                                <i class="bi bi-graph-up-arrow fs-3" style="color:#7c3aed;"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-1">8. Fix &amp; Review: CAPA &amp; Management Review</h5>
+                            <p class="text-muted small mb-3">
+                                <strong>What happens here:</strong> Eliminate root causes of issues, conduct executive reviews (Clause 9.3), and drive continuous improvement.
+                            </p>
+
+                            <div class="mb-3">
+                                <div class="fw-bold text-dark small mb-1"><i class="bi bi-list-check me-1" style="color:#7c3aed;"></i> Key Activities:</div>
+                                <ul class="step-feature-list">
+                                    <li>Perform <strong>5-Whys Root Cause Analysis</strong> and create Corrective Action Plans (CAPA).</li>
+                                    <li>Assign remediation action items with deadlines to responsible engineers.</li>
+                                    <li>Chair quarterly <strong>Management Review</strong> meetings with executive leadership to review audit metrics and approve resource budgets.</li>
+                                </ul>
+                            </div>
+
+                            <div class="example-box" style="border-left-color: #7c3aed;">
+                                <strong><i class="bi bi-lightbulb text-warning me-1"></i> Real Example:</strong> CAPA-001 integrates HR offboarding with active directory automated account deprovisioning. Finding is permanently resolved and closed!
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded small">
+                                <span><strong>Role:</strong> Executive Leadership / CISO</span>
+                                <span><strong class="text-success"><i class="bi bi-check2-circle me-1"></i> Output:</strong> Continual Improvement Loop</span>
+                            </div>
+                        </div>
+                        <div class="pt-3 border-top mt-3 no-print">
+                            <a asp-controller="ManagementReview" asp-action="Index" class="btn btn-sm btn-outline-purple w-100" style="color:#7c3aed; border-color:#7c3aed;">
+                                Open Management Reviews <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <!-- SECTION 2: REAL-TIME SCENARIOS SIMULATOR                                         -->
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade pdf-page-break" id="scenarios" role="tabpanel">
+            <div class="card-enterprise p-4 mb-4 bg-white border">
+                <h5 class="pdf-section-title"><i class="bi bi-play-circle text-primary me-2"></i> 2. Real-World Practical Scenarios</h5>
+                <p class="text-muted small mb-4">See how real compliance workflows execute step-by-step inside ISOFlow:</p>
+
+                <div class="accordion" id="scenarioAccordion">
+
+                    <!-- Scenario 1 -->
+                    <div class="accordion-item border mb-3 rounded shadow-sm overflow-hidden">
+                        <h2 class="accordion-header" id="headingOne">
+                            <button class="accordion-button bg-light fw-bold text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true">
+                                <span class="badge bg-primary me-2">Scenario 1</span> Onboarding a New Company &amp; Getting ISO 27001 Certified from Scratch
+                            </button>
+                        </h2>
+                        <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#scenarioAccordion">
+                            <div class="accordion-body p-4 bg-white">
+                                <div class="timeline-flow">
+                                    <div class="step mb-3 pb-3 border-bottom">
+                                        <h6 class="fw-bold text-primary mb-1">Step 1: SuperAdmin creates Organization Workspace</h6>
+                                        <p class="small text-muted mb-1">SuperAdmin logs in, navigates to <code>/Organizations</code>, creates "Apex Global Financial Ltd", sets the tenant scope, and invites Admin David Chen.</p>
+                                        <a asp-controller="Organizations" asp-action="Index" class="badge bg-primary text-white text-decoration-none">Open Organizations</a>
+                                    </div>
+                                    <div class="step mb-3 pb-3 border-bottom">
+                                        <h6 class="fw-bold text-primary mb-1">Step 2: Admin configures Standard &amp; Clauses</h6>
+                                        <p class="small text-muted mb-1">Admin selects <code>ISO-27001-2022</code> from <code>/Standards</code>, sets compliance target to 90%, and inspects pre-loaded Annex A clauses.</p>
+                                        <a asp-controller="Standards" asp-action="Index" class="badge bg-info text-white text-decoration-none">Open Standards</a>
+                                    </div>
+                                    <div class="step mb-3 pb-3 border-bottom">
+                                        <h6 class="fw-bold text-primary mb-1">Step 3: Conduct Risk Assessment &amp; Define SoA</h6>
+                                        <p class="small text-muted mb-1">Threats like "Unencrypted database backups" are scored at <code>/Risks</code> (5 &times; 4 = 20 Critical). Control <code>CTRL-001 (A.5.18 Access Rights)</code> is mapped as mitigation.</p>
+                                        <a asp-controller="Risks" asp-action="Index" class="badge bg-warning text-dark text-decoration-none">Open Risk Register</a>
+                                    </div>
+                                    <div class="step">
+                                        <h6 class="fw-bold text-success mb-1">Step 4: Execute Routine Compliance Tasks &amp; Collect Evidence</h6>
+                                        <p class="small text-muted mb-1">Tasks are automatically created at <code>/Tasks</code>. Staff completes tasks and uploads signed logs to <code>/Evidence</code>, boosting live compliance %.</p>
+                                        <a asp-controller="Evidence" asp-action="Index" class="badge bg-success text-white text-decoration-none">Open Evidence Vault</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scenario 2 -->
+                    <div class="accordion-item border mb-3 rounded shadow-sm overflow-hidden">
+                        <h2 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button bg-light fw-bold text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                                <span class="badge bg-danger me-2">Scenario 2</span> Handling an Audit Finding (Non-Conformity) &amp; CAPA Remediation Loop
+                            </button>
+                        </h2>
+                        <div id="collapseTwo" class="accordion-collapse collapse show" data-bs-parent="#scenarioAccordion">
+                            <div class="accordion-body p-4 bg-white">
+                                <div class="timeline-flow">
+                                    <div class="step mb-3 pb-3 border-bottom">
+                                        <h6 class="fw-bold text-danger mb-1">Step 1: Auditor Logs Non-Conformity (Finding)</h6>
+                                        <p class="small text-muted mb-1">During internal audit <code>AUD-2026-001</code>, auditor finds missing quarterly firewall reviews and logs Major NC <code>FIND-001</code> at <code>/Findings</code>.</p>
+                                        <a asp-controller="Findings" asp-action="Index" class="badge bg-danger text-white text-decoration-none">Open Findings</a>
+                                    </div>
+                                    <div class="step mb-3 pb-3 border-bottom">
+                                        <h6 class="fw-bold text-warning mb-1">Step 2: Assign Corrective Action Plan (CAPA)</h6>
+                                        <p class="small text-muted mb-1">Compliance team opens <code>/Capa</code>, creates <code>CAPA-001</code>, performs 5-Whys Root Cause Analysis, and assigns automated sub-actions to IT engineers.</p>
+                                        <a asp-controller="Capa" asp-action="Index" class="badge bg-warning text-dark text-decoration-none">Open CAPA</a>
+                                    </div>
+                                    <div class="step">
+                                        <h6 class="fw-bold text-success mb-1">Step 3: Executive Review &amp; Continual Improvement</h6>
+                                        <p class="small text-muted mb-1">Leadership reviews closed CAPAs during the quarterly Management Review (<code>/ManagementReview</code>) and logs improvement initiative <code>IMP-001</code> at <code>/Improvement</code>.</p>
+                                        <a asp-controller="Improvement" asp-action="Index" class="badge bg-success text-white text-decoration-none">Open Continual Improvement</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scenario 3 -->
+                    <div class="accordion-item border rounded shadow-sm overflow-hidden">
+                        <h2 class="accordion-header" id="headingThree">
+                            <button class="accordion-button bg-light fw-bold text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                                <span class="badge bg-success me-2">Scenario 3</span> Daily Staff Routine &amp; Drag-and-Drop Kanban Board Flow
+                            </button>
+                        </h2>
+                        <div id="collapseThree" class="accordion-collapse collapse show" data-bs-parent="#scenarioAccordion">
+                            <div class="accordion-body p-4 bg-white">
+                                <p class="small text-muted mb-3">
+                                    Operational staff start their workday by checking <a asp-controller="Tasks" asp-action="Kanban" class="badge bg-primary text-white text-decoration-none">Kanban Board</a> or <a asp-controller="Tasks" asp-action="Calendar" class="badge bg-secondary text-white text-decoration-none">Compliance Calendar</a>. Dragging a task from <code>In Progress</code> to <code>Completed</code> and attaching proof immediately recalculates the organization's live compliance score on the Executive Dashboard!
+                                </p>
+                                <div class="d-flex gap-2">
+                                    <a asp-controller="Tasks" asp-action="Kanban" class="btn btn-sm btn-outline-primary">Open Kanban Board</a>
+                                    <a asp-controller="Tasks" asp-action="Calendar" class="btn btn-sm btn-outline-secondary">Open Compliance Calendar</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <!-- SECTION 3: ROLE RESPONSIBILITIES (RBAC)                                          -->
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade pdf-page-break" id="roles" role="tabpanel">
+            <div class="card-enterprise p-4 mb-4 bg-white border">
+                <h5 class="pdf-section-title"><i class="bi bi-shield-shaded text-primary me-2"></i> 3. Role-Based Access Control (RBAC) Permissions Matrix</h5>
+                <p class="text-muted small mb-3">Explicit permission boundaries ensure secure multi-tenant isolation and strict data protection:</p>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle">
+                        <thead class="table-light text-center">
+                            <tr>
+                                <th class="text-start" style="width: 25%;">Feature Area</th>
+                                <th class="text-white" style="background:#7c3aed; width: 25%;"><i class="bi bi-shield-fill-check me-1"></i> Super Admin (Platform)</th>
+                                <th class="bg-primary text-white" style="width: 25%;"><i class="bi bi-shield-lock-fill me-1"></i> Admin (Company Lead)</th>
+                                <th class="bg-success text-white" style="width: 25%;"><i class="bi bi-person-fill me-1"></i> Team Member / Auditor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="fw-bold"><i class="bi bi-building me-1 text-primary"></i> Company Setup</td>
+                                <td class="text-center text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Full Setup &amp; Tenant Switch</td>
+                                <td class="text-center text-muted"><i class="bi bi-dash-circle"></i> View own company info</td>
+                                <td class="text-center text-muted"><i class="bi bi-dash-circle"></i> View profile only</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold"><i class="bi bi-people me-1 text-primary"></i> User Invitations &amp; Roles</td>
+                                <td class="text-center text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Manage all platform users</td>
+                                <td class="text-center text-primary fw-bold"><i class="bi bi-check-circle-fill"></i> Manage company employees</td>
+                                <td class="text-center text-muted"><i class="bi bi-dash-circle"></i> No user management</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold"><i class="bi bi-shield-lock me-1 text-primary"></i> Security Controls &amp; SoA</td>
+                                <td class="text-center text-success fw-bold"><i class="bi bi-check-circle-fill"></i> View &amp; Configure globally</td>
+                                <td class="text-center text-primary fw-bold"><i class="bi bi-check-circle-fill"></i> Edit &amp; Approve SoA</td>
+                                <td class="text-center text-secondary"><i class="bi bi-eye-fill"></i> View controls</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold"><i class="bi bi-exclamation-triangle me-1 text-warning"></i> Risk Assessment &amp; 5x5 Matrix</td>
+                                <td class="text-center text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                                <td class="text-center text-primary fw-bold"><i class="bi bi-check-circle-fill"></i> Create risks &amp; treatments</td>
+                                <td class="text-center text-secondary"><i class="bi bi-eye-fill"></i> View risks / Log new risks</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold"><i class="bi bi-check2-square me-1 text-success"></i> Tasks, Kanban &amp; Evidence</td>
+                                <td class="text-center text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Full Oversight</td>
+                                <td class="text-center text-primary fw-bold"><i class="bi bi-check-circle-fill"></i> Assign &amp; Verify tasks</td>
+                                <td class="text-center text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Complete tasks &amp; upload proof</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold"><i class="bi bi-clipboard-check me-1 text-danger"></i> Audits, Findings &amp; CAPA</td>
+                                <td class="text-center text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Platform Overview</td>
+                                <td class="text-center text-primary fw-bold"><i class="bi bi-check-circle-fill"></i> Schedule audits &amp; close CAPAs</td>
+                                <td class="text-center text-secondary"><i class="bi bi-check-circle"></i> Review findings / Do actions</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold"><i class="bi bi-briefcase me-1 text-dark"></i> Management Reviews</td>
+                                <td class="text-center text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Full Access</td>
+                                <td class="text-center text-primary fw-bold"><i class="bi bi-check-circle-fill"></i> Schedule &amp; Chair meetings</td>
+                                <td class="text-center text-secondary"><i class="bi bi-eye-fill"></i> View meeting minutes</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <!-- SECTION 4: DATA TRACEABILITY MAP                                                 -->
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade pdf-page-break" id="traceability" role="tabpanel">
+            <div class="card-enterprise p-4 mb-4 bg-white border">
+                <h5 class="pdf-section-title"><i class="bi bi-diagram-2 text-primary me-2"></i> 4. End-to-End Relational Data Traceability Graph</h5>
+                <p class="text-muted small mb-4">Every standard requirement links bidirectionally to a control, task, proof file, and audit result:</p>
+
+                <div class="p-4 bg-light rounded border">
+                    <div class="row g-2 text-center align-items-center">
+                        <div class="col-md-2">
+                            <div class="p-3 bg-white border rounded shadow-sm">
+                                <i class="bi bi-journal-bookmark fs-3 text-primary d-block mb-1"></i>
+                                <div class="fw-bold text-primary small">1. Standard</div>
+                                <div class="text-muted" style="font-size:0.75rem;">ISO 27001:2022</div>
+                            </div>
+                        </div>
+                        <div class="col-md-1"><i class="bi bi-arrow-right fs-3 text-muted"></i></div>
+                        <div class="col-md-2">
+                            <div class="p-3 bg-white border rounded shadow-sm">
+                                <i class="bi bi-list-check fs-3 text-info d-block mb-1"></i>
+                                <div class="fw-bold text-info small">2. Requirement</div>
+                                <div class="text-muted" style="font-size:0.75rem;">A.5.18 Access Rule</div>
+                            </div>
+                        </div>
+                        <div class="col-md-1"><i class="bi bi-arrow-right fs-3 text-muted"></i></div>
+                        <div class="col-md-2">
+                            <div class="p-3 bg-white border rounded shadow-sm">
+                                <i class="bi bi-shield-lock fs-3 text-secondary d-block mb-1"></i>
+                                <div class="fw-bold text-secondary small">3. Control (SoA)</div>
+                                <div class="text-muted" style="font-size:0.75rem;">CTRL-001 Defined</div>
+                            </div>
+                        </div>
+                        <div class="col-md-1"><i class="bi bi-arrow-right fs-3 text-muted"></i></div>
+                        <div class="col-md-3">
+                            <div class="p-3 bg-white border rounded shadow-sm">
+                                <i class="bi bi-exclamation-triangle fs-3 text-warning d-block mb-1"></i>
+                                <div class="fw-bold text-warning small">4. Risk Assessment</div>
+                                <div class="text-muted" style="font-size:0.75rem;">5 &times; 4 = 20 Critical</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 text-center align-items-center mt-3">
+                        <div class="col-md-3">
+                            <div class="p-3 bg-white border rounded shadow-sm">
+                                <i class="bi bi-check2-square fs-3 text-success d-block mb-1"></i>
+                                <div class="fw-bold text-success small">5. Compliance Task</div>
+                                <div class="text-muted" style="font-size:0.75rem;">Monthly Access Review</div>
+                            </div>
+                        </div>
+                        <div class="col-md-1"><i class="bi bi-arrow-right fs-3 text-muted"></i></div>
+                        <div class="col-md-2">
+                            <div class="p-3 bg-white border rounded shadow-sm">
+                                <i class="bi bi-paperclip fs-3 text-success d-block mb-1"></i>
+                                <div class="fw-bold text-success small">6. Proof File</div>
+                                <div class="text-muted" style="font-size:0.75rem;">Signed PDF Audit Log</div>
+                            </div>
+                        </div>
+                        <div class="col-md-1"><i class="bi bi-arrow-right fs-3 text-muted"></i></div>
+                        <div class="col-md-2">
+                            <div class="p-3 bg-white border rounded shadow-sm">
+                                <i class="bi bi-bug fs-3 text-danger d-block mb-1"></i>
+                                <div class="fw-bold text-danger small">7. Audit Check</div>
+                                <div class="text-muted" style="font-size:0.75rem;">Verified / NC Finding</div>
+                            </div>
+                        </div>
+                        <div class="col-md-1"><i class="bi bi-arrow-right fs-3 text-muted"></i></div>
+                        <div class="col-md-2">
+                            <div class="p-3 bg-white border rounded shadow-sm">
+                                <i class="bi bi-tools fs-3 d-block mb-1" style="color:#7c3aed;"></i>
+                                <div class="fw-bold small" style="color:#7c3aed;">8. CAPA Loop</div>
+                                <div class="text-muted" style="font-size:0.75rem;">Continuous Quality</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <!-- SECTION 5: WHY CHOOSE ISOFLOW? (VALUE PROPOSITION)                               -->
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade pdf-page-break" id="presentation" role="tabpanel">
+            <div class="card-enterprise p-4 mb-4 bg-white border">
+                <h5 class="pdf-section-title"><i class="bi bi-stars text-primary me-2"></i> 5. Why Businesses Choose ISOFlow</h5>
+                <p class="text-muted small mb-4">Key competitive advantages that save time, eliminate spreadsheets, and guarantee audit readiness:</p>
+
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="p-4 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-stopwatch text-primary fs-5 me-1"></i> 80% Faster Audit Prep</h6>
+                            <p class="small text-muted mb-0">Evidence is organized with 1 click instead of weeks spent hunting across email threads and shared drives.</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="p-4 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-speedometer2 text-success fs-5 me-1"></i> Live Compliance Score</h6>
+                            <p class="small text-muted mb-0">Executive dashboards display real-time readiness percentages instantly across all units.</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="p-4 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-kanban text-warning fs-5 me-1"></i> No Missed Tasks</h6>
+                            <p class="small text-muted mb-0">Kanban boards and compliance calendars ensure complete staff accountability.</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="p-4 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-grid-3x3-gap fs-5 me-1" style="color:#7c3aed;"></i> Visual 5x5 Heatmap</h6>
+                            <p class="small text-muted mb-0">Color-coded risk matrices allow executives to spot critical threats in seconds.</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="p-4 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-file-earmark-check text-info fs-5 me-1"></i> Instant SoA Generation</h6>
+                            <p class="small text-muted mb-0">Generate the official Statement of Applicability with justifications in one click.</p>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="p-4 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-shield-check text-danger fs-5 me-1"></i> Zero Missing Proof</h6>
+                            <p class="small text-muted mb-0">Evidence files are locked to controls with audit trails to guarantee inspection readiness.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <!-- SECTION 6: GUJARATI GUIDE (ગુજરાતી માર્ગદર્શિકા)                                   -->
+        <!-- ════════════════════════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade pdf-page-break" id="gujarati" role="tabpanel">
+            <div class="card-enterprise p-4 mb-4 bg-white border">
+                <h5 class="pdf-section-title"><i class="bi bi-translate text-primary me-2"></i> 6. ISOFlow એપ્લિકેશન ફ્લો - સરળ ગુજરાતી સમજૂતી</h5>
+                <p class="text-muted small mb-3">જ્યારે તમારે કોઈપણ ક્લાયન્ટને સિસ્ટમ સમજાવવી હોય, ત્યારે આ 8 પગલાંની મદદથી સરળતાથી સમજાવી શકો છો:</p>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-primary mb-1">૧. સંસ્થા અને યુઝર મેનેજમેન્ટ (Organizations &amp; Users)</h6>
+                            <p class="text-muted small mb-0">SuperAdmin નવી કંપની રજીસ્ટર કરે છે અને Admin તથા User ની ભૂમિકાઓ ફાળવે છે.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-info mb-1">૨. ISO સ્ટાન્ડર્ડ્સ અને કલમો (Standards &amp; Clauses)</h6>
+                            <p class="text-muted small mb-0">કંપની ISO 27001:2022 પસંદ કરી તમામ જરૂરીયાતો અને કલમોનું ચેકલિસ્ટ સેટ કરે છે.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-warning mb-1">૩. રિસ્ક એસેસમેન્ટ (Risk Management - 5x5 Matrix)</h6>
+                            <p class="text-muted small mb-0">અસ્કયામતો પરના જોખમોની Likelihood &times; Impact માપીને 5x5 હીટમેપ સ્કોર ગણાય છે.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-secondary mb-1">૪. કંટ્રોલ્સ અને SoA (Controls &amp; SoA Matrix)</h6>
+                            <p class="text-muted small mb-0">જોખમો રોકવા માટે 93 સિક્યોરિટી કંટ્રોલ્સ લાગુ કરી SoA રિપોર્ટ તૈયાર થાય છે.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-dark mb-1">૫. પોલિસી અને બિઝનેસ પ્રોસેસ (Policies &amp; SOP Workflows)</h6>
+                            <p class="text-muted small mb-0">કંપનીની સિક્યોરિટી પોલિસીઓ અને SOPs વર્ઝન કંટ્રોલ સાથે સેવ થાય છે.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-success mb-1">૬. ટાસ્ક અને પુરાવા સંગ્રહ (Tasks &amp; Evidence Vault)</h6>
+                            <p class="text-muted small mb-0">કર્મચારીઓ રોજિંદા કાર્યો પૂર્ણ કરીને PDF અને લોગ ફાઇલ્સ વૉલ્ટમાં અપલોડ કરે છે.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <h6 class="fw-bold text-danger mb-1">૭. ઓડિટ અને ત્રુટિઓ (Audits &amp; Findings)</h6>
+                            <p class="text-muted small mb-0">ઓડિટર તમામ પુરાવાઓ ચકાસીને જો ખામી મળે તો Non-Conformity તરીકે રેકોર્ડ કરે છે.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <h6 class="fw-bold mb-1" style="color:#7c3aed;">૮. સુધારાત્મક પગલાં અને રિવ્યૂ (CAPA &amp; Mgmt Review)</h6>
+                            <p class="text-muted small mb-0">ખામીઓ પર CAPA પ્લાન લેવાય છે અને મેનેજમેન્ટ રિવ્યૂ દ્વારા ક્વોલિટી સુધરે છે.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ── JavaScript for 1-Click High-Quality PDF Generation ── -->
+<script>
+    function generatePdfDocument() {
+        const btn = document.getElementById('btnDownloadPdf');
+        const btnText = document.getElementById('pdfBtnText');
+        
+        // Show loading state
+        btn.disabled = true;
+        btnText.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Generating PDF...';
+
+        // Prepare elements by making all tab panes visible temporarily for rendering
+        const tabPanes = document.querySelectorAll('.tab-pane');
+        tabPanes.forEach(pane => {
+            pane.classList.add('show', 'active');
+            pane.style.display = 'block';
+        });
+
+        const coverHeader = document.querySelector('.pdf-cover-header');
+        if (coverHeader) {
+            coverHeader.style.display = 'block';
+        }
+
+        const element = document.getElementById('pdfExportContainer');
+
+        const opt = {
+            margin:       [10, 10, 10, 10],
+            filename:     'ISOFlow-Complete-Workflow-Guide.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+            // Restore Tab visibility to currently active tab
+            tabPanes.forEach((pane, index) => {
+                if (index !== 0) {
+                    pane.classList.remove('show', 'active');
+                    pane.style.display = '';
+                }
+            });
+            if (coverHeader) {
+                coverHeader.style.display = '';
+            }
+            btn.disabled = false;
+            btnText.innerHTML = 'Download Complete PDF';
+        }).catch(err => {
+            console.error('PDF Generation Error:', err);
+            btn.disabled = false;
+            btnText.innerHTML = 'Download Complete PDF';
+            alert('PDF generation completed. You can also use the "Print / Save as PDF" button.');
+        });
+    }
+</script>
