@@ -1,3 +1,4 @@
+using ISOFlow.Application.DTOs;
 using ISOFlow.Domain.Entities;
 
 namespace ISOFlow.Application.Interfaces;
@@ -5,6 +6,7 @@ namespace ISOFlow.Application.Interfaces;
 public interface ICapaRepository
 {
     Task<List<CAPA>> GetAllCapasAsync();
+    Task<PagedResponse<CAPA>> GetPagedCapasAsync(PagedRequestDto request);
     Task<CAPA?> GetCapaByIdAsync(string id);
     Task<CAPA> CreateCapaAsync(CAPA capa);
     Task<CAPA?> UpdateCapaAsync(CAPA capa);

@@ -6,6 +6,7 @@ namespace ISOFlow.Application.Interfaces;
 public interface IControlRepository
 {
     Task<List<Control>> GetAllControlsAsync();
+    Task<PagedResponse<Control>> GetPagedControlsAsync(PagedRequestDto request);
     Task<Control?> GetControlByIdAsync(string id);
     Task<List<StatementOfApplicability>> GetStatementOfApplicabilityAsync();
     Task<RelatedItemsCountDto> GetRelatedItemsCountAsync(string controlId);

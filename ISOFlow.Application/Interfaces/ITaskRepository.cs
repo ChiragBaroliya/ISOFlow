@@ -1,3 +1,4 @@
+using ISOFlow.Application.DTOs;
 using ISOFlow.Domain.Entities;
 using ISOFlow.Domain.Enums;
 
@@ -6,6 +7,7 @@ namespace ISOFlow.Application.Interfaces;
 public interface ITaskRepository
 {
     Task<List<TaskItem>> GetAllTasksAsync();
+    Task<PagedResponse<TaskItem>> GetPagedTasksAsync(PagedRequestDto request);
     Task<TaskItem?> GetTaskByIdAsync(string id);
     Task<List<TaskTemplate>> GetTaskTemplatesAsync();
     Task<TaskItem> CreateTaskAsync(TaskItem task);

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using ISOFlow.Api.Controllers;
+using ISOFlow.Domain.Exceptions;
 
 namespace ISOFlow.Api.Middlewares;
 
@@ -33,17 +34,49 @@ public class GlobalExceptionMiddleware
         context.Response.ContentType = "application/json";
 
         var statusCode = HttpStatusCode.InternalServerError;
-        var message = "An unhandled error occurred while processing your request.";
+        var message = "An error occurred while processing your request.";
+        var errors = new List<string>();
 
-        if (exception is KeyNotFoundException)
+        switch (exception)
         {
-            statusCode = HttpStatusCode.NotFound;
-            message = exception.Message;
-        }
-        else if (exception is ArgumentException || exception is InvalidOperationException)
-        {
-            statusCode = HttpStatusCode.BadRequest;
-            message = exception.Message;
+            case NotFoundException notFoundEx:
+                statusCode = HttpStatusCode.NotFound;
+                message = notFoundEx.Message;
+                break;
+
+            case ValidationException validationEx:
+                statusCode = HttpStatusCode.BadRequest;
+                message = validationEx.Message;
+                errors.AddRange(validationEx.Errors);
+                break;
+
+            case BusinessRuleException businessEx:
+                statusCode = HttpStatusCode.BadRequest;
+                message = businessEx.Message;
+                errors.Add(businessEx.Message);
+                break;
+
+            case ArgumentException argEx:
+                statusCode = HttpStatusCode.BadRequest;
+                message = argEx.Message;
+                errors.Add(argEx.Message);
+                break;
+
+            case UnauthorizedAccessException authEx:
+                statusCode = HttpStatusCode.Unauthorized;
+                message = authEx.Message;
+                break;
+
+            case KeyNotFoundException knfEx:
+                statusCode = HttpStatusCode.NotFound;
+                message = knfEx.Message;
+                break;
+
+            default:
+                statusCode = HttpStatusCode.InternalServerError;
+                message = "An internal server error occurred.";
+                errors.Add(exception.Message);
+                break;
         }
 
         context.Response.StatusCode = (int)statusCode;
@@ -52,9 +85,9 @@ public class GlobalExceptionMiddleware
         {
             Success = false,
             Message = message,
+            Errors = errors,
             Data = new
             {
-                ErrorDetails = exception.Message,
                 Path = context.Request.Path.Value,
                 TraceId = context.TraceIdentifier,
                 Timestamp = DateTime.UtcNow

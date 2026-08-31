@@ -116,3 +116,28 @@ public enum ImprovementStatus
     Completed,
     Verified
 }
+
+public enum PolicyStatus
+{
+    Draft,
+    UnderReview,
+    Active,
+    Archived
+}
+
+public enum RiskTreatmentOption
+{
+    Mitigate,
+    Avoid,
+    Transfer,
+    Accept
+}
+
+public enum NotificationCategory
+{
+    General,
+    Warning,
+    Task,
+    Policy,
+    Audit
+}

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ISOFlow.Api.Controllers;
 
 /// <summary>
-/// Dashboard Metrics & Compliance KPIs Endpoint
+/// Dashboard Metrics and Compliance KPIs Endpoint
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]

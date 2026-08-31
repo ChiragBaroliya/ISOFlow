@@ -40,9 +40,16 @@ public class LogService : ILogService
             DateTime fileDate = File.GetLastWriteTime(file).Date;
 
             var match = datePattern.Match(fileName);
-            if (match.Success && DateTime.TryParseExact(match.Value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+            if (match.Success)
             {
-                fileDate = parsedDate.Date;
+                if (DateTime.TryParseExact(match.Value, "ddMMyyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate1))
+                {
+                    fileDate = parsedDate1.Date;
+                }
+                else if (DateTime.TryParseExact(match.Value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate2))
+                {
+                    fileDate = parsedDate2.Date;
+                }
             }
 
             // Date filtering on file level

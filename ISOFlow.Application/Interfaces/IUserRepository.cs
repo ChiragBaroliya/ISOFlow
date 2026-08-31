@@ -1,3 +1,4 @@
+using ISOFlow.Application.DTOs;
 using ISOFlow.Domain.Entities;
 
 namespace ISOFlow.Application.Interfaces;
@@ -5,7 +6,9 @@ namespace ISOFlow.Application.Interfaces;
 public interface IUserRepository
 {
     Task<List<User>> GetAllUsersAsync();
+    Task<PagedResponse<User>> GetPagedUsersAsync(PagedRequestDto request);
     Task<List<User>> GetUsersByOrganizationIdAsync(string orgId);
+    Task<PagedResponse<User>> GetPagedUsersByOrganizationIdAsync(string orgId, PagedRequestDto request);
     Task<User?> GetUserByIdAsync(string id);
     Task<User?> GetUserByEmailAsync(string email);
 

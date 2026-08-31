@@ -1,122 +1,204 @@
+using Dapper;
+using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
-using ISOFlow.Infrastructure.MockData;
+using ISOFlow.Infrastructure.Data;
 
 namespace ISOFlow.Infrastructure.Repositories;
 
-public class StandardRepository : IStandardRepository
+public class StandardRepository : BaseRepository, IStandardRepository
 {
-    public Task<List<Standard>> GetAllStandardsAsync() => Task.FromResult(MockStore.Standards);
+    public StandardRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
-    public Task<Standard?> GetStandardByIdAsync(string id) =>
-        Task.FromResult(MockStore.Standards.FirstOrDefault(s => s.Id.Equals(id, StringComparison.OrdinalIgnoreCase) || s.Code.Equals(id, StringComparison.OrdinalIgnoreCase)));
-
-    public Task<List<Requirement>> GetRequirementsByStandardIdAsync(string standardId) =>
-        Task.FromResult(MockStore.Requirements.Where(r => r.StandardId.Equals(standardId, StringComparison.OrdinalIgnoreCase)).ToList());
-
-    public Task<Requirement?> GetRequirementByIdAsync(string id) =>
-        Task.FromResult(MockStore.Requirements.FirstOrDefault(r => r.Id.Equals(id, StringComparison.OrdinalIgnoreCase) || r.Clause.Equals(id, StringComparison.OrdinalIgnoreCase)));
-
-    public Task<Standard> CreateStandardAsync(Standard standard)
+    public Task<List<Standard>> GetAllStandardsAsync()
     {
-        if (string.IsNullOrWhiteSpace(standard.Id))
+        return QueryMappedListAsync("SELECT * FROM sp_standards_get_all()", r => new Standard
         {
-            standard.Id = "STD-" + (MockStore.Standards.Count + 1).ToString("D3");
-        }
-        if (string.IsNullOrWhiteSpace(standard.Code))
-        {
-            standard.Code = standard.Id;
-        }
-        standard.IsPreseeded = false;
-        standard.Status = string.IsNullOrWhiteSpace(standard.Status) ? "Active" : standard.Status;
-        MockStore.Standards.Add(standard);
-        return Task.FromResult(standard);
+            Id = r.id.ToString(),
+            Code = (string)r.code,
+            Name = (string)r.name,
+            Revision = (string)r.revision,
+            Description = (string)r.description ?? string.Empty,
+            RequirementCount = (int)r.requirement_count,
+            CompliancePercentage = (double)r.compliance_percentage,
+            IsPreseeded = (bool)r.is_preseeded,
+            Status = (string)r.status
+        });
     }
 
-    public Task<Standard?> UpdateStandardAsync(Standard standard)
+    public Task<PagedResponse<Standard>> GetPagedStandardsAsync(PagedRequestDto request)
     {
-        var existing = MockStore.Standards.FirstOrDefault(s => s.Id.Equals(standard.Id, StringComparison.OrdinalIgnoreCase));
-        if (existing != null)
-        {
-            existing.Name = standard.Name;
-            existing.Description = standard.Description;
-            existing.Revision = standard.Revision;
-            existing.CompliancePercentage = standard.CompliancePercentage;
-            existing.RequirementCount = standard.RequirementCount;
-            if (!existing.IsPreseeded)
+        var parameters = new DynamicParameters();
+        parameters.Add("p_page_number", request.PageNumber);
+        parameters.Add("p_page_size", request.PageSize);
+        parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
+        parameters.Add("p_status", string.IsNullOrWhiteSpace(request.StatusFilter) ? null : request.StatusFilter.Trim());
+
+        return QueryPagedAsync(
+            "SELECT * FROM sp_standards_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_status)",
+            r => new Standard
             {
-                existing.Code = standard.Code;
-                existing.Status = standard.Status;
-            }
-        }
-        return Task.FromResult(existing);
+                Id = r.id.ToString(),
+                Code = (string)r.code,
+                Name = (string)r.name,
+                Revision = (string)r.revision,
+                Description = (string)r.description ?? string.Empty,
+                RequirementCount = (int)r.requirement_count,
+                CompliancePercentage = (double)r.compliance_percentage,
+                IsPreseeded = (bool)r.is_preseeded,
+                Status = (string)r.status
+            },
+            parameters,
+            request.PageNumber,
+            request.PageSize);
     }
 
-    public Task<bool> DeleteStandardAsync(string id)
+    public Task<Standard?> GetStandardByIdAsync(string id)
     {
-        var existing = MockStore.Standards.FirstOrDefault(s => s.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
-        if (existing != null && !existing.IsPreseeded)
-        {
-            MockStore.Standards.Remove(existing);
-            MockStore.Requirements.RemoveAll(r => r.StandardId.Equals(id, StringComparison.OrdinalIgnoreCase));
-            return Task.FromResult(true);
-        }
-        return Task.FromResult(false);
-    }
-
-    public Task<Requirement> CreateRequirementAsync(Requirement requirement)
-    {
-        if (string.IsNullOrWhiteSpace(requirement.Id))
-        {
-            requirement.Id = MockStore.NextId("REQ", MockStore.Requirements.Count);
-        }
-        if (string.IsNullOrWhiteSpace(requirement.Clause))
-        {
-            requirement.Clause = requirement.Id;
-        }
-        MockStore.Requirements.Add(requirement);
-
-        // Update requirement count on parent standard
-        var std = MockStore.Standards.FirstOrDefault(s => s.Id.Equals(requirement.StandardId, StringComparison.OrdinalIgnoreCase));
-        if (std != null)
-        {
-            std.RequirementCount = MockStore.Requirements.Count(r => r.StandardId.Equals(requirement.StandardId, StringComparison.OrdinalIgnoreCase));
-        }
-
-        return Task.FromResult(requirement);
-    }
-
-    public Task<Requirement?> UpdateRequirementAsync(Requirement requirement)
-    {
-        var existing = MockStore.Requirements.FirstOrDefault(r => r.Id.Equals(requirement.Id, StringComparison.OrdinalIgnoreCase));
-        if (existing != null)
-        {
-            existing.Clause = requirement.Clause;
-            existing.Title = requirement.Title;
-            existing.Category = requirement.Category;
-            existing.Description = requirement.Description;
-            existing.CompliancePercentage = requirement.CompliancePercentage;
-            existing.RelatedControlIds = requirement.RelatedControlIds ?? new List<string>();
-        }
-        return Task.FromResult(existing);
-    }
-
-    public Task<bool> DeleteRequirementAsync(string id)
-    {
-        var existing = MockStore.Requirements.FirstOrDefault(r => r.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
-        if (existing != null)
-        {
-            var stdId = existing.StandardId;
-            MockStore.Requirements.Remove(existing);
-
-            var std = MockStore.Standards.FirstOrDefault(s => s.Id.Equals(stdId, StringComparison.OrdinalIgnoreCase));
-            if (std != null)
+        return QueryMappedFirstOrDefaultAsync(
+            "SELECT * FROM sp_standards_get_by_id(@id)",
+            r => new Standard
             {
-                std.RequirementCount = MockStore.Requirements.Count(r => r.StandardId.Equals(stdId, StringComparison.OrdinalIgnoreCase));
-            }
+                Id = r.id.ToString(),
+                Code = (string)r.code,
+                Name = (string)r.name,
+                Revision = (string)r.revision,
+                Description = (string)r.description ?? string.Empty,
+                RequirementCount = (int)r.requirement_count,
+                CompliancePercentage = (double)r.compliance_percentage,
+                IsPreseeded = (bool)r.is_preseeded,
+                Status = (string)r.status
+            },
+            new { id });
+    }
 
-            return Task.FromResult(true);
-        }
-        return Task.FromResult(false);
+    public Task<List<Requirement>> GetRequirementsByStandardIdAsync(string standardId)
+    {
+        return QueryMappedListAsync(
+            "SELECT * FROM sp_requirements_get_by_standard_id(@standardId)",
+            r => new Requirement
+            {
+                Id = r.id.ToString(),
+                StandardId = r.standard_id.ToString(),
+                Clause = (string)r.clause,
+                Title = (string)r.title,
+                Description = (string)r.description ?? string.Empty,
+                Category = (string)r.category,
+                CompliancePercentage = (double)r.compliance_percentage
+            },
+            new { standardId });
+    }
+
+    public Task<PagedResponse<Requirement>> GetPagedRequirementsByStandardIdAsync(string standardId, PagedRequestDto request)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("p_standard_id", standardId);
+        parameters.Add("p_page_number", request.PageNumber);
+        parameters.Add("p_page_size", request.PageSize);
+        parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
+
+        return QueryPagedAsync(
+            "SELECT * FROM sp_requirements_get_paged_by_standard_id(@p_standard_id, @p_page_number, @p_page_size, @p_search_term)",
+            r => new Requirement
+            {
+                Id = r.id.ToString(),
+                StandardId = r.standard_id.ToString(),
+                Clause = (string)r.clause,
+                Title = (string)r.title,
+                Description = (string)r.description ?? string.Empty,
+                Category = (string)r.category,
+                CompliancePercentage = (double)r.compliance_percentage
+            },
+            parameters,
+            request.PageNumber,
+            request.PageSize);
+    }
+
+    public Task<Requirement?> GetRequirementByIdAsync(string id)
+    {
+        return QueryMappedFirstOrDefaultAsync(
+            "SELECT * FROM sp_requirements_get_by_id(@id)",
+            r => new Requirement
+            {
+                Id = r.id.ToString(),
+                StandardId = r.standard_id.ToString(),
+                Clause = (string)r.clause,
+                Title = (string)r.title,
+                Description = (string)r.description ?? string.Empty,
+                Category = (string)r.category,
+                CompliancePercentage = (double)r.compliance_percentage
+            },
+            new { id });
+    }
+
+    public async Task<Standard> CreateStandardAsync(Standard standard)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("p_code", standard.Code);
+        parameters.Add("p_name", standard.Name);
+        parameters.Add("p_revision", standard.Revision);
+        parameters.Add("p_description", standard.Description);
+        parameters.Add("p_requirement_count", standard.RequirementCount);
+        parameters.Add("p_compliance_percentage", standard.CompliancePercentage);
+        parameters.Add("p_is_preseeded", standard.IsPreseeded);
+        parameters.Add("p_status", string.IsNullOrWhiteSpace(standard.Status) ? "Active" : standard.Status);
+
+        var insertedId = await QuerySingleAsync<int>("SELECT sp_standards_create(@p_code, @p_name, @p_revision, @p_description, @p_requirement_count, @p_compliance_percentage, @p_is_preseeded, @p_status)", parameters);
+        standard.Id = insertedId.ToString();
+        return standard;
+    }
+
+    public async Task<Standard?> UpdateStandardAsync(Standard standard)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("p_id", standard.Id);
+        parameters.Add("p_name", standard.Name);
+        parameters.Add("p_revision", standard.Revision);
+        parameters.Add("p_description", standard.Description);
+        parameters.Add("p_requirement_count", standard.RequirementCount);
+        parameters.Add("p_compliance_percentage", standard.CompliancePercentage);
+
+        var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_standards_update(@p_id, @p_name, @p_revision, @p_description, @p_requirement_count, @p_compliance_percentage)", parameters);
+        return updated ? standard : null;
+    }
+
+    public async Task<bool> DeleteStandardAsync(string id)
+    {
+        return await QuerySingleOrDefaultAsync<bool>("SELECT sp_standards_delete(@id)", new { id });
+    }
+
+    public async Task<Requirement> CreateRequirementAsync(Requirement requirement)
+    {
+        int.TryParse(requirement.StandardId, out var stdId);
+        var parameters = new DynamicParameters();
+        parameters.Add("p_standard_id", stdId);
+        parameters.Add("p_clause", requirement.Clause);
+        parameters.Add("p_title", requirement.Title);
+        parameters.Add("p_description", requirement.Description);
+        parameters.Add("p_category", requirement.Category);
+        parameters.Add("p_compliance_percentage", requirement.CompliancePercentage);
+
+        var insertedId = await QuerySingleAsync<int>("SELECT sp_requirements_create(@p_standard_id, @p_clause, @p_title, @p_description, @p_category, @p_compliance_percentage)", parameters);
+        requirement.Id = insertedId.ToString();
+        return requirement;
+    }
+
+    public async Task<Requirement?> UpdateRequirementAsync(Requirement requirement)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("p_id", requirement.Id);
+        parameters.Add("p_clause", requirement.Clause);
+        parameters.Add("p_title", requirement.Title);
+        parameters.Add("p_description", requirement.Description);
+        parameters.Add("p_category", requirement.Category);
+        parameters.Add("p_compliance_percentage", requirement.CompliancePercentage);
+
+        var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_requirements_update(@p_id, @p_clause, @p_title, @p_description, @p_category, @p_compliance_percentage)", parameters);
+        return updated ? requirement : null;
+    }
+
+    public async Task<bool> DeleteRequirementAsync(string id)
+    {
+        return await QuerySingleOrDefaultAsync<bool>("SELECT sp_requirements_delete(@id)", new { id });
     }
 }

@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ISOFlow.Api.Controllers;
 
 /// <summary>
-/// Security Controls & Statement of Applicability (SoA) API
+/// Security Controls and Statement of Applicability (SoA) API
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -21,27 +21,109 @@ public class ControlsController : ControllerBase
     }
 
     /// <summary>
+    /// Get paginated and filtered list of Security Controls
+    /// </summary>
+    /// <param name="request">Pagination and search filter criteria</param>
+    [HttpGet]
+    [ProducesResponseType(typeof(ApiResponse<PagedResponse<Control>>), 200)]
+    public async Task<ActionResult<ApiResponse<PagedResponse<Control>>>> GetPaged([FromQuery] PagedRequestDto request)
+    {
+        var paged = await _controlRepository.GetPagedControlsAsync(request);
+        return Ok(ApiResponse<PagedResponse<Control>>.SuccessResponse(paged));
+    }
+
+    /// <summary>
     /// Get all Controls in register
     /// </summary>
-    [HttpGet]
+    [HttpGet("all")]
     [ProducesResponseType(typeof(ApiResponse<List<Control>>), 200)]
     public async Task<ActionResult<ApiResponse<List<Control>>>> GetAll()
     {
         var controls = await _controlRepository.GetAllControlsAsync();
-        return Ok(new ApiResponse<List<Control>> { Data = controls });
+        return Ok(ApiResponse<List<Control>>.SuccessResponse(controls));
     }
 
     /// <summary>
     /// Get Control details by ID
     /// </summary>
+    /// <param name="id">Control Identifier (e.g. CTRL-001 or A.5.1)</param>
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(ApiResponse<Control>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Control>), 404)]
     public async Task<ActionResult<ApiResponse<Control>>> GetById(string id)
     {
         var control = await _controlRepository.GetControlByIdAsync(id);
-        if (control == null) return NotFound(new ApiResponse<Control> { Success = false, Message = "Control not found" });
-        return Ok(new ApiResponse<Control> { Data = control });
+        if (control == null)
+            return NotFound(ApiResponse<Control>.FailureResponse($"Control with ID '{id}' was not found."));
+
+        return Ok(ApiResponse<Control>.SuccessResponse(control));
+    }
+
+    /// <summary>
+    /// Create a new Security Control
+    /// </summary>
+    [HttpPost]
+    [ProducesResponseType(typeof(ApiResponse<Control>), 201)]
+    public async Task<ActionResult<ApiResponse<Control>>> Create([FromBody] ControlRequestDto dto)
+    {
+        var entity = new Control
+        {
+            Code = dto.Code,
+            Title = dto.Title,
+            RequirementId = dto.RequirementId ?? string.Empty,
+            StandardId = dto.StandardId ?? string.Empty,
+            Category = dto.Category,
+            Description = dto.Description,
+            Status = dto.Status,
+            Owner = dto.Owner,
+            CompliancePercentage = dto.CompliancePercentage,
+            IsApplicable = dto.IsApplicable,
+            Justification = dto.Justification
+        };
+
+        var created = await _controlRepository.CreateControlAsync(entity);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, ApiResponse<Control>.SuccessResponse(created, "Control created successfully."));
+    }
+
+    /// <summary>
+    /// Update existing Security Control
+    /// </summary>
+    [HttpPut("{id}")]
+    [ProducesResponseType(typeof(ApiResponse<Control>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<Control>), 404)]
+    public async Task<ActionResult<ApiResponse<Control>>> Update(string id, [FromBody] ControlRequestDto dto)
+    {
+        var existing = await _controlRepository.GetControlByIdAsync(id);
+        if (existing == null)
+            return NotFound(ApiResponse<Control>.FailureResponse($"Control with ID '{id}' was not found."));
+
+        existing.Code = dto.Code;
+        existing.Title = dto.Title;
+        existing.Category = dto.Category;
+        existing.Description = dto.Description;
+        existing.Status = dto.Status;
+        existing.Owner = dto.Owner;
+        existing.CompliancePercentage = dto.CompliancePercentage;
+        existing.IsApplicable = dto.IsApplicable;
+        existing.Justification = dto.Justification;
+
+        var updated = await _controlRepository.UpdateControlAsync(existing);
+        return Ok(ApiResponse<Control>.SuccessResponse(updated!, "Control updated successfully."));
+    }
+
+    /// <summary>
+    /// Delete a Security Control
+    /// </summary>
+    [HttpDelete("{id}")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
+    public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
+    {
+        var deleted = await _controlRepository.DeleteControlAsync(id);
+        if (!deleted)
+            return NotFound(ApiResponse<bool>.FailureResponse($"Control with ID '{id}' was not found."));
+
+        return Ok(ApiResponse<bool>.SuccessResponse(true, "Control deleted successfully."));
     }
 
     /// <summary>
@@ -52,7 +134,7 @@ public class ControlsController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<StatementOfApplicability>>>> GetSoa()
     {
         var soa = await _controlRepository.GetStatementOfApplicabilityAsync();
-        return Ok(new ApiResponse<List<StatementOfApplicability>> { Data = soa });
+        return Ok(ApiResponse<List<StatementOfApplicability>>.SuccessResponse(soa));
     }
 
     /// <summary>
@@ -63,6 +145,6 @@ public class ControlsController : ControllerBase
     public async Task<ActionResult<ApiResponse<RelatedItemsCountDto>>> GetRelatedItems(string id)
     {
         var counts = await _controlRepository.GetRelatedItemsCountAsync(id);
-        return Ok(new ApiResponse<RelatedItemsCountDto> { Data = counts });
+        return Ok(ApiResponse<RelatedItemsCountDto>.SuccessResponse(counts));
     }
 }

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ISOFlow.Api.Controllers;
 
 /// <summary>
-/// System Logs & Date-Wise Log Filtering API
+/// System Logs and Date-Wise Log Filtering API
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]

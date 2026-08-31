@@ -1,147 +1,266 @@
+using Dapper;
+using ISOFlow.Application.DTOs;
+using ISOFlow.Application.Helpers;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
-using ISOFlow.Infrastructure.MockData;
+using ISOFlow.Domain.Enums;
+using ISOFlow.Infrastructure.Data;
 
 namespace ISOFlow.Infrastructure.Repositories;
 
-/// <summary>
-/// In-memory mock implementation of IUserRepository.
-/// All mutations operate on the live MockStore.Users list (singleton per app lifetime).
-///
-/// MIGRATION NOTE: Replace this class with an EF Core / HttpClient implementation
-/// to connect to a real database or API. The interface contract stays the same.
-/// </summary>
-public class UserRepository : IUserRepository
+public class UserRepository : BaseRepository, IUserRepository
 {
-    // ── Queries ─────────────────────────────────────────────────────────────────
+    public UserRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
-    public Task<List<User>> GetAllUsersAsync() =>
-        Task.FromResult(MockStore.Users);
-
-    public Task<List<User>> GetUsersByOrganizationIdAsync(string orgId) =>
-        Task.FromResult(MockStore.Users
-            .Where(u => u.OrganizationId.Equals(orgId, StringComparison.OrdinalIgnoreCase))
-            .ToList());
-
-    public Task<User?> GetUserByIdAsync(string id) =>
-        Task.FromResult(MockStore.Users
-            .FirstOrDefault(u => u.Id.Equals(id, StringComparison.OrdinalIgnoreCase)));
-
-    public Task<User?> GetUserByEmailAsync(string email) =>
-        Task.FromResult(MockStore.Users
-            .FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)));
-
-    public Task<User?> ValidateLoginAsync(string email, string password) =>
-        Task.FromResult(MockStore.Users
-            .FirstOrDefault(u =>
-                u.Email.Equals(email, StringComparison.OrdinalIgnoreCase) &&
-                u.Password == password));
-
-    // ── User Management Mutations ────────────────────────────────────────────────
-
-    public Task<User> CreateUserAsync(User user)
+    public Task<List<User>> GetAllUsersAsync()
     {
-        if (string.IsNullOrWhiteSpace(user.Id))
+        return QueryMappedListAsync("SELECT * FROM sp_users_get_all()", r => new User
         {
-            user.Id = MockStore.NextId("USR", MockStore.Users.Count);
-        }
-        if (string.IsNullOrWhiteSpace(user.Password))
-        {
-            user.Password = "Test@123";
-        }
-        if (string.IsNullOrWhiteSpace(user.AvatarUrl))
-        {
-            user.AvatarUrl = $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(user.Name)}&background=4f46e5&color=fff";
-        }
-        MockStore.Users.Add(user);
-        return Task.FromResult(user);
+            Id = r.id.ToString(),
+            OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+            Name = (string)r.name,
+            Email = (string)r.email,
+            Password = (string)r.password_hash,
+            SystemRole = (SystemRole)(int)r.system_role,
+            Role = (string)r.role,
+            Department = (string)r.department,
+            Location = (string)r.location,
+            AvatarUrl = (string)r.avatar_url ?? string.Empty,
+            Phone = (string)r.phone ?? string.Empty,
+            Bio = (string)r.bio ?? string.Empty,
+            ResetToken = (string?)r.reset_token
+        });
     }
 
-    public Task<User?> UpdateUserAsync(User user)
+    public Task<PagedResponse<User>> GetPagedUsersAsync(PagedRequestDto request)
     {
-        var existing = MockStore.Users.FirstOrDefault(u => u.Id.Equals(user.Id, StringComparison.OrdinalIgnoreCase));
-        if (existing != null)
-        {
-            existing.Name = user.Name;
-            existing.Email = user.Email;
-            if (!string.IsNullOrWhiteSpace(user.Password))
+        var parameters = new DynamicParameters();
+        parameters.Add("p_page_number", request.PageNumber);
+        parameters.Add("p_page_size", request.PageSize);
+        parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
+        parameters.Add("p_department", string.IsNullOrWhiteSpace(request.CategoryFilter) ? null : request.CategoryFilter.Trim());
+        parameters.Add("p_organization_id", (int?)null);
+
+        return QueryPagedAsync(
+            "SELECT * FROM sp_users_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_department, @p_organization_id)",
+            r => new User
             {
-                existing.Password = user.Password;
-            }
-            existing.SystemRole = user.SystemRole;
-            existing.Role = user.Role;
-            existing.Department = user.Department;
-            existing.OrganizationId = user.OrganizationId;
-            existing.Location = user.Location;
-            existing.Phone = user.Phone;
-            existing.Bio = user.Bio;
-        }
-        return Task.FromResult(existing);
+                Id = r.id.ToString(),
+                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                Name = (string)r.name,
+                Email = (string)r.email,
+                Password = (string)r.password_hash,
+                SystemRole = (SystemRole)(int)r.system_role,
+                Role = (string)r.role,
+                Department = (string)r.department,
+                Location = (string)r.location,
+                AvatarUrl = (string)r.avatar_url ?? string.Empty,
+                Phone = (string)r.phone ?? string.Empty,
+                Bio = (string)r.bio ?? string.Empty,
+                ResetToken = (string?)r.reset_token
+            },
+            parameters,
+            request.PageNumber,
+            request.PageSize);
     }
 
-    public Task<bool> DeleteUserAsync(string id)
+    public Task<List<User>> GetUsersByOrganizationIdAsync(string organizationId)
     {
-        var existing = MockStore.Users.FirstOrDefault(u => u.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
-        if (existing != null)
-        {
-            MockStore.Users.Remove(existing);
-            return Task.FromResult(true);
-        }
-        return Task.FromResult(false);
+        int.TryParse(organizationId, out var orgId);
+        return QueryMappedListAsync(
+            "SELECT id, organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio, reset_token FROM users WHERE organization_id = @orgId ORDER BY id ASC",
+            r => new User
+            {
+                Id = r.id.ToString(),
+                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                Name = (string)r.name,
+                Email = (string)r.email,
+                Password = (string)r.password_hash,
+                SystemRole = (SystemRole)(int)r.system_role,
+                Role = (string)r.role,
+                Department = (string)r.department,
+                Location = (string)r.location,
+                AvatarUrl = (string)r.avatar_url ?? string.Empty,
+                Phone = (string)r.phone ?? string.Empty,
+                Bio = (string)r.bio ?? string.Empty,
+                ResetToken = (string?)r.reset_token
+            },
+            new { orgId });
     }
 
-    // ── Auth Mutations ───────────────────────────────────────────────────────────
-
-    public Task<string?> GenerateResetTokenAsync(string email)
+    public Task<PagedResponse<User>> GetPagedUsersByOrganizationIdAsync(string organizationId, PagedRequestDto request)
     {
-        var user = MockStore.Users
-            .FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+        int.TryParse(organizationId, out var orgId);
+        var parameters = new DynamicParameters();
+        parameters.Add("p_page_number", request.PageNumber);
+        parameters.Add("p_page_size", request.PageSize);
+        parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
+        parameters.Add("p_department", (string?)null);
+        parameters.Add("p_organization_id", orgId > 0 ? (int?)orgId : null);
 
-        if (user is null) return Task.FromResult<string?>(null);
-
-        // Generate an 8-char uppercase alphanumeric mock token
-        var token = Guid.NewGuid().ToString("N")[..8].ToUpper();
-        user.ResetToken = token;
-        return Task.FromResult<string?>(token);
+        return QueryPagedAsync(
+            "SELECT * FROM sp_users_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_department, @p_organization_id)",
+            r => new User
+            {
+                Id = r.id.ToString(),
+                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                Name = (string)r.name,
+                Email = (string)r.email,
+                Password = (string)r.password_hash,
+                SystemRole = (SystemRole)(int)r.system_role,
+                Role = (string)r.role,
+                Department = (string)r.department,
+                Location = (string)r.location,
+                AvatarUrl = (string)r.avatar_url ?? string.Empty,
+                Phone = (string)r.phone ?? string.Empty,
+                Bio = (string)r.bio ?? string.Empty,
+                ResetToken = (string?)r.reset_token
+            },
+            parameters,
+            request.PageNumber,
+            request.PageSize);
     }
 
-    public Task<bool> ResetPasswordAsync(string token, string newPassword)
+    public Task<User?> GetUserByIdAsync(string id)
     {
-        var user = MockStore.Users
-            .FirstOrDefault(u => u.ResetToken != null &&
-                                 u.ResetToken.Equals(token, StringComparison.OrdinalIgnoreCase));
-
-        if (user is null) return Task.FromResult(false);
-
-        user.Password   = newPassword;
-        user.ResetToken = null;
-        return Task.FromResult(true);
+        return QueryMappedFirstOrDefaultAsync(
+            "SELECT id, organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio, reset_token FROM users WHERE id::VARCHAR = @id",
+            r => new User
+            {
+                Id = r.id.ToString(),
+                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                Name = (string)r.name,
+                Email = (string)r.email,
+                Password = (string)r.password_hash,
+                SystemRole = (SystemRole)(int)r.system_role,
+                Role = (string)r.role,
+                Department = (string)r.department,
+                Location = (string)r.location,
+                AvatarUrl = (string)r.avatar_url ?? string.Empty,
+                Phone = (string)r.phone ?? string.Empty,
+                Bio = (string)r.bio ?? string.Empty,
+                ResetToken = (string?)r.reset_token
+            },
+            new { id });
     }
 
-    public Task<bool> UpdateProfileAsync(string userId, string name, string phone, string department, string bio)
+    public Task<User?> GetUserByEmailAsync(string email)
     {
-        var user = MockStore.Users
-            .FirstOrDefault(u => u.Id.Equals(userId, StringComparison.OrdinalIgnoreCase));
-
-        if (user is null) return Task.FromResult(false);
-
-        user.Name       = name;
-        user.Phone      = phone;
-        user.Department = department;
-        user.Bio        = bio;
-        return Task.FromResult(true);
+        return QueryMappedFirstOrDefaultAsync(
+            "SELECT id, organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio, reset_token FROM users WHERE LOWER(email) = LOWER(@email)",
+            r => new User
+            {
+                Id = r.id.ToString(),
+                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                Name = (string)r.name,
+                Email = (string)r.email,
+                Password = (string)r.password_hash,
+                SystemRole = (SystemRole)(int)r.system_role,
+                Role = (string)r.role,
+                Department = (string)r.department,
+                Location = (string)r.location,
+                AvatarUrl = (string)r.avatar_url ?? string.Empty,
+                Phone = (string)r.phone ?? string.Empty,
+                Bio = (string)r.bio ?? string.Empty,
+                ResetToken = (string?)r.reset_token
+            },
+            new { email });
     }
 
-    public Task<bool> ChangePasswordAsync(string userId, string currentPassword, string newPassword)
+    public async Task<User> CreateUserAsync(User user)
     {
-        var user = MockStore.Users
-            .FirstOrDefault(u =>
-                u.Id.Equals(userId, StringComparison.OrdinalIgnoreCase) &&
-                u.Password == currentPassword);
+        int.TryParse(user.OrganizationId, out var orgId);
+        var parameters = new DynamicParameters();
+        parameters.Add("p_org_id", orgId > 0 ? (int?)orgId : null);
+        parameters.Add("p_name", user.Name);
+        parameters.Add("p_email", user.Email);
+        parameters.Add("p_password", user.Password);
+        parameters.Add("p_system_role", (int)user.SystemRole);
+        parameters.Add("p_role", user.Role);
+        parameters.Add("p_department", user.Department);
+        parameters.Add("p_location", user.Location);
+        parameters.Add("p_avatar_url", user.AvatarUrl);
+        parameters.Add("p_phone", user.Phone);
+        parameters.Add("p_bio", user.Bio);
 
-        if (user is null) return Task.FromResult(false);
+        var insertedId = await QuerySingleAsync<int>("INSERT INTO users (organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio) VALUES (@p_org_id, @p_name, @p_email, @p_password, @p_system_role, @p_role, @p_department, @p_location, @p_avatar_url, @p_phone, @p_bio) RETURNING id", parameters);
+        user.Id = insertedId.ToString();
+        return user;
+    }
 
-        user.Password = newPassword;
-        return Task.FromResult(true);
+    public async Task<User?> UpdateUserAsync(User user)
+    {
+        int.TryParse(user.OrganizationId, out var orgId);
+        var parameters = new DynamicParameters();
+        parameters.Add("p_id", user.Id);
+        parameters.Add("p_org_id", orgId > 0 ? (int?)orgId : null);
+        parameters.Add("p_name", user.Name);
+        parameters.Add("p_email", user.Email);
+        parameters.Add("p_system_role", (int)user.SystemRole);
+        parameters.Add("p_role", user.Role);
+        parameters.Add("p_department", user.Department);
+        parameters.Add("p_location", user.Location);
+        parameters.Add("p_avatar_url", user.AvatarUrl);
+        parameters.Add("p_phone", user.Phone);
+        parameters.Add("p_bio", user.Bio);
+
+        var rows = await ExecuteAsync("UPDATE users SET organization_id = @p_org_id, name = @p_name, email = @p_email, system_role = @p_system_role, role = @p_role, department = @p_department, location = @p_location, avatar_url = @p_avatar_url, phone = @p_phone, bio = @p_bio, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @p_id", parameters);
+        return rows > 0 ? user : null;
+    }
+
+    public async Task<bool> DeleteUserAsync(string id)
+    {
+        var rows = await ExecuteAsync("DELETE FROM users WHERE id::VARCHAR = @id", new { id });
+        return rows > 0;
+    }
+
+    public Task<User?> ValidateLoginAsync(string email, string password)
+    {
+        return QueryMappedFirstOrDefaultAsync(
+            "SELECT * FROM sp_user_validate_login(@email, @password)",
+            r => new User
+            {
+                Id = r.id.ToString(),
+                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                Name = (string)r.name,
+                Email = (string)r.email,
+                Password = password,
+                SystemRole = (SystemRole)(int)r.system_role,
+                Role = (string)r.role,
+                Department = (string)r.department,
+                Location = (string)r.location,
+                AvatarUrl = (string)r.avatar_url ?? string.Empty,
+                Phone = (string)r.phone ?? string.Empty,
+                Bio = (string)r.bio ?? string.Empty
+            },
+            new { email, password });
+    }
+
+    public async Task<string?> GenerateResetTokenAsync(string email)
+    {
+        var user = await GetUserByEmailAsync(email);
+        if (user == null) return null;
+
+        var token = PasswordSecurityHelper.GenerateResetToken();
+        await ExecuteAsync("UPDATE users SET reset_token = @token, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE LOWER(email) = LOWER(@email)", new { token, email });
+        return token;
+    }
+
+    public async Task<bool> ResetPasswordAsync(string token, string newPassword)
+    {
+        var rows = await ExecuteAsync("UPDATE users SET password_hash = @newPassword, reset_token = NULL, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE reset_token = @token", new { newPassword, token });
+        return rows > 0;
+    }
+
+    public async Task<bool> UpdateProfileAsync(string id, string name, string phone, string department, string bio)
+    {
+        var rows = await ExecuteAsync("UPDATE users SET name = @name, phone = @phone, department = @department, bio = @bio, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @id", new { id, name, phone, department, bio });
+        return rows > 0;
+    }
+
+    public async Task<bool> ChangePasswordAsync(string id, string currentPassword, string newPassword)
+    {
+        var rows = await ExecuteAsync("UPDATE users SET password_hash = @newPassword, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @id AND password_hash = @currentPassword", new { id, currentPassword, newPassword });
+        return rows > 0;
     }
 }
