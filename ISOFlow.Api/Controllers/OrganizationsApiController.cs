@@ -1,6 +1,7 @@
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Api.Controllers;
@@ -10,6 +11,7 @@ namespace ISOFlow.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 [Produces("application/json")]
 public class OrganizationsController : ControllerBase
 {
@@ -58,9 +60,10 @@ public class OrganizationsController : ControllerBase
     }
 
     /// <summary>
-    /// Register a new Organization tenant
+    /// Register a new Organization tenant (Requires SuperAdmin or Admin role)
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     [ProducesResponseType(typeof(ApiResponse<Organization>), 201)]
     public async Task<ActionResult<ApiResponse<Organization>>> Create([FromBody] OrganizationRequestDto dto)
     {
@@ -82,9 +85,10 @@ public class OrganizationsController : ControllerBase
     }
 
     /// <summary>
-    /// Update existing Organization
+    /// Update existing Organization (Requires SuperAdmin or Admin role)
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     [ProducesResponseType(typeof(ApiResponse<Organization>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Organization>), 404)]
     public async Task<ActionResult<ApiResponse<Organization>>> Update(string id, [FromBody] OrganizationRequestDto dto)
@@ -107,9 +111,10 @@ public class OrganizationsController : ControllerBase
     }
 
     /// <summary>
-    /// Delete an Organization
+    /// Delete an Organization (Requires SuperAdmin or Admin role)
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)

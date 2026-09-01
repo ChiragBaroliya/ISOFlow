@@ -1,13 +1,18 @@
 using System.Reflection;
+using System.Text;
+using System.Text.Json;
 using ISOFlow.Api.Controllers;
 using ISOFlow.Api.Hubs;
 using ISOFlow.Api.Middlewares;
+using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Application.Services;
 using ISOFlow.Infrastructure.Data;
 using ISOFlow.Infrastructure.Repositories;
 using ISOFlow.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Serilog;
 
@@ -44,6 +49,10 @@ try
     // Use Serilog
     builder.Host.UseSerilog();
 
+    // Bind JWT Configuration Settings
+    var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
+    builder.Services.AddSingleton(jwtSettings);
+
     // Add MemoryCache & SignalR
     builder.Services.AddMemoryCache();
     builder.Services.AddSignalR();
@@ -54,6 +63,7 @@ try
     // Register Repositories
     builder.Services.AddSingleton<IOrganizationRepository, OrganizationRepository>();
     builder.Services.AddSingleton<IUserRepository, UserRepository>();
+    builder.Services.AddSingleton<IRefreshTokenRepository, RefreshTokenRepository>();
     builder.Services.AddSingleton<IStandardRepository, StandardRepository>();
     builder.Services.AddSingleton<IControlRepository, ControlRepository>();
     builder.Services.AddSingleton<IRiskRepository, RiskRepository>();
@@ -71,6 +81,70 @@ try
     builder.Services.AddSingleton<IDashboardService, DashboardService>();
     builder.Services.AddSingleton<ITraceabilityService, TraceabilityService>();
     builder.Services.AddSingleton<ILogService, LogService>();
+    builder.Services.AddSingleton<IJwtService, JwtService>();
+    builder.Services.AddSingleton<IAuthService, AuthService>();
+
+    // Configure JWT Bearer Authentication
+    var keyBytes = Encoding.UTF8.GetBytes(jwtSettings.Secret);
+    builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = false; // Set true in strict production
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+            ValidateIssuer = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtSettings.Audience,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero,
+            RequireExpirationTime = true
+        };
+
+        // Standardize 401 and 403 API responses to match ApiResponse<T> format
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                // Suppress default challenge response to write custom JSON
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+
+                var failureResponse = ApiResponse<object>.FailureResponse(
+                    "You are not authorized to access this resource. Please provide a valid Bearer token.",
+                    new[] { "Unauthorized: Missing, invalid, or expired JWT token." });
+
+                await context.Response.WriteAsync(JsonSerializer.Serialize(failureResponse, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                }));
+            },
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json";
+
+                var failureResponse = ApiResponse<object>.FailureResponse(
+                    "Access denied. You do not possess the required role/permissions for this resource.",
+                    new[] { "Forbidden: Insufficient role permissions." });
+
+                await context.Response.WriteAsync(JsonSerializer.Serialize(failureResponse, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                }));
+            }
+        };
+    });
+
+    builder.Services.AddAuthorization();
 
     // Configure Controllers with Standardized Model Validation Error Factory
     builder.Services.AddControllers()
@@ -97,20 +171,39 @@ try
 
     builder.Services.AddEndpointsApiExplorer();
 
-    // Configure Swagger OpenAPI Specification
+    // Configure Swagger OpenAPI Specification with Bearer Token Authorization Support
     builder.Services.AddSwaggerGen(c =>
     {
         c.SwaggerDoc("v1", new OpenApiInfo
         {
             Title = "ISOFlow Compliance Management Platform API",
             Version = "v1",
-            Description = "Enterprise RESTful Web APIs for ISO 27001 / ISO 9001 / ISO 14001 compliance management, Statement of Applicability (SoA), risk assessment, CAPA workflows, audit programs, and date-wise Serilog inspection.",
+            Description = "Enterprise RESTful Web APIs for ISO 27001 / ISO 9001 / ISO 14001 compliance management, Statement of Applicability (SoA), risk assessment, CAPA workflows, audit programs, and date-wise Serilog inspection with JWT Authentication.",
             Contact = new OpenApiContact
             {
                 Name = "Acme InfoSec Compliance Engineering",
                 Email = "compliance@acme.com"
             }
         });
+
+        // Add Bearer JWT Authentication definition to Swagger
+        var securityScheme = new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Description = "Enter JWT Bearer token format: `Bearer {your_token}`",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT"
+        };
+        c.AddSecurityDefinition("Bearer", securityScheme);
+
+        var schemeRef = new OpenApiSecuritySchemeReference("Bearer", null);
+        var securityRequirement = new OpenApiSecurityRequirement
+        {
+            [schemeRef] = new List<string>()
+        };
+        c.AddSecurityRequirement(doc => securityRequirement);
 
         // Include XML documentation comments if present
         var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
@@ -148,6 +241,9 @@ try
 
     app.UseCors();
     app.UseRouting();
+
+    // Authentication & Authorization Middlewares
+    app.UseAuthentication();
     app.UseAuthorization();
 
     app.MapControllers();

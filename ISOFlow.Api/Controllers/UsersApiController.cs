@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Api.Controllers;
@@ -14,17 +16,50 @@ namespace ISOFlow.Api.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
+    private readonly IAuthService _authService;
+    private readonly IJwtService _jwtService;
 
-    public UsersController(IUserRepository userRepository)
+    public UsersController(
+        IUserRepository userRepository,
+        IAuthService authService,
+        IJwtService jwtService)
     {
         _userRepository = userRepository;
+        _authService = authService;
+        _jwtService = jwtService;
+    }
+
+    /// <summary>
+    /// Get the profile and claims of the currently authenticated user
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<UserProfileDto>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 401)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 404)]
+    public async Task<ActionResult<ApiResponse<UserProfileDto>>> GetCurrentUser()
+    {
+        var userId = _jwtService.GetUserIdFromPrincipal(User)
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized(ApiResponse<UserProfileDto>.FailureResponse("User identity could not be established from JWT claims."));
+
+        var profile = await _authService.GetUserProfileByIdAsync(userId);
+        if (profile == null)
+            return NotFound(ApiResponse<UserProfileDto>.FailureResponse($"User with ID '{userId}' was not found."));
+
+        return Ok(ApiResponse<UserProfileDto>.SuccessResponse(profile));
     }
 
     /// <summary>
     /// Get paginated and filtered list of Users
     /// </summary>
     [HttpGet]
+    [Authorize]
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<User>>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 401)]
     public async Task<ActionResult<ApiResponse<PagedResponse<User>>>> GetPaged([FromQuery] PagedRequestDto request)
     {
         var paged = await _userRepository.GetPagedUsersAsync(request);
@@ -35,7 +70,9 @@ public class UsersController : ControllerBase
     /// Get all registered Users
     /// </summary>
     [HttpGet("all")]
+    [Authorize]
     [ProducesResponseType(typeof(ApiResponse<List<User>>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 401)]
     public async Task<ActionResult<ApiResponse<List<User>>>> GetAll()
     {
         var users = await _userRepository.GetAllUsersAsync();
@@ -46,7 +83,9 @@ public class UsersController : ControllerBase
     /// Get Users belonging to an Organization
     /// </summary>
     [HttpGet("organization/{orgId}")]
+    [Authorize]
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<User>>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 401)]
     public async Task<ActionResult<ApiResponse<PagedResponse<User>>>> GetByOrg(string orgId, [FromQuery] PagedRequestDto request)
     {
         var paged = await _userRepository.GetPagedUsersByOrganizationIdAsync(orgId, request);
@@ -57,7 +96,9 @@ public class UsersController : ControllerBase
     /// Get User details by Identifier
     /// </summary>
     [HttpGet("{id}")]
+    [Authorize]
     [ProducesResponseType(typeof(ApiResponse<User>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 401)]
     [ProducesResponseType(typeof(ApiResponse<User>), 404)]
     public async Task<ActionResult<ApiResponse<User>>> GetById(string id)
     {
@@ -69,10 +110,13 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Register a new User
+    /// Register a new User (Requires SuperAdmin or Admin role)
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     [ProducesResponseType(typeof(ApiResponse<User>), 201)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 401)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 403)]
     public async Task<ActionResult<ApiResponse<User>>> Create([FromBody] UserRequestDto dto)
     {
         var user = new User
@@ -94,10 +138,13 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Update existing User
+    /// Update existing User (Requires SuperAdmin or Admin role)
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     [ProducesResponseType(typeof(ApiResponse<User>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 401)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 403)]
     [ProducesResponseType(typeof(ApiResponse<User>), 404)]
     public async Task<ActionResult<ApiResponse<User>>> Update(string id, [FromBody] UserRequestDto dto)
     {
@@ -124,10 +171,13 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Delete a User
+    /// Delete a User (Requires SuperAdmin or Admin role)
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 401)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 403)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
     {
@@ -142,21 +192,28 @@ public class UsersController : ControllerBase
     /// Authenticate User credentials
     /// </summary>
     [HttpPost("login")]
-    [ProducesResponseType(typeof(ApiResponse<User>), 200)]
-    [ProducesResponseType(typeof(ApiResponse<User>), 401)]
-    public async Task<ActionResult<ApiResponse<User>>> Login([FromBody] UserLoginDto dto)
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<LoginResponseDto>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 401)]
+    public async Task<ActionResult<ApiResponse<LoginResponseDto>>> Login([FromBody] UserLoginDto dto)
     {
-        var user = await _userRepository.ValidateLoginAsync(dto.Email, dto.Password);
-        if (user == null)
-            return Unauthorized(ApiResponse<User>.FailureResponse("Invalid email or password."));
+        var loginResponse = await _authService.LoginAsync(new LoginRequestDto
+        {
+            Email = dto.Email,
+            Password = dto.Password
+        });
 
-        return Ok(ApiResponse<User>.SuccessResponse(user, "Login successful."));
+        if (loginResponse == null)
+            return Unauthorized(ApiResponse<LoginResponseDto>.FailureResponse("Invalid email or password."));
+
+        return Ok(ApiResponse<LoginResponseDto>.SuccessResponse(loginResponse, "Login successful."));
     }
 
     /// <summary>
     /// Request password reset token
     /// </summary>
     [HttpPost("forgot-password")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<string>), 200)]
     [ProducesResponseType(typeof(ApiResponse<string>), 404)]
     public async Task<ActionResult<ApiResponse<string>>> ForgotPassword([FromBody] ForgotPasswordDto dto)
@@ -172,6 +229,7 @@ public class UsersController : ControllerBase
     /// Reset password using reset token
     /// </summary>
     [HttpPost("reset-password")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 400)]
     public async Task<ActionResult<ApiResponse<bool>>> ResetPassword([FromBody] ResetPasswordDto dto)
@@ -187,7 +245,9 @@ public class UsersController : ControllerBase
     /// Update User Profile details
     /// </summary>
     [HttpPut("{id}/profile")]
+    [Authorize]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 401)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> UpdateProfile(string id, [FromBody] UpdateProfileDto dto)
     {
@@ -202,7 +262,9 @@ public class UsersController : ControllerBase
     /// Change password with current password verification
     /// </summary>
     [HttpPost("{id}/change-password")]
+    [Authorize]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 401)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 400)]
     public async Task<ActionResult<ApiResponse<bool>>> ChangePassword(string id, [FromBody] ChangePasswordDto dto)
     {
