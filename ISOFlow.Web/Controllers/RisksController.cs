@@ -22,13 +22,28 @@ public class RisksController : Controller
         return View(risks);
     }
 
-    public async Task<IActionResult> Detail(string id = "RISK-001")
+    public async Task<IActionResult> Detail(string? id = null)
     {
         ViewData["ActiveMenu"] = "Risks";
-        ViewData["ActiveTraceabilityId"] = id;
 
-        var risk = await _risksClient.GetRiskByIdAsync(id) ?? new Risk { Id = "RISK-001", Code = "RISK-001", Title = "Unauthorized System & Data Access" };
-        var treatment = await _risksClient.GetRiskTreatmentByRiskIdAsync(id);
+        var allRisks = await _risksClient.GetAllRisksAsync();
+        Risk? risk = null;
+
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            risk = await _risksClient.GetRiskByIdAsync(id)
+                ?? allRisks.FirstOrDefault(r => r.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || r.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        }
+
+        risk ??= allRisks.FirstOrDefault();
+
+        if (risk == null)
+        {
+            return NotFound("No risks found in database.");
+        }
+
+        ViewData["ActiveTraceabilityId"] = risk.Code;
+        var treatment = await _risksClient.GetRiskTreatmentByRiskIdAsync(risk.Id);
 
         var vm = new RiskDetailViewModel
         {
@@ -53,7 +68,7 @@ public class RisksController : Controller
         if (ModelState.IsValid)
         {
             await _risksClient.CreateRiskAsync(risk, treatment);
-            TempData["SuccessMessage"] = $"Risk '{risk.Code}' added to register successfully!";
+            TempData["SuccessMessage"] = $"Risk '{risk.Code}' added to register in database!";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -66,7 +81,7 @@ public class RisksController : Controller
             var updated = await _risksClient.UpdateRiskAsync(risk, treatment);
             if (updated != null)
             {
-                TempData["SuccessMessage"] = $"Risk '{updated.Code}' updated successfully.";
+                TempData["SuccessMessage"] = $"Risk '{updated.Code}' updated in database.";
             }
         }
         return RedirectToAction(nameof(Index));
@@ -78,11 +93,11 @@ public class RisksController : Controller
         var result = await _risksClient.DeleteRiskAsync(id);
         if (result)
         {
-            TempData["SuccessMessage"] = "Risk deleted from register.";
+            TempData["SuccessMessage"] = "Risk deleted from database.";
         }
         else
         {
-            TempData["ErrorMessage"] = "Unable to delete risk.";
+            TempData["ErrorMessage"] = "Unable to delete risk from database.";
         }
         return RedirectToAction(nameof(Index));
     }

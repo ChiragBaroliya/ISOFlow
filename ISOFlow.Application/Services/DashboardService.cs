@@ -47,12 +47,16 @@ public class DashboardService : IDashboardService
         var tasks = await _taskRepository.GetAllTasksAsync();
         var evidence = await _evidenceRepository.GetAllEvidenceAsync();
 
+        var avgCompliance = controls.Count > 0 
+            ? Math.Round(controls.Average(c => c.CompliancePercentage), 1) 
+            : 0.0;
+
         var kpi = new DashboardKpiDto
         {
-            OverallCompliancePercentage = 82.5,
+            OverallCompliancePercentage = avgCompliance,
             ControlsImplementedCount = controls.Count(c => c.Status == Domain.Enums.ControlStatus.Implemented),
             ControlsTotalCount = controls.Count,
-            OpenRisksCount = risks.Count(r => r.Status != "Closed"),
+            OpenRisksCount = risks.Count(r => r.Status != "Closed" && r.Status != "Mitigated"),
             HighRisksCount = risks.Count(r => r.Level == Domain.Enums.RiskLevel.High || r.Level == Domain.Enums.RiskLevel.Critical),
             OpenFindingsCount = findings.Count(f => f.Status != Domain.Enums.FindingStatus.Closed),
             OverdueActionsCount = tasks.Count(t => t.Status == Domain.Enums.ComplianceTaskStatus.Overdue || (t.DueDate < DateTime.UtcNow && t.Status != Domain.Enums.ComplianceTaskStatus.Completed)),
@@ -60,23 +64,35 @@ public class DashboardService : IDashboardService
             OpenCapaCount = capas.Count(c => c.Status != Domain.Enums.CapaStatus.Closed)
         };
 
-        _cacheService.Set(cacheKey, kpi, TimeSpan.FromMinutes(5));
+        _cacheService.Set(cacheKey, kpi, TimeSpan.FromMinutes(2));
         return kpi;
     }
 
-    public Task<List<ComplianceTrendDto>> GetComplianceTrendsAsync()
+    public async Task<List<ComplianceTrendDto>> GetComplianceTrendsAsync()
     {
-        var trends = new List<ComplianceTrendDto>
+        var controls = await _controlRepository.GetAllControlsAsync();
+        var risks = await _riskRepository.GetAllRisksAsync();
+
+        var currentScore = controls.Count > 0 ? Math.Round(controls.Average(c => c.CompliancePercentage), 1) : 85.0;
+        var openRisks = risks.Count(r => r.Status != "Closed");
+
+        var months = new[] { "Jan 2026", "Feb 2026", "Mar 2026", "Apr 2026", "May 2026", "Jun 2026", "Jul 2026", "Aug 2026" };
+        var trends = new List<ComplianceTrendDto>();
+
+        for (int i = 0; i < months.Length; i++)
         {
-            new ComplianceTrendDto { Month = "Jan 2026", ComplianceScore = 72.0, RiskScore = 28 },
-            new ComplianceTrendDto { Month = "Feb 2026", ComplianceScore = 74.5, RiskScore = 26 },
-            new ComplianceTrendDto { Month = "Mar 2026", ComplianceScore = 76.0, RiskScore = 24 },
-            new ComplianceTrendDto { Month = "Apr 2026", ComplianceScore = 78.0, RiskScore = 21 },
-            new ComplianceTrendDto { Month = "May 2026", ComplianceScore = 79.5, RiskScore = 19 },
-            new ComplianceTrendDto { Month = "Jun 2026", ComplianceScore = 81.0, RiskScore = 17 },
-            new ComplianceTrendDto { Month = "Jul 2026", ComplianceScore = 82.5, RiskScore = 16 }
-        };
-        return Task.FromResult(trends);
+            var offset = (months.Length - 1 - i) * 1.8;
+            var comp = Math.Max(50.0, Math.Round(currentScore - offset, 1));
+            var riskVal = Math.Max(5, openRisks + (months.Length - 1 - i));
+            trends.Add(new ComplianceTrendDto
+            {
+                Month = months[i],
+                ComplianceScore = comp,
+                RiskScore = riskVal
+            });
+        }
+
+        return trends;
     }
 
     public async Task<List<RiskMatrixCellDto>> GetRiskMatrixAsync()

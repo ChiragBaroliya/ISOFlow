@@ -21,11 +21,27 @@ public class AuditsController : Controller
         return View(audits);
     }
 
-    public async Task<IActionResult> Detail(string id = "AUD-2026-001")
+    public async Task<IActionResult> Detail(string? id = null)
     {
         ViewData["ActiveMenu"] = "Audits";
-        ViewData["ActiveTraceabilityId"] = id;
-        var audit = await _auditsClient.GetAuditByIdAsync(id);
+
+        var allAudits = await _auditsClient.GetAllAuditsAsync();
+        Audit? audit = null;
+
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            audit = await _auditsClient.GetAuditByIdAsync(id)
+                ?? allAudits.FirstOrDefault(a => a.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || a.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        }
+
+        audit ??= allAudits.FirstOrDefault();
+
+        if (audit == null)
+        {
+            return NotFound("No audits found in database.");
+        }
+
+        ViewData["ActiveTraceabilityId"] = audit.Code;
         return View(audit);
     }
 
@@ -43,7 +59,7 @@ public class AuditsController : Controller
                     .ToList();
             }
             await _auditsClient.CreateAuditAsync(audit);
-            TempData["SuccessMessage"] = $"Audit '{audit.Title}' scheduled successfully!";
+            TempData["SuccessMessage"] = $"Audit '{audit.Title}' scheduled in database successfully!";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -64,7 +80,7 @@ public class AuditsController : Controller
             var updated = await _auditsClient.UpdateAuditAsync(audit);
             if (updated != null)
             {
-                TempData["SuccessMessage"] = $"Audit '{updated.Code}' updated successfully.";
+                TempData["SuccessMessage"] = $"Audit '{updated.Code}' updated in database.";
             }
         }
         return RedirectToAction(nameof(Index));
@@ -76,11 +92,11 @@ public class AuditsController : Controller
         var result = await _auditsClient.DeleteAuditAsync(id);
         if (result)
         {
-            TempData["SuccessMessage"] = "Audit deleted successfully.";
+            TempData["SuccessMessage"] = "Audit deleted from database.";
         }
         else
         {
-            TempData["ErrorMessage"] = "Unable to delete audit.";
+            TempData["ErrorMessage"] = "Unable to delete audit from database.";
         }
         return RedirectToAction(nameof(Index));
     }

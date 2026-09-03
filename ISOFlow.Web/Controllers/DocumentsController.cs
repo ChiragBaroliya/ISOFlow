@@ -35,7 +35,7 @@ public class DocumentsController : Controller
                     .ToList();
             }
             await _documentsClient.CreatePolicyAsync(policy);
-            TempData["SuccessMessage"] = $"Policy '{policy.Code}' created successfully!";
+            TempData["SuccessMessage"] = $"Policy '{policy.Code}' created in database!";
         }
         return RedirectToAction(nameof(Policies));
     }
@@ -56,7 +56,7 @@ public class DocumentsController : Controller
             var updated = await _documentsClient.UpdatePolicyAsync(policy);
             if (updated != null)
             {
-                TempData["SuccessMessage"] = $"Policy '{updated.Code}' updated successfully.";
+                TempData["SuccessMessage"] = $"Policy '{updated.Code}' updated in database.";
             }
         }
         return RedirectToAction(nameof(Policies));
@@ -68,11 +68,11 @@ public class DocumentsController : Controller
         var result = await _documentsClient.DeletePolicyAsync(id);
         if (result)
         {
-            TempData["SuccessMessage"] = "Policy removed successfully.";
+            TempData["SuccessMessage"] = "Policy removed from database.";
         }
         else
         {
-            TempData["ErrorMessage"] = "Unable to delete policy.";
+            TempData["ErrorMessage"] = "Unable to delete policy from database.";
         }
         return RedirectToAction(nameof(Policies));
     }
@@ -82,12 +82,16 @@ public class DocumentsController : Controller
         ViewData["ActiveMenu"] = "Processes";
         var allProcesses = await _documentsClient.GetAllProcessesAsync();
 
-        var selectedId = string.IsNullOrWhiteSpace(id) ? "PROC-001" : id;
-        var process = await _documentsClient.GetProcessByIdAsync(selectedId)
-                      ?? allProcesses.FirstOrDefault()
-                      ?? await _documentsClient.GetProcessByIdAsync("PROC-001");
+        Process? process = null;
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            process = await _documentsClient.GetProcessByIdAsync(id)
+                ?? allProcesses.FirstOrDefault(p => p.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || p.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        }
 
-        ViewData["ActiveTraceabilityId"] = process?.Id ?? "PROC-001";
+        process ??= allProcesses.FirstOrDefault();
+
+        ViewData["ActiveTraceabilityId"] = process?.Code ?? "PROC-001";
         ViewBag.AllProcesses = allProcesses;
         ViewBag.Policies = await _documentsClient.GetAllPoliciesAsync();
 
@@ -106,7 +110,7 @@ public class DocumentsController : Controller
         }
 
         await _documentsClient.CreateProcessAsync(process);
-        TempData["SuccessMessage"] = $"Business Process '{process.Title}' created successfully.";
+        TempData["SuccessMessage"] = $"Business Process '{process.Title}' created in database.";
         return RedirectToAction(nameof(Processes), new { id = process.Id });
     }
 
@@ -124,7 +128,7 @@ public class DocumentsController : Controller
         var updated = await _documentsClient.UpdateProcessAsync(process);
         if (updated != null)
         {
-            TempData["SuccessMessage"] = $"Business Process '{updated.Title}' updated successfully.";
+            TempData["SuccessMessage"] = $"Business Process '{updated.Title}' updated in database.";
         }
         return RedirectToAction(nameof(Processes), new { id = process.Id });
     }
@@ -135,7 +139,7 @@ public class DocumentsController : Controller
         var result = await _documentsClient.ArchiveProcessAsync(id);
         if (result)
         {
-            TempData["SuccessMessage"] = "Business Process archived successfully.";
+            TempData["SuccessMessage"] = "Business Process archived in database.";
         }
         return RedirectToAction(nameof(Processes));
     }

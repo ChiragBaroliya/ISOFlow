@@ -21,11 +21,27 @@ public class FindingsController : Controller
         return View(findings);
     }
 
-    public async Task<IActionResult> Detail(string id = "FIND-001")
+    public async Task<IActionResult> Detail(string? id = null)
     {
         ViewData["ActiveMenu"] = "Findings";
-        ViewData["ActiveTraceabilityId"] = id;
-        var finding = await _findingsClient.GetFindingByIdAsync(id);
+
+        var allFindings = await _findingsClient.GetAllFindingsAsync();
+        Finding? finding = null;
+
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            finding = await _findingsClient.GetFindingByIdAsync(id)
+                ?? allFindings.FirstOrDefault(f => f.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || f.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        }
+
+        finding ??= allFindings.FirstOrDefault();
+
+        if (finding == null)
+        {
+            return NotFound("No findings found in database.");
+        }
+
+        ViewData["ActiveTraceabilityId"] = finding.Code;
         return View(finding);
     }
 
@@ -35,7 +51,7 @@ public class FindingsController : Controller
         if (ModelState.IsValid)
         {
             await _findingsClient.CreateFindingAsync(finding);
-            TempData["SuccessMessage"] = $"Finding '{finding.Code}' logged successfully!";
+            TempData["SuccessMessage"] = $"Finding '{finding.Code}' logged in database successfully!";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -48,7 +64,7 @@ public class FindingsController : Controller
             var updated = await _findingsClient.UpdateFindingAsync(finding);
             if (updated != null)
             {
-                TempData["SuccessMessage"] = $"Finding '{updated.Code}' updated successfully.";
+                TempData["SuccessMessage"] = $"Finding '{updated.Code}' updated in database.";
             }
         }
         return RedirectToAction(nameof(Index));
@@ -60,11 +76,11 @@ public class FindingsController : Controller
         var result = await _findingsClient.DeleteFindingAsync(id);
         if (result)
         {
-            TempData["SuccessMessage"] = "Finding removed.";
+            TempData["SuccessMessage"] = "Finding removed from database.";
         }
         else
         {
-            TempData["ErrorMessage"] = "Unable to delete finding.";
+            TempData["ErrorMessage"] = "Unable to delete finding from database.";
         }
         return RedirectToAction(nameof(Index));
     }

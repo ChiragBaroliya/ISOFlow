@@ -21,12 +21,27 @@ public class StandardsController : Controller
         return View(standards);
     }
 
-    public async Task<IActionResult> Detail(string id = "ISO-27001-2022")
+    public async Task<IActionResult> Detail(string? id = null)
     {
         ViewData["ActiveMenu"] = "Standards";
-        ViewData["ActiveTraceabilityId"] = "REQ-A5-18";
-        var standard = await _standardsClient.GetStandardByIdAsync(id);
-        var reqs = await _standardsClient.GetRequirementsByStandardIdAsync(id);
+        var allStandards = await _standardsClient.GetAllStandardsAsync();
+
+        Standard? standard = null;
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            standard = await _standardsClient.GetStandardByIdAsync(id)
+                ?? allStandards.FirstOrDefault(s => s.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || s.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        }
+
+        standard ??= allStandards.FirstOrDefault();
+
+        if (standard == null)
+        {
+            return NotFound("No standards found in database.");
+        }
+
+        ViewData["ActiveTraceabilityId"] = standard.Code;
+        var reqs = await _standardsClient.GetRequirementsByStandardIdAsync(standard.Id);
 
         ViewBag.Standard = standard;
         return View(reqs);
@@ -38,7 +53,7 @@ public class StandardsController : Controller
         if (ModelState.IsValid)
         {
             await _standardsClient.CreateStandardAsync(standard);
-            TempData["SuccessMessage"] = $"Standard '{standard.Code}' created successfully!";
+            TempData["SuccessMessage"] = $"Standard '{standard.Code}' created in database successfully!";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -52,8 +67,8 @@ public class StandardsController : Controller
             if (updated != null)
             {
                 TempData["SuccessMessage"] = updated.IsPreseeded 
-                    ? $"Official Standard '{updated.Code}' compliance target & details updated successfully."
-                    : $"Standard '{updated.Code}' updated successfully.";
+                    ? $"Official Standard '{updated.Code}' compliance target & details updated in database successfully."
+                    : $"Standard '{updated.Code}' updated in database successfully.";
             }
         }
         return RedirectToAction(nameof(Index));
@@ -65,7 +80,7 @@ public class StandardsController : Controller
         var result = await _standardsClient.DeleteStandardAsync(id);
         if (result)
         {
-            TempData["SuccessMessage"] = "Custom Standard deleted successfully.";
+            TempData["SuccessMessage"] = "Custom Standard deleted from database successfully.";
         }
         else
         {
@@ -88,7 +103,7 @@ public class StandardsController : Controller
                     .ToList();
             }
             await _standardsClient.CreateRequirementAsync(requirement.StandardId, requirement);
-            TempData["SuccessMessage"] = $"Requirement '{requirement.Clause} - {requirement.Title}' added successfully!";
+            TempData["SuccessMessage"] = $"Requirement '{requirement.Clause} - {requirement.Title}' added to database successfully!";
         }
         return RedirectToAction(nameof(Detail), new { id = requirement.StandardId });
     }
@@ -109,7 +124,7 @@ public class StandardsController : Controller
             var updated = await _standardsClient.UpdateRequirementAsync(requirement.StandardId, requirement.Id, requirement);
             if (updated != null)
             {
-                TempData["SuccessMessage"] = $"Requirement '{updated.Clause}' updated successfully.";
+                TempData["SuccessMessage"] = $"Requirement '{updated.Clause}' updated in database successfully.";
             }
         }
         return RedirectToAction(nameof(Detail), new { id = requirement.StandardId });
@@ -121,11 +136,11 @@ public class StandardsController : Controller
         var result = await _standardsClient.DeleteRequirementAsync(standardId, id);
         if (result)
         {
-            TempData["SuccessMessage"] = "Requirement removed from standard.";
+            TempData["SuccessMessage"] = "Requirement removed from standard in database.";
         }
         else
         {
-            TempData["ErrorMessage"] = "Unable to delete requirement.";
+            TempData["ErrorMessage"] = "Unable to delete requirement from database.";
         }
         return RedirectToAction(nameof(Detail), new { id = standardId });
     }

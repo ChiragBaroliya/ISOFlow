@@ -22,13 +22,28 @@ public class ControlsController : Controller
         return View(controls);
     }
 
-    public async Task<IActionResult> Detail(string id = "CTRL-001")
+    public async Task<IActionResult> Detail(string? id = null)
     {
         ViewData["ActiveMenu"] = "Controls";
-        ViewData["ActiveTraceabilityId"] = id;
 
-        var control = await _controlsClient.GetControlByIdAsync(id) ?? new Control { Id = "CTRL-001", Code = "CTRL-001", Title = "User Access Management" };
-        var relatedItems = await _controlsClient.GetRelatedItemsCountAsync(id);
+        var allControls = await _controlsClient.GetAllControlsAsync();
+        Control? control = null;
+
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            control = await _controlsClient.GetControlByIdAsync(id) 
+                   ?? allControls.FirstOrDefault(c => c.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || c.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        }
+
+        control ??= allControls.FirstOrDefault();
+
+        if (control == null)
+        {
+            return NotFound("No controls found in database.");
+        }
+
+        ViewData["ActiveTraceabilityId"] = control.Code;
+        var relatedItems = await _controlsClient.GetRelatedItemsCountAsync(control.Id);
 
         var vm = new ControlDetailViewModel
         {
@@ -53,7 +68,7 @@ public class ControlsController : Controller
         if (ModelState.IsValid)
         {
             await _controlsClient.CreateControlAsync(control);
-            TempData["SuccessMessage"] = $"Control '{control.Code}' created successfully!";
+            TempData["SuccessMessage"] = $"Control '{control.Code}' created successfully in database!";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -66,7 +81,7 @@ public class ControlsController : Controller
             var updated = await _controlsClient.UpdateControlAsync(control);
             if (updated != null)
             {
-                TempData["SuccessMessage"] = $"Control '{updated.Code}' updated successfully.";
+                TempData["SuccessMessage"] = $"Control '{updated.Code}' updated successfully in database.";
             }
         }
         return RedirectToAction(nameof(Index));
@@ -78,11 +93,11 @@ public class ControlsController : Controller
         var result = await _controlsClient.DeleteControlAsync(id);
         if (result)
         {
-            TempData["SuccessMessage"] = "Control deleted successfully.";
+            TempData["SuccessMessage"] = "Control deleted from database.";
         }
         else
         {
-            TempData["ErrorMessage"] = "Unable to delete control.";
+            TempData["ErrorMessage"] = "Unable to delete control from database.";
         }
         return RedirectToAction(nameof(Index));
     }

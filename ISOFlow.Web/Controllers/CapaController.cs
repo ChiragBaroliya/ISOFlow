@@ -21,11 +21,27 @@ public class CapaController : Controller
         return View(capas);
     }
 
-    public async Task<IActionResult> Detail(string id = "CAPA-001")
+    public async Task<IActionResult> Detail(string? id = null)
     {
         ViewData["ActiveMenu"] = "CAPA";
-        ViewData["ActiveTraceabilityId"] = id;
-        var capa = await _capaClient.GetCapaByIdAsync(id);
+
+        var allCapas = await _capaClient.GetAllCapasAsync();
+        CAPA? capa = null;
+
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            capa = await _capaClient.GetCapaByIdAsync(id)
+                ?? allCapas.FirstOrDefault(c => c.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || c.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        }
+
+        capa ??= allCapas.FirstOrDefault();
+
+        if (capa == null)
+        {
+            return NotFound("No CAPAs found in database.");
+        }
+
+        ViewData["ActiveTraceabilityId"] = capa.Code;
         return View(capa);
     }
 
@@ -35,7 +51,7 @@ public class CapaController : Controller
         if (ModelState.IsValid)
         {
             await _capaClient.CreateCapaAsync(capa);
-            TempData["SuccessMessage"] = $"CAPA '{capa.Code}' created successfully!";
+            TempData["SuccessMessage"] = $"CAPA '{capa.Code}' created in database successfully!";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -48,7 +64,7 @@ public class CapaController : Controller
             var updated = await _capaClient.UpdateCapaAsync(capa);
             if (updated != null)
             {
-                TempData["SuccessMessage"] = $"CAPA '{updated.Code}' updated successfully.";
+                TempData["SuccessMessage"] = $"CAPA '{updated.Code}' updated in database.";
             }
         }
         return RedirectToAction(nameof(Index));
@@ -60,11 +76,11 @@ public class CapaController : Controller
         var result = await _capaClient.DeleteCapaAsync(id);
         if (result)
         {
-            TempData["SuccessMessage"] = "CAPA removed successfully.";
+            TempData["SuccessMessage"] = "CAPA removed from database.";
         }
         else
         {
-            TempData["ErrorMessage"] = "Unable to delete CAPA.";
+            TempData["ErrorMessage"] = "Unable to delete CAPA from database.";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -75,7 +91,7 @@ public class CapaController : Controller
         if (ModelState.IsValid)
         {
             await _capaClient.AddActionItemAsync(capaId, item);
-            TempData["SuccessMessage"] = $"Action item added to CAPA.";
+            TempData["SuccessMessage"] = $"Action item added to CAPA in database.";
         }
         return RedirectToAction(nameof(Detail), new { id = capaId });
     }
