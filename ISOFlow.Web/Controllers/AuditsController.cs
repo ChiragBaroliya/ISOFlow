@@ -1,23 +1,23 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Web.Services.Audits;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class AuditsController : Controller
 {
-    private readonly IAuditRepository _auditRepository;
+    private readonly IAuditsApiClient _auditsClient;
 
-    public AuditsController(IAuditRepository auditRepository)
+    public AuditsController(IAuditsApiClient auditsClient)
     {
-        _auditRepository = auditRepository;
+        _auditsClient = auditsClient;
     }
 
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Audits";
         ViewData["ActiveTraceabilityId"] = "AUD-2026-001";
-        var audits = await _auditRepository.GetAllAuditsAsync();
+        var audits = await _auditsClient.GetAllAuditsAsync();
         return View(audits);
     }
 
@@ -25,7 +25,7 @@ public class AuditsController : Controller
     {
         ViewData["ActiveMenu"] = "Audits";
         ViewData["ActiveTraceabilityId"] = id;
-        var audit = await _auditRepository.GetAuditByIdAsync(id);
+        var audit = await _auditsClient.GetAuditByIdAsync(id);
         return View(audit);
     }
 
@@ -42,7 +42,7 @@ public class AuditsController : Controller
                     .Where(c => !string.IsNullOrEmpty(c))
                     .ToList();
             }
-            await _auditRepository.CreateAuditAsync(audit);
+            await _auditsClient.CreateAuditAsync(audit);
             TempData["SuccessMessage"] = $"Audit '{audit.Title}' scheduled successfully!";
         }
         return RedirectToAction(nameof(Index));
@@ -61,7 +61,7 @@ public class AuditsController : Controller
                     .Where(c => !string.IsNullOrEmpty(c))
                     .ToList();
             }
-            var updated = await _auditRepository.UpdateAuditAsync(audit);
+            var updated = await _auditsClient.UpdateAuditAsync(audit);
             if (updated != null)
             {
                 TempData["SuccessMessage"] = $"Audit '{updated.Code}' updated successfully.";
@@ -73,7 +73,7 @@ public class AuditsController : Controller
     [HttpPost]
     public async Task<IActionResult> Delete(string id)
     {
-        var result = await _auditRepository.DeleteAuditAsync(id);
+        var result = await _auditsClient.DeleteAuditAsync(id);
         if (result)
         {
             TempData["SuccessMessage"] = "Audit deleted successfully.";

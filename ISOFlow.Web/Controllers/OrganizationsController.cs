@@ -1,23 +1,25 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Web.Services.Organizations;
+using ISOFlow.Web.Services.Standards;
+using ISOFlow.Web.Services.Users;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class OrganizationsController : Controller
 {
-    private readonly IOrganizationRepository _organizationRepository;
-    private readonly IUserRepository _userRepository;
-    private readonly IStandardRepository _standardRepository;
+    private readonly IOrganizationsApiClient _orgsClient;
+    private readonly IUsersApiClient _usersClient;
+    private readonly IStandardsApiClient _standardsClient;
 
     public OrganizationsController(
-        IOrganizationRepository organizationRepository,
-        IUserRepository userRepository,
-        IStandardRepository standardRepository)
+        IOrganizationsApiClient orgsClient,
+        IUsersApiClient usersClient,
+        IStandardsApiClient standardsClient)
     {
-        _organizationRepository = organizationRepository;
-        _userRepository = userRepository;
-        _standardRepository = standardRepository;
+        _orgsClient = orgsClient;
+        _usersClient = usersClient;
+        _standardsClient = standardsClient;
     }
 
     // ── SuperAdmin guard helper ───────────────────────────────────────────────
@@ -31,8 +33,8 @@ public class OrganizationsController : Controller
         ViewData["ActiveMenu"] = "Organizations";
         ViewData["ActiveTraceabilityId"] = "ORG-001";
 
-        var orgs = await _organizationRepository.GetAllOrganizationsAsync();
-        var standards = await _standardRepository.GetAllStandardsAsync();
+        var orgs = await _orgsClient.GetAllOrganizationsAsync();
+        var standards = await _standardsClient.GetAllStandardsAsync();
 
         ViewBag.Standards = standards;
         return View(orgs);
@@ -45,12 +47,12 @@ public class OrganizationsController : Controller
         ViewData["ActiveMenu"] = "Organizations";
         ViewData["ActiveTraceabilityId"] = id;
 
-        var org = await _organizationRepository.GetOrganizationByIdAsync(id);
+        var org = await _orgsClient.GetOrganizationByIdAsync(id);
         if (org == null)
             return NotFound();
 
-        var users = await _userRepository.GetUsersByOrganizationIdAsync(id);
-        var standards = await _standardRepository.GetAllStandardsAsync();
+        var users = await _usersClient.GetUsersByOrganizationIdAsync(id);
+        var standards = await _standardsClient.GetAllStandardsAsync();
 
         ViewBag.Users = users;
         ViewBag.Standards = standards;
@@ -71,7 +73,7 @@ public class OrganizationsController : Controller
                                                  .ToList();
         }
 
-        await _organizationRepository.CreateOrganizationAsync(organization);
+        await _orgsClient.CreateOrganizationAsync(organization);
         TempData["SuccessMessage"] = $"Organization Tenant '{organization.Name}' registered successfully.";
         return RedirectToAction(nameof(Index));
     }
@@ -89,7 +91,7 @@ public class OrganizationsController : Controller
                                                  .ToList();
         }
 
-        var updated = await _organizationRepository.UpdateOrganizationAsync(organization);
+        var updated = await _orgsClient.UpdateOrganizationAsync(organization);
         if (updated != null)
             TempData["SuccessMessage"] = $"Organization Tenant '{updated.Name}' updated successfully.";
 
@@ -101,16 +103,22 @@ public class OrganizationsController : Controller
     {
         if (!IsSuperAdmin()) return RedirectToAction("AccessDenied", "Account");
 
-        if (id.Equals("ORG-001", StringComparison.OrdinalIgnoreCase))
+        var activeOrgId = HttpContext.Session.GetString("ActiveOrgId");
+        if (id.Equals(activeOrgId, StringComparison.OrdinalIgnoreCase))
         {
-            TempData["ErrorMessage"] = "The primary Organization Tenant (Acme Technologies) is protected and cannot be deleted.";
+            TempData["ErrorMessage"] = "You cannot delete the organization tenant you are currently viewing.";
             return RedirectToAction(nameof(Index));
         }
 
-        var result = await _organizationRepository.DeleteOrganizationAsync(id);
+        var result = await _orgsClient.DeleteOrganizationAsync(id);
         if (result)
-            TempData["SuccessMessage"] = "Organization Tenant deleted successfully.";
-
+        {
+            TempData["SuccessMessage"] = "Organization tenant removed.";
+        }
+        else
+        {
+            TempData["ErrorMessage"] = "Unable to delete organization.";
+        }
         return RedirectToAction(nameof(Index));
     }
 }

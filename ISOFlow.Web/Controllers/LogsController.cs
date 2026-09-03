@@ -1,16 +1,15 @@
-using ISOFlow.Application.DTOs;
-using ISOFlow.Application.Interfaces;
+using ISOFlow.Web.Services.Logs;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class LogsController : Controller
 {
-    private readonly ILogService _logService;
+    private readonly ILogsApiClient _logsClient;
 
-    public LogsController(ILogService logService)
+    public LogsController(ILogsApiClient logsClient)
     {
-        _logService = logService;
+        _logsClient = logsClient;
     }
 
     public async Task<IActionResult> Index(DateTime? fromDate, DateTime? toDate, string? logLevel, string? search)
@@ -26,7 +25,7 @@ public class LogsController : Controller
         ViewBag.LogLevel = string.IsNullOrWhiteSpace(logLevel) ? "All" : logLevel;
         ViewBag.Search = search ?? string.Empty;
 
-        var logs = await _logService.GetLogsAsync(defaultFrom, defaultTo, logLevel, search);
+        var logs = await _logsClient.GetLogsAsync(defaultFrom, defaultTo, logLevel, search);
         return View(logs);
     }
 }

@@ -1,23 +1,23 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Web.Services.Evidence;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class EvidenceController : Controller
 {
-    private readonly IEvidenceRepository _evidenceRepository;
+    private readonly IEvidenceApiClient _evidenceClient;
 
-    public EvidenceController(IEvidenceRepository evidenceRepository)
+    public EvidenceController(IEvidenceApiClient evidenceClient)
     {
-        _evidenceRepository = evidenceRepository;
+        _evidenceClient = evidenceClient;
     }
 
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Evidence";
         ViewData["ActiveTraceabilityId"] = "EVI-2026-001";
-        var evidence = await _evidenceRepository.GetAllEvidenceAsync();
+        var evidence = await _evidenceClient.GetAllEvidenceAsync();
         return View(evidence);
     }
 
@@ -26,7 +26,7 @@ public class EvidenceController : Controller
     {
         if (ModelState.IsValid)
         {
-            await _evidenceRepository.CreateEvidenceAsync(evidence);
+            await _evidenceClient.CreateEvidenceAsync(evidence);
             TempData["SuccessMessage"] = $"Evidence '{evidence.Name}' logged in vault successfully!";
         }
         return RedirectToAction(nameof(Index));
@@ -37,7 +37,7 @@ public class EvidenceController : Controller
     {
         if (ModelState.IsValid)
         {
-            var updated = await _evidenceRepository.UpdateEvidenceAsync(evidence);
+            var updated = await _evidenceClient.UpdateEvidenceAsync(evidence);
             if (updated != null)
             {
                 TempData["SuccessMessage"] = $"Evidence '{updated.Code}' updated successfully.";
@@ -49,7 +49,7 @@ public class EvidenceController : Controller
     [HttpPost]
     public async Task<IActionResult> Delete(string id)
     {
-        var result = await _evidenceRepository.DeleteEvidenceAsync(id);
+        var result = await _evidenceClient.DeleteEvidenceAsync(id);
         if (result)
         {
             TempData["SuccessMessage"] = "Evidence record removed.";

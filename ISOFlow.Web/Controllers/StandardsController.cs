@@ -1,23 +1,23 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Web.Services.Standards;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class StandardsController : Controller
 {
-    private readonly IStandardRepository _standardRepository;
+    private readonly IStandardsApiClient _standardsClient;
 
-    public StandardsController(IStandardRepository standardRepository)
+    public StandardsController(IStandardsApiClient standardsClient)
     {
-        _standardRepository = standardRepository;
+        _standardsClient = standardsClient;
     }
 
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Standards";
         ViewData["ActiveTraceabilityId"] = "ISO-27001-2022";
-        var standards = await _standardRepository.GetAllStandardsAsync();
+        var standards = await _standardsClient.GetAllStandardsAsync();
         return View(standards);
     }
 
@@ -25,8 +25,8 @@ public class StandardsController : Controller
     {
         ViewData["ActiveMenu"] = "Standards";
         ViewData["ActiveTraceabilityId"] = "REQ-A5-18";
-        var standard = await _standardRepository.GetStandardByIdAsync(id);
-        var reqs = await _standardRepository.GetRequirementsByStandardIdAsync(id);
+        var standard = await _standardsClient.GetStandardByIdAsync(id);
+        var reqs = await _standardsClient.GetRequirementsByStandardIdAsync(id);
 
         ViewBag.Standard = standard;
         return View(reqs);
@@ -37,7 +37,7 @@ public class StandardsController : Controller
     {
         if (ModelState.IsValid)
         {
-            await _standardRepository.CreateStandardAsync(standard);
+            await _standardsClient.CreateStandardAsync(standard);
             TempData["SuccessMessage"] = $"Standard '{standard.Code}' created successfully!";
         }
         return RedirectToAction(nameof(Index));
@@ -48,7 +48,7 @@ public class StandardsController : Controller
     {
         if (ModelState.IsValid)
         {
-            var updated = await _standardRepository.UpdateStandardAsync(standard);
+            var updated = await _standardsClient.UpdateStandardAsync(standard);
             if (updated != null)
             {
                 TempData["SuccessMessage"] = updated.IsPreseeded 
@@ -62,7 +62,7 @@ public class StandardsController : Controller
     [HttpPost]
     public async Task<IActionResult> Delete(string id)
     {
-        var result = await _standardRepository.DeleteStandardAsync(id);
+        var result = await _standardsClient.DeleteStandardAsync(id);
         if (result)
         {
             TempData["SuccessMessage"] = "Custom Standard deleted successfully.";
@@ -87,7 +87,7 @@ public class StandardsController : Controller
                     .Where(c => !string.IsNullOrEmpty(c))
                     .ToList();
             }
-            await _standardRepository.CreateRequirementAsync(requirement);
+            await _standardsClient.CreateRequirementAsync(requirement.StandardId, requirement);
             TempData["SuccessMessage"] = $"Requirement '{requirement.Clause} - {requirement.Title}' added successfully!";
         }
         return RedirectToAction(nameof(Detail), new { id = requirement.StandardId });
@@ -106,7 +106,7 @@ public class StandardsController : Controller
                     .Where(c => !string.IsNullOrEmpty(c))
                     .ToList();
             }
-            var updated = await _standardRepository.UpdateRequirementAsync(requirement);
+            var updated = await _standardsClient.UpdateRequirementAsync(requirement.StandardId, requirement.Id, requirement);
             if (updated != null)
             {
                 TempData["SuccessMessage"] = $"Requirement '{updated.Clause}' updated successfully.";
@@ -118,7 +118,7 @@ public class StandardsController : Controller
     [HttpPost]
     public async Task<IActionResult> DeleteRequirement(string id, string standardId)
     {
-        var result = await _standardRepository.DeleteRequirementAsync(id);
+        var result = await _standardsClient.DeleteRequirementAsync(standardId, id);
         if (result)
         {
             TempData["SuccessMessage"] = "Requirement removed from standard.";

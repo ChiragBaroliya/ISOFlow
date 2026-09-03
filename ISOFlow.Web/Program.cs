@@ -1,7 +1,20 @@
-using ISOFlow.Application.Interfaces;
-using ISOFlow.Application.Services;
-using ISOFlow.Infrastructure.Repositories;
-using ISOFlow.Infrastructure.Services;
+using ISOFlow.Web.Services.Audits;
+using ISOFlow.Web.Services.Auth;
+using ISOFlow.Web.Services.Base;
+using ISOFlow.Web.Services.Capa;
+using ISOFlow.Web.Services.Controls;
+using ISOFlow.Web.Services.Dashboard;
+using ISOFlow.Web.Services.Documents;
+using ISOFlow.Web.Services.Evidence;
+using ISOFlow.Web.Services.Findings;
+using ISOFlow.Web.Services.Improvements;
+using ISOFlow.Web.Services.Logs;
+using ISOFlow.Web.Services.ManagementReviews;
+using ISOFlow.Web.Services.Organizations;
+using ISOFlow.Web.Services.Risks;
+using ISOFlow.Web.Services.Standards;
+using ISOFlow.Web.Services.Tasks;
+using ISOFlow.Web.Services.Users;
 using Serilog;
 
 // Configure Serilog Date-Wise Rolling Daily Logger
@@ -30,32 +43,35 @@ try
     // Use Serilog
     builder.Host.UseSerilog();
 
-    // MemoryCache
-    builder.Services.AddMemoryCache();
-
-    // Register Repositories
-    builder.Services.AddSingleton<IOrganizationRepository, OrganizationRepository>();
-    builder.Services.AddSingleton<IUserRepository, UserRepository>();
-    builder.Services.AddSingleton<IStandardRepository, StandardRepository>();
-    builder.Services.AddSingleton<IControlRepository, ControlRepository>();
-    builder.Services.AddSingleton<IRiskRepository, RiskRepository>();
-    builder.Services.AddSingleton<IDocumentRepository, DocumentRepository>();
-    builder.Services.AddSingleton<ITaskRepository, TaskRepository>();
-    builder.Services.AddSingleton<IEvidenceRepository, EvidenceRepository>();
-    builder.Services.AddSingleton<IAuditRepository, AuditRepository>();
-    builder.Services.AddSingleton<ICapaRepository, CapaRepository>();
-    builder.Services.AddSingleton<IManagementReviewRepository, ManagementReviewRepository>();
-    builder.Services.AddSingleton<INotificationRepository, NotificationRepository>();
-    builder.Services.AddSingleton<ITraceabilityRepository, TraceabilityRepository>();
-
-    // Register Application Services
-    builder.Services.AddSingleton<ICacheService, MemoryCacheService>();
-    builder.Services.AddSingleton<IDashboardService, DashboardService>();
-    builder.Services.AddSingleton<ITraceabilityService, TraceabilityService>();
-    builder.Services.AddSingleton<ILogService, LogService>();
-
-    // Session Support for Multi-Tenant Org Switcher
+    // HttpContextAccessor (needed by ApiHttpClient to read Session JWT token)
     builder.Services.AddHttpContextAccessor();
+
+    // Register Base Typed HttpClient pointing to ISOFlow.Api
+    builder.Services.AddHttpClient<IApiHttpClient, ApiHttpClient>(client =>
+    {
+        client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5015");
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
+
+    // Register Domain-Specific API Clients (separated by functional area)
+    builder.Services.AddScoped<IDashboardApiClient, DashboardApiClient>();
+    builder.Services.AddScoped<IStandardsApiClient, StandardsApiClient>();
+    builder.Services.AddScoped<IControlsApiClient, ControlsApiClient>();
+    builder.Services.AddScoped<IRisksApiClient, RisksApiClient>();
+    builder.Services.AddScoped<IDocumentsApiClient, DocumentsApiClient>();
+    builder.Services.AddScoped<ITasksApiClient, TasksApiClient>();
+    builder.Services.AddScoped<IEvidenceApiClient, EvidenceApiClient>();
+    builder.Services.AddScoped<IAuditsApiClient, AuditsApiClient>();
+    builder.Services.AddScoped<IFindingsApiClient, FindingsApiClient>();
+    builder.Services.AddScoped<ICapaApiClient, CapaApiClient>();
+    builder.Services.AddScoped<IManagementReviewsApiClient, ManagementReviewsApiClient>();
+    builder.Services.AddScoped<IImprovementsApiClient, ImprovementsApiClient>();
+    builder.Services.AddScoped<IUsersApiClient, UsersApiClient>();
+    builder.Services.AddScoped<IOrganizationsApiClient, OrganizationsApiClient>();
+    builder.Services.AddScoped<IAuthApiClient, AuthApiClient>();
+    builder.Services.AddScoped<ILogsApiClient, LogsApiClient>();
+
+    // Session Support for Multi-Tenant Org Switcher and JWT Token Storage
     builder.Services.AddSession(options =>
     {
         options.IdleTimeout = TimeSpan.FromHours(8);

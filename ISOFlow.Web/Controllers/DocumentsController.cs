@@ -1,23 +1,23 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Web.Services.Documents;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class DocumentsController : Controller
 {
-    private readonly IDocumentRepository _documentRepository;
+    private readonly IDocumentsApiClient _documentsClient;
 
-    public DocumentsController(IDocumentRepository documentRepository)
+    public DocumentsController(IDocumentsApiClient documentsClient)
     {
-        _documentRepository = documentRepository;
+        _documentsClient = documentsClient;
     }
 
     public async Task<IActionResult> Policies()
     {
         ViewData["ActiveMenu"] = "Policies";
         ViewData["ActiveTraceabilityId"] = "POL-001";
-        var policies = await _documentRepository.GetAllPoliciesAsync();
+        var policies = await _documentsClient.GetAllPoliciesAsync();
         return View(policies);
     }
 
@@ -34,7 +34,7 @@ public class DocumentsController : Controller
                     .Where(c => !string.IsNullOrEmpty(c))
                     .ToList();
             }
-            await _documentRepository.CreatePolicyAsync(policy);
+            await _documentsClient.CreatePolicyAsync(policy);
             TempData["SuccessMessage"] = $"Policy '{policy.Code}' created successfully!";
         }
         return RedirectToAction(nameof(Policies));
@@ -53,7 +53,7 @@ public class DocumentsController : Controller
                     .Where(c => !string.IsNullOrEmpty(c))
                     .ToList();
             }
-            var updated = await _documentRepository.UpdatePolicyAsync(policy);
+            var updated = await _documentsClient.UpdatePolicyAsync(policy);
             if (updated != null)
             {
                 TempData["SuccessMessage"] = $"Policy '{updated.Code}' updated successfully.";
@@ -65,7 +65,7 @@ public class DocumentsController : Controller
     [HttpPost]
     public async Task<IActionResult> DeletePolicy(string id)
     {
-        var result = await _documentRepository.DeletePolicyAsync(id);
+        var result = await _documentsClient.DeletePolicyAsync(id);
         if (result)
         {
             TempData["SuccessMessage"] = "Policy removed successfully.";
@@ -80,16 +80,16 @@ public class DocumentsController : Controller
     public async Task<IActionResult> Processes(string? id)
     {
         ViewData["ActiveMenu"] = "Processes";
-        var allProcesses = await _documentRepository.GetAllProcessesAsync();
+        var allProcesses = await _documentsClient.GetAllProcessesAsync();
 
         var selectedId = string.IsNullOrWhiteSpace(id) ? "PROC-001" : id;
-        var process = await _documentRepository.GetProcessByIdAsync(selectedId)
+        var process = await _documentsClient.GetProcessByIdAsync(selectedId)
                       ?? allProcesses.FirstOrDefault()
-                      ?? await _documentRepository.GetProcessByIdAsync("PROC-001");
+                      ?? await _documentsClient.GetProcessByIdAsync("PROC-001");
 
         ViewData["ActiveTraceabilityId"] = process?.Id ?? "PROC-001";
         ViewBag.AllProcesses = allProcesses;
-        ViewBag.Policies = await _documentRepository.GetAllPoliciesAsync();
+        ViewBag.Policies = await _documentsClient.GetAllPoliciesAsync();
 
         return View(process);
     }
@@ -105,7 +105,7 @@ public class DocumentsController : Controller
                                     .ToList();
         }
 
-        await _documentRepository.CreateProcessAsync(process);
+        await _documentsClient.CreateProcessAsync(process);
         TempData["SuccessMessage"] = $"Business Process '{process.Title}' created successfully.";
         return RedirectToAction(nameof(Processes), new { id = process.Id });
     }
@@ -121,7 +121,7 @@ public class DocumentsController : Controller
                                     .ToList();
         }
 
-        var updated = await _documentRepository.UpdateProcessAsync(process);
+        var updated = await _documentsClient.UpdateProcessAsync(process);
         if (updated != null)
         {
             TempData["SuccessMessage"] = $"Business Process '{updated.Title}' updated successfully.";
@@ -132,7 +132,7 @@ public class DocumentsController : Controller
     [HttpPost]
     public async Task<IActionResult> ArchiveProcess(string id)
     {
-        var result = await _documentRepository.ArchiveProcessAsync(id);
+        var result = await _documentsClient.ArchiveProcessAsync(id);
         if (result)
         {
             TempData["SuccessMessage"] = "Business Process archived successfully.";

@@ -1,25 +1,25 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
 using ISOFlow.Domain.Enums;
 using ISOFlow.Web.Models;
+using ISOFlow.Web.Services.Tasks;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class TasksController : Controller
 {
-    private readonly ITaskRepository _taskRepository;
+    private readonly ITasksApiClient _tasksClient;
 
-    public TasksController(ITaskRepository taskRepository)
+    public TasksController(ITasksApiClient tasksClient)
     {
-        _taskRepository = taskRepository;
+        _tasksClient = tasksClient;
     }
 
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Tasks";
         ViewData["ActiveTraceabilityId"] = "TASK-2026-003";
-        var tasks = await _taskRepository.GetAllTasksAsync();
+        var tasks = await _tasksClient.GetAllTasksAsync();
         return View(tasks);
     }
 
@@ -27,7 +27,7 @@ public class TasksController : Controller
     {
         ViewData["ActiveMenu"] = "Kanban";
         ViewData["ActiveTraceabilityId"] = "TASK-2026-003";
-        var tasks = await _taskRepository.GetAllTasksAsync();
+        var tasks = await _tasksClient.GetAllTasksAsync();
 
         var vm = new TaskKanbanViewModel
         {
@@ -51,7 +51,7 @@ public class TasksController : Controller
     {
         if (ModelState.IsValid)
         {
-            await _taskRepository.CreateTaskAsync(task);
+            await _tasksClient.CreateTaskAsync(task);
             TempData["SuccessMessage"] = $"Task '{task.Title}' created successfully!";
         }
         return RedirectToAction(nameof(Index));
@@ -62,7 +62,7 @@ public class TasksController : Controller
     {
         if (ModelState.IsValid)
         {
-            var updated = await _taskRepository.UpdateTaskAsync(task);
+            var updated = await _tasksClient.UpdateTaskAsync(task);
             if (updated != null)
             {
                 TempData["SuccessMessage"] = $"Task '{updated.Title}' updated successfully.";
@@ -74,7 +74,7 @@ public class TasksController : Controller
     [HttpPost]
     public async Task<IActionResult> UpdateStatus(string taskId, ComplianceTaskStatus status, string? returnUrl = null)
     {
-        await _taskRepository.UpdateTaskStatusAsync(taskId, status);
+        await _tasksClient.UpdateTaskStatusAsync(taskId, status);
         TempData["SuccessMessage"] = $"Task status updated to {status}.";
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
         {
@@ -86,7 +86,7 @@ public class TasksController : Controller
     [HttpPost]
     public async Task<IActionResult> Delete(string id)
     {
-        var result = await _taskRepository.DeleteTaskAsync(id);
+        var result = await _tasksClient.DeleteTaskAsync(id);
         if (result)
         {
             TempData["SuccessMessage"] = "Task removed successfully.";

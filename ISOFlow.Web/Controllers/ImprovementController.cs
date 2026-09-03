@@ -1,23 +1,23 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Web.Services.Improvements;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class ImprovementController : Controller
 {
-    private readonly IManagementReviewRepository _reviewRepository;
+    private readonly IImprovementsApiClient _improvementsClient;
 
-    public ImprovementController(IManagementReviewRepository reviewRepository)
+    public ImprovementController(IImprovementsApiClient improvementsClient)
     {
-        _reviewRepository = reviewRepository;
+        _improvementsClient = improvementsClient;
     }
 
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Improvement";
         ViewData["ActiveTraceabilityId"] = "IMP-001";
-        var improvements = await _reviewRepository.GetAllImprovementsAsync();
+        var improvements = await _improvementsClient.GetAllImprovementsAsync();
         return View(improvements);
     }
 
@@ -26,8 +26,8 @@ public class ImprovementController : Controller
     {
         if (ModelState.IsValid)
         {
-            await _reviewRepository.CreateImprovementAsync(improvement);
-            TempData["SuccessMessage"] = $"Continual Improvement '{improvement.Title}' logged successfully!";
+            await _improvementsClient.CreateImprovementAsync(improvement);
+            TempData["SuccessMessage"] = $"Improvement '{improvement.Code}' created successfully!";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -37,10 +37,10 @@ public class ImprovementController : Controller
     {
         if (ModelState.IsValid)
         {
-            var updated = await _reviewRepository.UpdateImprovementAsync(improvement);
+            var updated = await _improvementsClient.UpdateImprovementAsync(improvement);
             if (updated != null)
             {
-                TempData["SuccessMessage"] = $"Improvement initiative '{updated.Code}' updated successfully.";
+                TempData["SuccessMessage"] = $"Improvement '{updated.Code}' updated successfully.";
             }
         }
         return RedirectToAction(nameof(Index));
@@ -49,14 +49,14 @@ public class ImprovementController : Controller
     [HttpPost]
     public async Task<IActionResult> Delete(string id)
     {
-        var result = await _reviewRepository.DeleteImprovementAsync(id);
+        var result = await _improvementsClient.DeleteImprovementAsync(id);
         if (result)
         {
             TempData["SuccessMessage"] = "Improvement initiative removed.";
         }
         else
         {
-            TempData["ErrorMessage"] = "Unable to delete improvement initiative.";
+            TempData["ErrorMessage"] = "Unable to delete improvement.";
         }
         return RedirectToAction(nameof(Index));
     }

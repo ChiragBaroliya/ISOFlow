@@ -1,24 +1,24 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
 using ISOFlow.Web.Models;
+using ISOFlow.Web.Services.Risks;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class RisksController : Controller
 {
-    private readonly IRiskRepository _riskRepository;
+    private readonly IRisksApiClient _risksClient;
 
-    public RisksController(IRiskRepository riskRepository)
+    public RisksController(IRisksApiClient risksClient)
     {
-        _riskRepository = riskRepository;
+        _risksClient = risksClient;
     }
 
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Risks";
         ViewData["ActiveTraceabilityId"] = "RISK-001";
-        var risks = await _riskRepository.GetAllRisksAsync();
+        var risks = await _risksClient.GetAllRisksAsync();
         return View(risks);
     }
 
@@ -27,8 +27,8 @@ public class RisksController : Controller
         ViewData["ActiveMenu"] = "Risks";
         ViewData["ActiveTraceabilityId"] = id;
 
-        var risk = await _riskRepository.GetRiskByIdAsync(id) ?? new Risk { Id = "RISK-001", Code = "RISK-001", Title = "Unauthorized System & Data Access" };
-        var treatment = await _riskRepository.GetRiskTreatmentByRiskIdAsync(id);
+        var risk = await _risksClient.GetRiskByIdAsync(id) ?? new Risk { Id = "RISK-001", Code = "RISK-001", Title = "Unauthorized System & Data Access" };
+        var treatment = await _risksClient.GetRiskTreatmentByRiskIdAsync(id);
 
         var vm = new RiskDetailViewModel
         {
@@ -43,7 +43,7 @@ public class RisksController : Controller
     {
         ViewData["ActiveMenu"] = "RiskMatrix";
         ViewData["ActiveTraceabilityId"] = "RISK-001";
-        var matrix = await _riskRepository.GetRiskMatrixDataAsync();
+        var matrix = await _risksClient.GetRiskMatrixDataAsync();
         return View(matrix);
     }
 
@@ -52,7 +52,7 @@ public class RisksController : Controller
     {
         if (ModelState.IsValid)
         {
-            await _riskRepository.CreateRiskAsync(risk, treatment);
+            await _risksClient.CreateRiskAsync(risk, treatment);
             TempData["SuccessMessage"] = $"Risk '{risk.Code}' added to register successfully!";
         }
         return RedirectToAction(nameof(Index));
@@ -63,7 +63,7 @@ public class RisksController : Controller
     {
         if (ModelState.IsValid)
         {
-            var updated = await _riskRepository.UpdateRiskAsync(risk, treatment);
+            var updated = await _risksClient.UpdateRiskAsync(risk, treatment);
             if (updated != null)
             {
                 TempData["SuccessMessage"] = $"Risk '{updated.Code}' updated successfully.";
@@ -75,7 +75,7 @@ public class RisksController : Controller
     [HttpPost]
     public async Task<IActionResult> Delete(string id)
     {
-        var result = await _riskRepository.DeleteRiskAsync(id);
+        var result = await _risksClient.DeleteRiskAsync(id);
         if (result)
         {
             TempData["SuccessMessage"] = "Risk deleted from register.";

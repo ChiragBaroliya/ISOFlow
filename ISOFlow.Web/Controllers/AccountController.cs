@@ -1,18 +1,25 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Enums;
+using ISOFlow.Web.Services.Auth;
+using ISOFlow.Web.Services.Organizations;
+using ISOFlow.Web.Services.Users;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class AccountController : Controller
 {
-    private readonly IOrganizationRepository _organizationRepository;
-    private readonly IUserRepository _userRepository;
+    private readonly IAuthApiClient _authClient;
+    private readonly IUsersApiClient _usersClient;
+    private readonly IOrganizationsApiClient _orgsClient;
 
-    public AccountController(IOrganizationRepository organizationRepository, IUserRepository userRepository)
+    public AccountController(
+        IAuthApiClient authClient,
+        IUsersApiClient usersClient,
+        IOrganizationsApiClient orgsClient)
     {
-        _organizationRepository = organizationRepository;
-        _userRepository = userRepository;
+        _authClient = authClient;
+        _usersClient = usersClient;
+        _orgsClient = orgsClient;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -46,15 +53,22 @@ public class AccountController : Controller
             return View();
         }
 
-        var user = await _userRepository.ValidateLoginAsync(email, password);
+        // Authenticate via ISOFlow.Api
+        var loginResult = await _authClient.LoginAsync(email.Trim(), password);
 
-        if (user == null)
+        if (loginResult == null || loginResult.User == null)
         {
             RenderLoginError("Invalid email address or password. Please try again.");
             return View();
         }
 
+        var user = loginResult.User;
+        var token = loginResult.Tokens?.AccessToken ?? "";
+        var refreshToken = loginResult.Tokens?.RefreshToken ?? "";
+
         // ── Set session ───────────────────────────────────────────────────────
+        HttpContext.Session.SetString("ApiToken",             token);
+        HttpContext.Session.SetString("RefreshToken",         refreshToken);
         HttpContext.Session.SetString("ActiveUserId",         user.Id);
         HttpContext.Session.SetString("ActiveUserName",       user.Name);
         HttpContext.Session.SetString("ActiveUserEmail",      user.Email);
@@ -72,7 +86,7 @@ public class AccountController : Controller
         }
         else
         {
-            var org = await _organizationRepository.GetOrganizationByIdAsync(user.OrganizationId);
+            var org = await _orgsClient.GetOrganizationByIdAsync(user.OrganizationId);
             HttpContext.Session.SetString("ActiveOrgId",   org?.Id   ?? user.OrganizationId);
             HttpContext.Session.SetString("ActiveOrgName", org?.Name ?? "Unknown Organization");
             HttpContext.Session.SetString("ActiveOrgCode", org?.Code ?? "N/A");
@@ -91,8 +105,14 @@ public class AccountController : Controller
     // ─────────────────────────────────────────────────────────────────────────
 
     [HttpGet]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout()
     {
+        var refreshToken = HttpContext.Session.GetString("RefreshToken");
+        if (!string.IsNullOrWhiteSpace(refreshToken))
+        {
+            await _authClient.LogoutAsync(refreshToken);
+        }
+
         HttpContext.Session.Clear();
         TempData["SuccessMessage"] = "You have been signed out successfully.";
         return RedirectToAction(nameof(Login));
@@ -112,7 +132,7 @@ public class AccountController : Controller
             return RedirectToAction("Index", "Home");
         }
 
-        var org = await _organizationRepository.GetOrganizationByIdAsync(orgId);
+        var org = await _orgsClient.GetOrganizationByIdAsync(orgId);
         if (org != null)
         {
             HttpContext.Session.SetString("ActiveOrgId",   org.Id);
@@ -149,12 +169,10 @@ public class AccountController : Controller
             return View();
         }
 
-        var token = await _userRepository.GenerateResetTokenAsync(email.Trim());
+        var token = await _authClient.ForgotPasswordAsync(email.Trim());
 
-        // We show success regardless of whether the email exists (security best practice).
-        // In mock mode we additionally surface the token so the user can proceed immediately.
         ViewBag.EmailSent = true;
-        ViewBag.MockToken = token;    // null if email not found
+        ViewBag.MockToken = token;
         ViewBag.Email     = email.Trim();
         return View();
     }
@@ -193,7 +211,7 @@ public class AccountController : Controller
             return View();
         }
 
-        var success = await _userRepository.ResetPasswordAsync(token.Trim(), newPassword);
+        var success = await _authClient.ResetPasswordAsync(token.Trim(), newPassword);
 
         if (!success)
         {
@@ -215,7 +233,7 @@ public class AccountController : Controller
         var userId = HttpContext.Session.GetString("ActiveUserId");
         if (string.IsNullOrEmpty(userId)) return RedirectToAction(nameof(Login));
 
-        var user = await _userRepository.GetUserByIdAsync(userId);
+        var user = await _usersClient.GetUserByIdAsync(userId);
         if (user == null) return RedirectToAction(nameof(Login));
 
         ViewData["Title"]       = "My Profile — ISOFlow";
@@ -236,11 +254,10 @@ public class AccountController : Controller
             return RedirectToAction(nameof(Profile));
         }
 
-        var success = await _userRepository.UpdateProfileAsync(userId, name.Trim(), phone?.Trim() ?? "", department?.Trim() ?? "", bio?.Trim() ?? "");
+        var success = await _usersClient.UpdateProfileAsync(userId, name.Trim(), phone?.Trim() ?? "", department?.Trim() ?? "", bio?.Trim() ?? "");
 
         if (success)
         {
-            // Update session name so the topbar reflects the change immediately
             HttpContext.Session.SetString("ActiveUserName", name.Trim());
             HttpContext.Session.SetString("ActiveUserDept", department?.Trim() ?? "");
             TempData["SuccessMessage"] = "Profile updated successfully.";
@@ -279,7 +296,7 @@ public class AccountController : Controller
             return RedirectToAction(nameof(Profile));
         }
 
-        var success = await _userRepository.ChangePasswordAsync(userId, currentPassword, newPassword);
+        var success = await _usersClient.ChangePasswordAsync(userId, currentPassword, newPassword);
 
         if (success)
             TempData["SuccessMessage"] = "Password changed successfully. Please use your new password next time you sign in.";

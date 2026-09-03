@@ -9,7 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="..\ISOFlow.Domain\ISOFlow.Domain.csproj" />
     <ProjectReference Include="..\ISOFlow.Application\ISOFlow.Application.csproj" />
-    <ProjectReference Include="..\ISOFlow.Infrastructure\ISOFlow.Infrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

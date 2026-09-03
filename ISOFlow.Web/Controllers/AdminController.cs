@@ -1,27 +1,28 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
 using ISOFlow.Domain.Enums;
+using ISOFlow.Web.Services.Organizations;
+using ISOFlow.Web.Services.Users;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class AdminController : Controller
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IOrganizationRepository _orgRepository;
+    private readonly IUsersApiClient _usersClient;
+    private readonly IOrganizationsApiClient _orgsClient;
 
-    public AdminController(IUserRepository userRepository, IOrganizationRepository orgRepository)
+    public AdminController(IUsersApiClient usersClient, IOrganizationsApiClient orgsClient)
     {
-        _userRepository = userRepository;
-        _orgRepository = orgRepository;
+        _usersClient = usersClient;
+        _orgsClient = orgsClient;
     }
 
     public async Task<IActionResult> Users()
     {
         ViewData["ActiveMenu"] = "Users";
         ViewData["ActiveTraceabilityId"] = "CTRL-001";
-        var users = await _userRepository.GetAllUsersAsync();
-        ViewBag.Organizations = await _orgRepository.GetAllOrganizationsAsync();
+        var users = await _usersClient.GetAllUsersAsync();
+        ViewBag.Organizations = await _orgsClient.GetAllOrganizationsAsync();
         return View(users);
     }
 
@@ -34,7 +35,7 @@ public class AdminController : Controller
             {
                 user.OrganizationId = "";
             }
-            await _userRepository.CreateUserAsync(user);
+            await _usersClient.CreateUserAsync(user);
             TempData["SuccessMessage"] = $"User '{user.Name}' created successfully!";
         }
         return RedirectToAction(nameof(Users));
@@ -49,7 +50,7 @@ public class AdminController : Controller
             {
                 user.OrganizationId = "";
             }
-            var updated = await _userRepository.UpdateUserAsync(user);
+            var updated = await _usersClient.UpdateUserAsync(user);
             if (updated != null)
             {
                 TempData["SuccessMessage"] = $"User account '{updated.Name}' updated successfully.";
@@ -68,7 +69,7 @@ public class AdminController : Controller
             return RedirectToAction(nameof(Users));
         }
 
-        var result = await _userRepository.DeleteUserAsync(id);
+        var result = await _usersClient.DeleteUserAsync(id);
         if (result)
         {
             TempData["SuccessMessage"] = "User account removed.";

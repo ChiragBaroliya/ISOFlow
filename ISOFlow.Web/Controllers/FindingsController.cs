@@ -1,23 +1,23 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Web.Services.Findings;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class FindingsController : Controller
 {
-    private readonly IAuditRepository _auditRepository;
+    private readonly IFindingsApiClient _findingsClient;
 
-    public FindingsController(IAuditRepository auditRepository)
+    public FindingsController(IFindingsApiClient findingsClient)
     {
-        _auditRepository = auditRepository;
+        _findingsClient = findingsClient;
     }
 
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Findings";
         ViewData["ActiveTraceabilityId"] = "FIND-001";
-        var findings = await _auditRepository.GetAllFindingsAsync();
+        var findings = await _findingsClient.GetAllFindingsAsync();
         return View(findings);
     }
 
@@ -25,7 +25,7 @@ public class FindingsController : Controller
     {
         ViewData["ActiveMenu"] = "Findings";
         ViewData["ActiveTraceabilityId"] = id;
-        var finding = await _auditRepository.GetFindingByIdAsync(id);
+        var finding = await _findingsClient.GetFindingByIdAsync(id);
         return View(finding);
     }
 
@@ -34,8 +34,8 @@ public class FindingsController : Controller
     {
         if (ModelState.IsValid)
         {
-            await _auditRepository.CreateFindingAsync(finding);
-            TempData["SuccessMessage"] = $"Audit Finding '{finding.Title}' logged successfully!";
+            await _findingsClient.CreateFindingAsync(finding);
+            TempData["SuccessMessage"] = $"Finding '{finding.Code}' logged successfully!";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -45,7 +45,7 @@ public class FindingsController : Controller
     {
         if (ModelState.IsValid)
         {
-            var updated = await _auditRepository.UpdateFindingAsync(finding);
+            var updated = await _findingsClient.UpdateFindingAsync(finding);
             if (updated != null)
             {
                 TempData["SuccessMessage"] = $"Finding '{updated.Code}' updated successfully.";
@@ -57,10 +57,10 @@ public class FindingsController : Controller
     [HttpPost]
     public async Task<IActionResult> Delete(string id)
     {
-        var result = await _auditRepository.DeleteFindingAsync(id);
+        var result = await _findingsClient.DeleteFindingAsync(id);
         if (result)
         {
-            TempData["SuccessMessage"] = "Finding removed successfully.";
+            TempData["SuccessMessage"] = "Finding removed.";
         }
         else
         {

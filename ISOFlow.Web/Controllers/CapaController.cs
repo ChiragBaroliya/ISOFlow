@@ -1,31 +1,31 @@
-using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Web.Services.Capa;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
 public class CapaController : Controller
 {
-    private readonly ICapaRepository _capaRepository;
+    private readonly ICapaApiClient _capaClient;
 
-    public CapaController(ICapaRepository capaRepository)
+    public CapaController(ICapaApiClient capaClient)
     {
-        _capaRepository = capaRepository;
+        _capaClient = capaClient;
     }
 
     public async Task<IActionResult> Index()
     {
-        ViewData["ActiveMenu"] = "Capa";
+        ViewData["ActiveMenu"] = "CAPA";
         ViewData["ActiveTraceabilityId"] = "CAPA-001";
-        var capas = await _capaRepository.GetAllCapasAsync();
+        var capas = await _capaClient.GetAllCapasAsync();
         return View(capas);
     }
 
     public async Task<IActionResult> Detail(string id = "CAPA-001")
     {
-        ViewData["ActiveMenu"] = "Capa";
+        ViewData["ActiveMenu"] = "CAPA";
         ViewData["ActiveTraceabilityId"] = id;
-        var capa = await _capaRepository.GetCapaByIdAsync(id);
+        var capa = await _capaClient.GetCapaByIdAsync(id);
         return View(capa);
     }
 
@@ -34,8 +34,8 @@ public class CapaController : Controller
     {
         if (ModelState.IsValid)
         {
-            await _capaRepository.CreateCapaAsync(capa);
-            TempData["SuccessMessage"] = $"CAPA '{capa.Title}' initiated successfully!";
+            await _capaClient.CreateCapaAsync(capa);
+            TempData["SuccessMessage"] = $"CAPA '{capa.Code}' created successfully!";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -45,7 +45,7 @@ public class CapaController : Controller
     {
         if (ModelState.IsValid)
         {
-            var updated = await _capaRepository.UpdateCapaAsync(capa);
+            var updated = await _capaClient.UpdateCapaAsync(capa);
             if (updated != null)
             {
                 TempData["SuccessMessage"] = $"CAPA '{updated.Code}' updated successfully.";
@@ -57,10 +57,10 @@ public class CapaController : Controller
     [HttpPost]
     public async Task<IActionResult> Delete(string id)
     {
-        var result = await _capaRepository.DeleteCapaAsync(id);
+        var result = await _capaClient.DeleteCapaAsync(id);
         if (result)
         {
-            TempData["SuccessMessage"] = "CAPA deleted successfully.";
+            TempData["SuccessMessage"] = "CAPA removed successfully.";
         }
         else
         {
@@ -72,15 +72,18 @@ public class CapaController : Controller
     [HttpPost]
     public async Task<IActionResult> AddActionItem(string capaId, CapaActionItem item)
     {
-        await _capaRepository.AddActionItemAsync(capaId, item);
-        TempData["SuccessMessage"] = "Action item added to CAPA checklist.";
+        if (ModelState.IsValid)
+        {
+            await _capaClient.AddActionItemAsync(capaId, item);
+            TempData["SuccessMessage"] = $"Action item added to CAPA.";
+        }
         return RedirectToAction(nameof(Detail), new { id = capaId });
     }
 
     [HttpPost]
-    public async Task<IActionResult> ToggleAction(string capaId, string actionItemId)
+    public async Task<IActionResult> ToggleActionItem(string capaId, string actionItemId)
     {
-        await _capaRepository.ToggleActionItemAsync(capaId, actionItemId);
+        await _capaClient.ToggleActionItemAsync(capaId, actionItemId);
         return RedirectToAction(nameof(Detail), new { id = capaId });
     }
 }
