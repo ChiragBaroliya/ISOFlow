@@ -1,6 +1,8 @@
+using ISOFlow.Api.Auditing;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -74,6 +76,7 @@ public class TasksController : ControllerBase
     /// Create a new Compliance Task
     /// </summary>
     [HttpPost]
+    [Audit(Module = "Tasks", Entity = "Task", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<TaskItem>), 201)]
     public async Task<ActionResult<ApiResponse<TaskItem>>> Create([FromBody] TaskItemRequestDto dto)
     {
@@ -99,6 +102,7 @@ public class TasksController : ControllerBase
     /// Update existing Compliance Task
     /// </summary>
     [HttpPut("{id}")]
+    [Audit(Module = "Tasks", Entity = "Task", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<TaskItem>), 200)]
     [ProducesResponseType(typeof(ApiResponse<TaskItem>), 404)]
     public async Task<ActionResult<ApiResponse<TaskItem>>> Update(string id, [FromBody] TaskItemRequestDto dto)
@@ -125,6 +129,7 @@ public class TasksController : ControllerBase
     /// Update task workflow status
     /// </summary>
     [HttpPatch("{id}/status")]
+    [Audit(Module = "Tasks", Entity = "Task", Action = AuditActionType.StatusChange)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> UpdateStatus(string id, [FromBody] TaskStatusUpdateDto dto)
@@ -140,6 +145,7 @@ public class TasksController : ControllerBase
     /// Delete a Compliance Task
     /// </summary>
     [HttpDelete("{id}")]
+    [Audit(Module = "Tasks", Entity = "Task", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)

@@ -1,6 +1,8 @@
+using ISOFlow.Api.Auditing;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -54,6 +56,7 @@ public class DocumentsController : ControllerBase
     /// Create a new Policy
     /// </summary>
     [HttpPost("policies")]
+    [Audit(Module = "Documents", Entity = "Policy", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<Policy>), 201)]
     public async Task<ActionResult<ApiResponse<Policy>>> CreatePolicy([FromBody] PolicyRequestDto dto)
     {
@@ -79,6 +82,7 @@ public class DocumentsController : ControllerBase
     /// Update existing Policy
     /// </summary>
     [HttpPut("policies/{id}")]
+    [Audit(Module = "Documents", Entity = "Policy", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<Policy>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Policy>), 404)]
     public async Task<ActionResult<ApiResponse<Policy>>> UpdatePolicy(string id, [FromBody] PolicyRequestDto dto)
@@ -105,6 +109,7 @@ public class DocumentsController : ControllerBase
     /// Delete a Policy
     /// </summary>
     [HttpDelete("policies/{id}")]
+    [Audit(Module = "Documents", Entity = "Policy", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> DeletePolicy(string id)
@@ -148,6 +153,7 @@ public class DocumentsController : ControllerBase
     /// Create a new Business Process with step workflow
     /// </summary>
     [HttpPost("processes")]
+    [Audit(Module = "Documents", Entity = "Process", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<Process>), 201)]
     public async Task<ActionResult<ApiResponse<Process>>> CreateProcess([FromBody] ProcessRequestDto dto)
     {
@@ -173,6 +179,7 @@ public class DocumentsController : ControllerBase
     /// Update existing Business Process
     /// </summary>
     [HttpPut("processes/{id}")]
+    [Audit(Module = "Documents", Entity = "Process", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<Process>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Process>), 404)]
     public async Task<ActionResult<ApiResponse<Process>>> UpdateProcess(string id, [FromBody] ProcessRequestDto dto)
@@ -199,6 +206,7 @@ public class DocumentsController : ControllerBase
     /// Archive a Business Process
     /// </summary>
     [HttpPost("processes/{id}/archive")]
+    [Audit(Module = "Documents", Entity = "Process", Action = AuditActionType.Deactivate)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> ArchiveProcess(string id)

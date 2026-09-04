@@ -1,0 +1,48 @@
+@model List<ISOFlow.Application.DTOs.AuditLogDto>
+@{
+    var canViewDetail = ViewBag.CanViewDetail as bool? ?? false;
+
+    string BadgeClass(ISOFlow.Domain.Enums.AuditActionType action) => action switch
+    {
+        ISOFlow.Domain.Enums.AuditActionType.Create => "bg-success",
+        ISOFlow.Domain.Enums.AuditActionType.Delete => "bg-danger",
+        ISOFlow.Domain.Enums.AuditActionType.Reject => "bg-danger",
+        ISOFlow.Domain.Enums.AuditActionType.Approve => "bg-success",
+        ISOFlow.Domain.Enums.AuditActionType.Update => "bg-primary",
+        _ => "bg-secondary"
+    };
+}
+
+<div class="card-enterprise p-3">
+    <h6 class="fw-bold mb-3"><i class="bi bi-clock-history text-primary me-2"></i> Change History</h6>
+
+    @if (!Model.Any())
+    {
+        <p class="text-muted small mb-0">No recorded changes yet.</p>
+    }
+    else
+    {
+        <ul class="list-unstyled mb-0">
+            @foreach (var entry in Model)
+            {
+                <li class="d-flex align-items-start gap-2 py-2 border-bottom">
+                    <span class="badge @BadgeClass(entry.Action)" style="min-width: 90px;">@entry.Action</span>
+                    <div class="flex-grow-1">
+                        <div class="small">
+                            <strong>@entry.PerformedBy</strong>
+                            @if (!string.IsNullOrWhiteSpace(entry.Description))
+                            {
+                                <span>— @entry.Description</span>
+                            }
+                        </div>
+                        <div class="text-muted small">@entry.PerformedAt.ToString("yyyy-MM-dd HH:mm")</div>
+                    </div>
+                    @if (canViewDetail)
+                    {
+                        <a asp-controller="AuditLogs" asp-action="Details" asp-route-id="@entry.Id" class="btn btn-sm btn-outline-secondary">View</a>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</div>

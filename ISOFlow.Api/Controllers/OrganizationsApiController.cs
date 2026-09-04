@@ -1,6 +1,8 @@
+using ISOFlow.Api.Auditing;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -64,6 +66,7 @@ public class OrganizationsController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "SuperAdmin,Admin")]
+    [Audit(Module = "Organizations", Entity = "Organization", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<Organization>), 201)]
     public async Task<ActionResult<ApiResponse<Organization>>> Create([FromBody] OrganizationRequestDto dto)
     {
@@ -89,6 +92,7 @@ public class OrganizationsController : ControllerBase
     /// </summary>
     [HttpPut("{id}")]
     [Authorize(Roles = "SuperAdmin,Admin")]
+    [Audit(Module = "Organizations", Entity = "Organization", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<Organization>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Organization>), 404)]
     public async Task<ActionResult<ApiResponse<Organization>>> Update(string id, [FromBody] OrganizationRequestDto dto)
@@ -115,6 +119,7 @@ public class OrganizationsController : ControllerBase
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = "SuperAdmin,Admin")]
+    [Audit(Module = "Organizations", Entity = "Organization", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)

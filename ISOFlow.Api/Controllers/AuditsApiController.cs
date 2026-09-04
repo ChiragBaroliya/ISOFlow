@@ -1,6 +1,8 @@
+using ISOFlow.Api.Auditing;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -74,6 +76,7 @@ public class AuditsController : ControllerBase
     /// Create a new Audit
     /// </summary>
     [HttpPost]
+    [Audit(Module = "Audits", Entity = "Audit", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<Audit>), 201)]
     public async Task<ActionResult<ApiResponse<Audit>>> CreateAudit([FromBody] AuditRequestDto dto)
     {
@@ -99,6 +102,7 @@ public class AuditsController : ControllerBase
     /// Update existing Audit
     /// </summary>
     [HttpPut("{id}")]
+    [Audit(Module = "Audits", Entity = "Audit", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<Audit>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Audit>), 404)]
     public async Task<ActionResult<ApiResponse<Audit>>> UpdateAudit(string id, [FromBody] AuditRequestDto dto)
@@ -125,6 +129,7 @@ public class AuditsController : ControllerBase
     /// Delete an Audit
     /// </summary>
     [HttpDelete("{id}")]
+    [Audit(Module = "Audits", Entity = "Audit", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> DeleteAudit(string id)

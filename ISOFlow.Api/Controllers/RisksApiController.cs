@@ -1,6 +1,8 @@
+using ISOFlow.Api.Auditing;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -63,6 +65,7 @@ public class RisksController : ControllerBase
     /// Register a new Risk Assessment (with optional Treatment Plan)
     /// </summary>
     [HttpPost]
+    [Audit(Module = "Risk", Entity = "Risk", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<Risk>), 201)]
     public async Task<ActionResult<ApiResponse<Risk>>> Create([FromBody] RiskRequestDto dto)
     {
@@ -103,6 +106,7 @@ public class RisksController : ControllerBase
     /// Update existing Risk details and Treatment Plan
     /// </summary>
     [HttpPut("{id}")]
+    [Audit(Module = "Risk", Entity = "Risk", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<Risk>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Risk>), 404)]
     public async Task<ActionResult<ApiResponse<Risk>>> Update(string id, [FromBody] RiskRequestDto dto)
@@ -146,6 +150,7 @@ public class RisksController : ControllerBase
     /// Delete a Risk Assessment
     /// </summary>
     [HttpDelete("{id}")]
+    [Audit(Module = "Risk", Entity = "Risk", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)

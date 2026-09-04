@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ISOFlow.Api.Auditing;
 using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
@@ -135,6 +136,7 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "SuperAdmin,Admin")]
+    [Audit(Module = "Users", Entity = "User", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<User>), 201)]
     [ProducesResponseType(typeof(ApiResponse<object>), 401)]
     [ProducesResponseType(typeof(ApiResponse<object>), 403)]
@@ -171,6 +173,7 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpPut("{id}")]
     [Authorize(Roles = "SuperAdmin,Admin")]
+    [Audit(Module = "Users", Entity = "User", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<User>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 401)]
     [ProducesResponseType(typeof(ApiResponse<object>), 403)]
@@ -215,6 +218,7 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = "SuperAdmin,Admin")]
+    [Audit(Module = "Users", Entity = "User", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 401)]
     [ProducesResponseType(typeof(ApiResponse<object>), 403)]

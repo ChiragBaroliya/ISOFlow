@@ -1,6 +1,8 @@
+using ISOFlow.Api.Auditing;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -63,6 +65,7 @@ public class ManagementReviewsController : ControllerBase
     /// Log a new Management Review session
     /// </summary>
     [HttpPost]
+    [Audit(Module = "Governance", Entity = "ManagementReview", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<ManagementReview>), 201)]
     public async Task<ActionResult<ApiResponse<ManagementReview>>> Create([FromBody] ManagementReviewRequestDto dto)
     {
@@ -86,6 +89,7 @@ public class ManagementReviewsController : ControllerBase
     /// Update existing Management Review
     /// </summary>
     [HttpPut("{id}")]
+    [Audit(Module = "Governance", Entity = "ManagementReview", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<ManagementReview>), 200)]
     [ProducesResponseType(typeof(ApiResponse<ManagementReview>), 404)]
     public async Task<ActionResult<ApiResponse<ManagementReview>>> Update(string id, [FromBody] ManagementReviewRequestDto dto)
@@ -110,6 +114,7 @@ public class ManagementReviewsController : ControllerBase
     /// Delete a Management Review
     /// </summary>
     [HttpDelete("{id}")]
+    [Audit(Module = "Governance", Entity = "ManagementReview", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)

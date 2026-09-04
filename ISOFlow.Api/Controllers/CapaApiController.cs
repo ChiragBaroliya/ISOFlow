@@ -1,6 +1,8 @@
+using ISOFlow.Api.Auditing;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -63,6 +65,7 @@ public class CapaController : ControllerBase
     /// Create a new CAPA workflow
     /// </summary>
     [HttpPost]
+    [Audit(Module = "CAPA", Entity = "Capa", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<CAPA>), 201)]
     public async Task<ActionResult<ApiResponse<CAPA>>> Create([FromBody] CapaRequestDto dto)
     {
@@ -87,6 +90,7 @@ public class CapaController : ControllerBase
     /// Update existing CAPA workflow
     /// </summary>
     [HttpPut("{id}")]
+    [Audit(Module = "CAPA", Entity = "Capa", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<CAPA>), 200)]
     [ProducesResponseType(typeof(ApiResponse<CAPA>), 404)]
     public async Task<ActionResult<ApiResponse<CAPA>>> Update(string id, [FromBody] CapaRequestDto dto)
@@ -112,6 +116,7 @@ public class CapaController : ControllerBase
     /// Delete a CAPA record
     /// </summary>
     [HttpDelete("{id}")]
+    [Audit(Module = "CAPA", Entity = "Capa", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
@@ -127,6 +132,7 @@ public class CapaController : ControllerBase
     /// Add Action Item to CAPA
     /// </summary>
     [HttpPost("{id}/action-items")]
+    [Audit(Module = "CAPA", Entity = "Capa", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     public async Task<ActionResult<ApiResponse<bool>>> AddActionItem(string id, [FromBody] CapaActionItemRequestDto dto)
     {
@@ -149,6 +155,7 @@ public class CapaController : ControllerBase
     /// Toggle Action Item completion status
     /// </summary>
     [HttpPatch("{id}/action-items/{actionItemId}/toggle")]
+    [Audit(Module = "CAPA", Entity = "Capa", Action = AuditActionType.StatusChange)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     public async Task<ActionResult<ApiResponse<bool>>> ToggleActionItem(string id, string actionItemId)
     {

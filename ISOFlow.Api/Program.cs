@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using ISOFlow.Api.Auditing;
 using ISOFlow.Api.Controllers;
 using ISOFlow.Api.Hubs;
 using ISOFlow.Api.Middlewares;
@@ -75,6 +76,7 @@ try
     builder.Services.AddSingleton<IManagementReviewRepository, ManagementReviewRepository>();
     builder.Services.AddSingleton<INotificationRepository, NotificationRepository>();
     builder.Services.AddSingleton<ITraceabilityRepository, TraceabilityRepository>();
+    builder.Services.AddSingleton<IAuditLogRepository, AuditLogRepository>();
 
     // Register Application Services
     builder.Services.AddSingleton<ICacheService, MemoryCacheService>();
@@ -83,6 +85,17 @@ try
     builder.Services.AddSingleton<ILogService, LogService>();
     builder.Services.AddSingleton<IJwtService, JwtService>();
     builder.Services.AddSingleton<IAuthService, AuthService>();
+    builder.Services.AddSingleton<IAuditLogService, AuditLogService>();
+
+    // Centralized Audit Logging: one line per entity type registers "how to fetch my current state
+    // by id" (see AuditSnapshotRegistrations); the global AuditActionFilter uses this so controllers
+    // never write audit code themselves — they just carry an [Audit(...)] attribute.
+    builder.Services.AddSingleton<IAuditSnapshotRegistry>(_ =>
+    {
+        var registry = new AuditSnapshotRegistry();
+        AuditSnapshotRegistrations.RegisterAll(registry);
+        return registry;
+    });
 
     // Configure JWT Bearer Authentication
     var keyBytes = Encoding.UTF8.GetBytes(jwtSettings.Secret);
@@ -176,7 +189,12 @@ try
     });
 
     // Configure Controllers with Standardized Model Validation Error Factory
-    builder.Services.AddControllers()
+    builder.Services.AddControllers(options =>
+        {
+            // Global, automatic audit logging: acts only on actions carrying [Audit(...)] — see
+            // ISOFlow.Api/Auditing/AuditActionFilter.cs. No per-controller audit code required.
+            options.Filters.Add<AuditActionFilter>();
+        })
         .ConfigureApiBehaviorOptions(options =>
         {
             options.InvalidModelStateResponseFactory = context =>

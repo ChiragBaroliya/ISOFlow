@@ -1,6 +1,8 @@
+using ISOFlow.Api.Auditing;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -63,6 +65,7 @@ public class FindingsController : ControllerBase
     /// Log a new Audit Finding
     /// </summary>
     [HttpPost]
+    [Audit(Module = "Audits", Entity = "Finding", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<Finding>), 201)]
     public async Task<ActionResult<ApiResponse<Finding>>> Create([FromBody] FindingRequestDto dto)
     {
@@ -90,6 +93,7 @@ public class FindingsController : ControllerBase
     /// Update existing Finding
     /// </summary>
     [HttpPut("{id}")]
+    [Audit(Module = "Audits", Entity = "Finding", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<Finding>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Finding>), 404)]
     public async Task<ActionResult<ApiResponse<Finding>>> Update(string id, [FromBody] FindingRequestDto dto)
@@ -117,6 +121,7 @@ public class FindingsController : ControllerBase
     /// Delete a Finding
     /// </summary>
     [HttpDelete("{id}")]
+    [Audit(Module = "Audits", Entity = "Finding", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)

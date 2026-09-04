@@ -2,7 +2,7 @@ namespace ISOFlow.Domain.Enums;
 
 public enum SystemRole
 {
-    SuperAdmin = 1,
-    Admin = 2,
-    User = 3
+    SuperAdmin = 0,
+    Admin = 1,
+    User = 2
 }

@@ -1,3 +1,4 @@
+using ISOFlow.Web.Services.AuditLogs;
 using ISOFlow.Web.Services.Audits;
 using ISOFlow.Web.Services.Auth;
 using ISOFlow.Web.Services.Base;
@@ -70,6 +71,7 @@ try
     builder.Services.AddScoped<IOrganizationsApiClient, OrganizationsApiClient>();
     builder.Services.AddScoped<IAuthApiClient, AuthApiClient>();
     builder.Services.AddScoped<ILogsApiClient, LogsApiClient>();
+    builder.Services.AddScoped<IAuditLogsApiClient, AuditLogsApiClient>();
 
     // Session Support for Multi-Tenant Org Switcher and JWT Token Storage
     builder.Services.AddSession(options =>

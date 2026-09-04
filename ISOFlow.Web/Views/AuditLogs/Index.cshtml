@@ -1,0 +1,157 @@
+@using ISOFlow.Domain.Enums
+@model ISOFlow.Application.DTOs.PagedResponse<ISOFlow.Application.DTOs.AuditLogDto>
+@{
+    ViewData["Title"] = "Audit Logs — ISOFlow";
+    var filter = ViewBag.Filter as ISOFlow.Application.DTOs.AuditLogFilterDto ?? new ISOFlow.Application.DTOs.AuditLogFilterDto();
+
+    string BadgeClass(AuditActionType action) => action switch
+    {
+        AuditActionType.Create => "bg-success",
+        AuditActionType.Delete => "bg-danger",
+        AuditActionType.Reject => "bg-danger",
+        AuditActionType.Approve => "bg-success",
+        AuditActionType.Update => "bg-primary",
+        _ => "bg-secondary"
+    };
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-clock-history text-primary me-2"></i> Audit Logs</h4>
+        <p class="text-muted small mb-0">Complete, append-only trail of every meaningful business/data change made from the UI.</p>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card-enterprise p-4 mb-4">
+    <form asp-controller="AuditLogs" asp-action="Index" method="get" class="row g-3 align-items-end">
+        <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold small">From Date</label>
+            <input type="date" class="form-control form-control-sm" name="FromDate" value="@(filter.FromDate?.ToString("yyyy-MM-dd"))" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold small">To Date</label>
+            <input type="date" class="form-control form-control-sm" name="ToDate" value="@(filter.ToDate?.ToString("yyyy-MM-dd"))" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold small">Module</label>
+            <input type="text" class="form-control form-control-sm" name="ModuleName" value="@filter.ModuleName" placeholder="e.g. Compliance" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold small">Entity</label>
+            <input type="text" class="form-control form-control-sm" name="EntityName" value="@filter.EntityName" placeholder="e.g. Control" />
+        </div>
+        <div class="col-6 col-md-1">
+            <label class="form-label fw-semibold small">Entity ID</label>
+            <input type="text" class="form-control form-control-sm" name="EntityId" value="@filter.EntityId" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold small">Action</label>
+            <select class="form-select form-select-sm" name="Action">
+                <option value="">All Actions</option>
+                @foreach (var action in Enum.GetValues<AuditActionType>())
+                {
+                    <option value="@action" selected="@(filter.Action == action)">@action</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold small">User</label>
+            <input type="text" class="form-control form-control-sm" name="PerformedBy" value="@filter.PerformedBy" placeholder="email" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold small">Search</label>
+            <input type="text" class="form-control form-control-sm" name="SearchTerm" value="@filter.SearchTerm" placeholder="description, entity id..." />
+        </div>
+        <div class="col-12 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm flex-fill"><i class="bi bi-funnel-fill"></i> Filter</button>
+            <a asp-controller="AuditLogs" asp-action="Index" class="btn btn-outline-secondary btn-sm" title="Reset Filters"><i class="bi bi-arrow-counterclockwise"></i></a>
+        </div>
+    </form>
+</div>
+
+<!-- Results Table -->
+<div class="card-enterprise p-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-list-columns-reverse text-primary me-2"></i> Audit Trail</h6>
+        <span class="badge bg-light text-muted border">@Model.TotalCount total entries</span>
+    </div>
+
+    @if (Model.Items.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>When</th>
+                        <th>Module</th>
+                        <th>Entity</th>
+                        <th>Action</th>
+                        <th>Performed By</th>
+                        <th>Description</th>
+                        <th class="text-end">Detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in Model.Items)
+                    {
+                        <tr>
+                            <td class="text-muted small text-nowrap">@entry.PerformedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td>@entry.ModuleName</td>
+                            <td><span class="fw-semibold">@entry.EntityName</span> <span class="text-muted small">#@entry.EntityId</span></td>
+                            <td><span class="badge @BadgeClass(entry.Action)">@entry.Action</span></td>
+                            <td>@entry.PerformedBy</td>
+                            <td class="text-muted small">@entry.Description</td>
+                            <td class="text-end">
+                                <a asp-controller="AuditLogs" asp-action="Details" asp-route-id="@entry.Id" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Server-side Pagination -->
+        <div class="d-flex align-items-center justify-content-between mt-3 pt-3 border-top">
+            <span class="text-muted small">
+                Page @Model.PageNumber of @Math.Max(Model.TotalPages, 1) (@Model.TotalCount total)
+            </span>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                        <a class="page-link" asp-controller="AuditLogs" asp-action="Index"
+                           asp-route-PageNumber="@(Model.PageNumber - 1)" asp-route-PageSize="@filter.PageSize"
+                           asp-route-FromDate="@filter.FromDate?.ToString("yyyy-MM-dd")" asp-route-ToDate="@filter.ToDate?.ToString("yyyy-MM-dd")"
+                           asp-route-ModuleName="@filter.ModuleName" asp-route-EntityName="@filter.EntityName" asp-route-EntityId="@filter.EntityId"
+                           asp-route-Action="@filter.Action" asp-route-PerformedBy="@filter.PerformedBy" asp-route-SearchTerm="@filter.SearchTerm">Previous</a>
+                    </li>
+                    <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                        <a class="page-link" asp-controller="AuditLogs" asp-action="Index"
+                           asp-route-PageNumber="@(Model.PageNumber + 1)" asp-route-PageSize="@filter.PageSize"
+                           asp-route-FromDate="@filter.FromDate?.ToString("yyyy-MM-dd")" asp-route-ToDate="@filter.ToDate?.ToString("yyyy-MM-dd")"
+                           asp-route-ModuleName="@filter.ModuleName" asp-route-EntityName="@filter.EntityName" asp-route-EntityId="@filter.EntityId"
+                           asp-route-Action="@filter.Action" asp-route-PerformedBy="@filter.PerformedBy" asp-route-SearchTerm="@filter.SearchTerm">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-light text-center py-5 mb-0">
+            <i class="bi bi-inbox text-muted fs-1 mb-2 d-block"></i>
+            <h6 class="fw-bold">No audit entries found</h6>
+            <p class="text-muted small mb-0">No changes matched your filter criteria.</p>
+        </div>
+    }
+</div>

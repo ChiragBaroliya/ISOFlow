@@ -48,45 +48,4 @@ public class NotificationRepository : BaseRepository, INotificationRepository
             request.PageNumber,
             request.PageSize);
     }
-
-    public Task<List<AuditLog>> GetAuditLogsAsync()
-    {
-        return QueryMappedListAsync(
-            "SELECT id, \"timestamp\", \"user\", action, module, entity_id, details FROM audit_logs ORDER BY \"timestamp\" DESC",
-            r => new AuditLog
-            {
-                Id = r.id.ToString(),
-                Timestamp = (DateTime)r.timestamp,
-                User = (string)r.user,
-                Action = (string)r.action,
-                Module = (string)r.module,
-                EntityId = (string)r.entity_id,
-                Details = (string)r.details ?? string.Empty
-            });
-    }
-
-    public Task<PagedResponse<AuditLog>> GetPagedAuditLogsAsync(PagedRequestDto request)
-    {
-        var parameters = new DynamicParameters();
-        parameters.Add("p_page_number", request.PageNumber);
-        parameters.Add("p_page_size", request.PageSize);
-        parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
-        parameters.Add("p_module", string.IsNullOrWhiteSpace(request.CategoryFilter) ? null : request.CategoryFilter.Trim());
-
-        return QueryPagedAsync(
-            "SELECT * FROM sp_audit_logs_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_module)",
-            r => new AuditLog
-            {
-                Id = r.id.ToString(),
-                Timestamp = (DateTime)r.timestamp,
-                User = (string)r.user,
-                Action = (string)r.action,
-                Module = (string)r.module,
-                EntityId = (string)r.entity_id,
-                Details = (string)r.details ?? string.Empty
-            },
-            parameters,
-            request.PageNumber,
-            request.PageSize);
-    }
 }

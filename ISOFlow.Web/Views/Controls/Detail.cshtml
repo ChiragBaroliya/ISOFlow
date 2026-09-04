@@ -248,12 +248,7 @@
 
         <!-- History Tab -->
         <div class="tab-pane fade" id="tab-history">
-            <h6 class="fw-bold mb-3">Control Audit Log History</h6>
-            <ul class="timeline small text-muted list-unstyled">
-                <li class="mb-2"><i class="bi bi-clock me-2 text-primary"></i> <strong>25-Aug-2026</strong>: Q3 Access Review evidence attached by David Chen.</li>
-                <li class="mb-2"><i class="bi bi-clock me-2 text-warning"></i> <strong>22-Aug-2026</strong>: Finding FIND-001 logged by Sarah Wilson.</li>
-                <li class="mb-2"><i class="bi bi-clock me-2 text-success"></i> <strong>15-Jan-2026</strong>: Control activated by Chirag Baroliya.</li>
-            </ul>
+            @await Component.InvokeAsync("AuditHistory", new { entityName = "Control", entityId = Model.Control.Id })
         </div>
     </div>
 </div>

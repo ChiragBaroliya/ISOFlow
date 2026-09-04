@@ -1,6 +1,8 @@
+using ISOFlow.Api.Auditing;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -63,6 +65,7 @@ public class ImprovementsController : ControllerBase
     /// Create a new Continual Improvement initiative
     /// </summary>
     [HttpPost]
+    [Audit(Module = "Governance", Entity = "Improvement", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<Improvement>), 201)]
     public async Task<ActionResult<ApiResponse<Improvement>>> Create([FromBody] ImprovementRequestDto dto)
     {
@@ -88,6 +91,7 @@ public class ImprovementsController : ControllerBase
     /// Update existing Continual Improvement
     /// </summary>
     [HttpPut("{id}")]
+    [Audit(Module = "Governance", Entity = "Improvement", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<Improvement>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Improvement>), 404)]
     public async Task<ActionResult<ApiResponse<Improvement>>> Update(string id, [FromBody] ImprovementRequestDto dto)
@@ -114,6 +118,7 @@ public class ImprovementsController : ControllerBase
     /// Delete a Continual Improvement initiative
     /// </summary>
     [HttpDelete("{id}")]
+    [Audit(Module = "Governance", Entity = "Improvement", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)

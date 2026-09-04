@@ -1,6 +1,8 @@
+using ISOFlow.Api.Auditing;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -63,6 +65,7 @@ public class EvidenceController : ControllerBase
     /// Upload or register a new Evidence record
     /// </summary>
     [HttpPost]
+    [Audit(Module = "Evidence", Entity = "Evidence", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<Evidence>), 201)]
     public async Task<ActionResult<ApiResponse<Evidence>>> Create([FromBody] EvidenceRequestDto dto)
     {
@@ -90,6 +93,7 @@ public class EvidenceController : ControllerBase
     /// Update existing Evidence metadata
     /// </summary>
     [HttpPut("{id}")]
+    [Audit(Module = "Evidence", Entity = "Evidence", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<Evidence>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Evidence>), 404)]
     public async Task<ActionResult<ApiResponse<Evidence>>> Update(string id, [FromBody] EvidenceRequestDto dto)
@@ -116,6 +120,7 @@ public class EvidenceController : ControllerBase
     /// Delete an Evidence record
     /// </summary>
     [HttpDelete("{id}")]
+    [Audit(Module = "Evidence", Entity = "Evidence", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)

@@ -1,6 +1,8 @@
+using ISOFlow.Api.Auditing;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -67,6 +69,7 @@ public class StandardsController : ControllerBase
     /// <param name="dto">Standard creation payload</param>
     [HttpPost]
     [Authorize(Roles = "SuperAdmin,Admin")]
+    [Audit(Module = "Compliance", Entity = "Standard", Action = AuditActionType.Create)]
     [ProducesResponseType(typeof(ApiResponse<Standard>), 201)]
     [ProducesResponseType(typeof(ApiResponse<Standard>), 400)]
     public async Task<ActionResult<ApiResponse<Standard>>> Create([FromBody] StandardRequestDto dto)
@@ -92,6 +95,7 @@ public class StandardsController : ControllerBase
     /// <param name="id">Standard Identifier</param>
     /// <param name="dto">Standard update payload</param>
     [HttpPut("{id}")]
+    [Audit(Module = "Compliance", Entity = "Standard", Action = AuditActionType.Update)]
     [ProducesResponseType(typeof(ApiResponse<Standard>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Standard>), 404)]
     public async Task<ActionResult<ApiResponse<Standard>>> Update(string id, [FromBody] StandardRequestDto dto)
@@ -121,6 +125,7 @@ public class StandardsController : ControllerBase
     /// <param name="id">Standard Identifier</param>
     [HttpDelete("{id}")]
     [Authorize(Roles = "SuperAdmin,Admin")]
+    [Audit(Module = "Compliance", Entity = "Standard", Action = AuditActionType.Delete)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 400)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
@@ -156,6 +161,7 @@ public class StandardsController : ControllerBase
     /// <param name="id">Standard Identifier</param>
     /// <param name="dto">Requirement payload</param>
     [HttpPost("{id}/requirements")]
+    [Audit(Module = "Compliance", Entity = "Requirement", Action = AuditActionType.Create, IdParameter = "reqId")]
     [ProducesResponseType(typeof(ApiResponse<Requirement>), 201)]
     public async Task<ActionResult<ApiResponse<Requirement>>> CreateRequirement(string id, [FromBody] RequirementRequestDto dto)
     {
@@ -178,6 +184,7 @@ public class StandardsController : ControllerBase
     /// Update a Requirement
     /// </summary>
     [HttpPut("{id}/requirements/{reqId}")]
+    [Audit(Module = "Compliance", Entity = "Requirement", Action = AuditActionType.Update, IdParameter = "reqId")]
     [ProducesResponseType(typeof(ApiResponse<Requirement>), 200)]
     [ProducesResponseType(typeof(ApiResponse<Requirement>), 404)]
     public async Task<ActionResult<ApiResponse<Requirement>>> UpdateRequirement(string id, string reqId, [FromBody] RequirementRequestDto dto)
@@ -201,6 +208,7 @@ public class StandardsController : ControllerBase
     /// Delete a Requirement
     /// </summary>
     [HttpDelete("{id}/requirements/{reqId}")]
+    [Audit(Module = "Compliance", Entity = "Requirement", Action = AuditActionType.Delete, IdParameter = "reqId")]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     public async Task<ActionResult<ApiResponse<bool>>> DeleteRequirement(string id, string reqId)
     {

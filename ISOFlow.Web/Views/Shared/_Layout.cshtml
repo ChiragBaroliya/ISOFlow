@@ -138,6 +138,9 @@
                 <li class="sidebar-nav-item @(ViewData["ActiveMenu"]?.ToString() == "Logs" ? "active" : "")">
                     <a asp-controller="Logs" asp-action="Index"><i class="bi bi-file-earmark-code"></i> System Logs</a>
                 </li>
+                <li class="sidebar-nav-item @(ViewData["ActiveMenu"]?.ToString() == "AuditLogs" ? "active" : "")">
+                    <a asp-controller="AuditLogs" asp-action="Index"><i class="bi bi-clock-history"></i> Audit Logs</a>
+                </li>
             </ul>
 
             <div class="p-3 mt-auto border-top border-secondary text-center small text-muted">

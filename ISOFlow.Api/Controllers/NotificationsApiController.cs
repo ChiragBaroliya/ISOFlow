@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ISOFlow.Api.Controllers;
 
 /// <summary>
-/// System Notifications and Audit Logs API
+/// System Notifications API
 /// </summary>
 [Authorize]
 [ApiController]
@@ -42,16 +42,5 @@ public class NotificationsController : ControllerBase
     {
         var list = await _notificationRepository.GetNotificationsAsync();
         return Ok(ApiResponse<List<Notification>>.SuccessResponse(list));
-    }
-
-    /// <summary>
-    /// Get paginated system Audit Logs
-    /// </summary>
-    [HttpGet("audit-logs")]
-    [ProducesResponseType(typeof(ApiResponse<PagedResponse<AuditLog>>), 200)]
-    public async Task<ActionResult<ApiResponse<PagedResponse<AuditLog>>>> GetAuditLogs([FromQuery] PagedRequestDto request)
-    {
-        var paged = await _notificationRepository.GetPagedAuditLogsAsync(request);
-        return Ok(ApiResponse<PagedResponse<AuditLog>>.SuccessResponse(paged));
     }
 }

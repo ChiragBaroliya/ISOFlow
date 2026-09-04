@@ -1,0 +1,103 @@
+@using ISOFlow.Domain.Enums
+@model ISOFlow.Application.DTOs.AuditLogDetailDto
+@{
+    ViewData["Title"] = "Audit Log Detail — ISOFlow";
+
+    string BadgeClass(AuditActionType action) => action switch
+    {
+        AuditActionType.Create => "bg-success",
+        AuditActionType.Delete => "bg-danger",
+        AuditActionType.Reject => "bg-danger",
+        AuditActionType.Approve => "bg-success",
+        AuditActionType.Update => "bg-primary",
+        _ => "bg-secondary"
+    };
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-clock-history text-primary me-2"></i> Audit Log Detail</h4>
+        <p class="text-muted small mb-0">Entry #@Model.Id</p>
+    </div>
+    <a asp-controller="AuditLogs" asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Audit Logs</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-4">
+        <div class="card-enterprise p-4">
+            <h6 class="fw-bold mb-3">Summary</h6>
+            <dl class="row mb-0 small">
+                <dt class="col-5 text-muted">Action</dt>
+                <dd class="col-7"><span class="badge @BadgeClass(Model.Action)">@Model.Action</span></dd>
+
+                <dt class="col-5 text-muted">Module</dt>
+                <dd class="col-7">@Model.ModuleName</dd>
+
+                <dt class="col-5 text-muted">Entity</dt>
+                <dd class="col-7">@Model.EntityName #@Model.EntityId</dd>
+
+                <dt class="col-5 text-muted">Performed By</dt>
+                <dd class="col-7">@Model.PerformedBy</dd>
+
+                <dt class="col-5 text-muted">Performed At</dt>
+                <dd class="col-7">@Model.PerformedAt.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+
+                @if (!string.IsNullOrWhiteSpace(Model.IpAddress))
+                {
+                    <dt class="col-5 text-muted">IP Address</dt>
+                    <dd class="col-7">@Model.IpAddress</dd>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.CorrelationId))
+                {
+                    <dt class="col-5 text-muted">Correlation ID</dt>
+                    <dd class="col-7 text-break">@Model.CorrelationId</dd>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Description))
+                {
+                    <dt class="col-5 text-muted">Description</dt>
+                    <dd class="col-7">@Model.Description</dd>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.UserAgent))
+                {
+                    <dt class="col-12 text-muted mt-2">User Agent</dt>
+                    <dd class="col-12 text-break small text-muted">@Model.UserAgent</dd>
+                }
+            </dl>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-8">
+        <div class="card-enterprise p-4">
+            <h6 class="fw-bold mb-3"><i class="bi bi-arrow-left-right text-primary me-2"></i> Field Changes</h6>
+
+            @if (!Model.ChangedFields.Any())
+            {
+                <p class="text-muted small mb-0">No field-level detail was recorded for this entry.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Field</th>
+                                <th>Old Value</th>
+                                <th>New Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var change in Model.ChangedFields)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@change.Field</td>
+                                    <td class="text-danger-emphasis bg-danger-subtle">@(change.OldValue ?? "—")</td>
+                                    <td class="text-success-emphasis bg-success-subtle">@(change.NewValue ?? "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
