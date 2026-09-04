@@ -270,7 +270,7 @@
             <form asp-controller="Capa" asp-action="Delete" method="post">
                 <input type="hidden" name="id" id="deleteCapaId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to delete CAPA remediation <strong id="deleteCapaCode"></strong> (<span id="deleteCapaTitle"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to delete CAPA remediation <strong id="deleteCapaCode"></strong>?</p>
                     <p class="text-muted small mb-0">This corrective action plan and its action items will be removed.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -313,7 +313,6 @@
     function openDeleteCapaModal(id, code, title) {
         document.getElementById('deleteCapaId').value = id;
         document.getElementById('deleteCapaCode').textContent = code;
-        document.getElementById('deleteCapaTitle').textContent = title;
         new bootstrap.Modal(document.getElementById('deleteCapaModal')).show();
     }
 </script>

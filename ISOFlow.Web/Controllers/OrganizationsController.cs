@@ -1,4 +1,5 @@
 using ISOFlow.Domain.Entities;
+using ISOFlow.Web.Filters;
 using ISOFlow.Web.Services.Organizations;
 using ISOFlow.Web.Services.Standards;
 using ISOFlow.Web.Services.Users;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
+[SessionAuthorize(Roles = "SuperAdmin")]
 public class OrganizationsController : Controller
 {
     private readonly IOrganizationsApiClient _orgsClient;

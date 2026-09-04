@@ -1,21 +1,22 @@
 using ISOFlow.Application.DTOs;
-using ISOFlow.Application.Interfaces;
+using ISOFlow.Web.Services.Controls;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Components;
 
 public class RelatedComplianceItemsViewComponent : ViewComponent
 {
-    private readonly IControlRepository _controlRepository;
+    private readonly IControlsApiClient _controlsClient;
 
-    public RelatedComplianceItemsViewComponent(IControlRepository controlRepository)
+    public RelatedComplianceItemsViewComponent(IControlsApiClient controlsClient)
     {
-        _controlRepository = controlRepository;
+        _controlsClient = controlsClient;
     }
 
     public async Task<IViewComponentResult> InvokeAsync(string controlId = "CTRL-001")
     {
-        var counts = await _controlRepository.GetRelatedItemsCountAsync(controlId);
+        var counts = await _controlsClient.GetRelatedItemsCountAsync(controlId);
         return View(counts);
     }
 }
+

@@ -1,5 +1,6 @@
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Api.Controllers;
@@ -7,6 +8,7 @@ namespace ISOFlow.Api.Controllers;
 /// <summary>
 /// Dashboard Metrics and Compliance KPIs Endpoint
 /// </summary>
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]

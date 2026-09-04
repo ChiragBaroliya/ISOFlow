@@ -1,6 +1,7 @@
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Api.Controllers;
@@ -8,6 +9,7 @@ namespace ISOFlow.Api.Controllers;
 /// <summary>
 /// System Notifications and Audit Logs API
 /// </summary>
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]

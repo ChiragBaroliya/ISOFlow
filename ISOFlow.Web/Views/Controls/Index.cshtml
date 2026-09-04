@@ -317,7 +317,7 @@
             <form asp-controller="Controls" asp-action="Delete" method="post">
                 <input type="hidden" name="id" id="deleteCtrlId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to permanently delete control <strong id="deleteCtrlCode"></strong> (<span id="deleteCtrlTitle"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to permanently delete control <strong id="deleteCtrlCode"></strong>?</p>
                     <p class="text-muted small mb-0">This action will remove the control and dissociate linked risks, policies, and tasks.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -363,7 +363,6 @@
     function openDeleteControlModal(id, code, title) {
         document.getElementById('deleteCtrlId').value = id;
         document.getElementById('deleteCtrlCode').textContent = code;
-        document.getElementById('deleteCtrlTitle').textContent = title;
         new bootstrap.Modal(document.getElementById('deleteControlModal')).show();
     }
 </script>

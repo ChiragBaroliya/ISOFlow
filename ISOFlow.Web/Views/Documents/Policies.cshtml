@@ -261,7 +261,7 @@
             <form asp-controller="Documents" asp-action="DeletePolicy" method="post">
                 <input type="hidden" name="id" id="deletePolId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to delete policy <strong id="deletePolCode"></strong> (<span id="deletePolTitle"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to delete policy <strong id="deletePolCode"></strong>?</p>
                     <p class="text-muted small mb-0">This document reference will be permanently removed.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -304,7 +304,6 @@
     function openDeletePolicyModal(id, code, title) {
         document.getElementById('deletePolId').value = id;
         document.getElementById('deletePolCode').textContent = code;
-        document.getElementById('deletePolTitle').textContent = title;
         new bootstrap.Modal(document.getElementById('deletePolicyModal')).show();
     }
 </script>

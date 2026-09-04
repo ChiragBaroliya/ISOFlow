@@ -21,7 +21,7 @@ public class TraceabilityRepository : BaseRepository, ITraceabilityRepository
         var treatment = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, option, status, treatment_plan FROM risk_treatments WHERE risk_id = 1 OR id = 1 LIMIT 1;");
         var policy = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, version, status FROM policies WHERE code = 'POL-001' OR id = 1 LIMIT 1;");
         var process = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM processes WHERE code = 'PROC-001' OR id = 1 LIMIT 1;");
-        var task = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM task_items WHERE code = 'TASK-2026-003' OR id = 3 OR id = 1 LIMIT 1;");
+        var task = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM task_items WHERE code = 'TASK-2026-003' OR id = 3 LIMIT 1;");
         var evidence = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, name, status FROM evidence WHERE code = 'EVI-2026-001' OR id = 1 LIMIT 1;");
         var audit = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status, completion_percentage FROM audits WHERE code = 'AUD-2026-001' OR id = 1 LIMIT 1;");
         var finding = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, severity, status FROM findings WHERE code = 'FIND-001' OR id = 1 LIMIT 1;");

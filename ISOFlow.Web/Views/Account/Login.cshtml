@@ -153,6 +153,14 @@
         <h1 class="login-title">Welcome back</h1>
         <p class="login-subtitle">Sign in to access your compliance workspace.</p>
 
+        @if (ViewBag.SessionExpired == true)
+        {
+            <div class="alert alert-warning d-flex align-items-center mb-3" style="border-radius: 12px; font-size: 0.88rem; background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef08a;" role="alert">
+                <i class="bi bi-clock-history me-2 fs-5 text-warning"></i>
+                <div>Your session has expired. Please sign in again to continue.</div>
+            </div>
+        }
+
         @if (TempData["SuccessMessage"] != null)
         {
             <div class="success-alert" id="loginSuccessAlert">
@@ -212,6 +220,20 @@
             <button type="submit" class="btn-login" id="loginSubmitBtn">
                 <i class="bi bi-box-arrow-in-right me-2"></i> Sign In
             </button>
+
+            <div class="mt-4 pt-3 border-top border-secondary border-opacity-25">
+                <p class="small text-muted mb-2 text-center" style="font-size: 0.78rem; color: rgba(255,255,255,0.6) !important;">Quick Fill Demo Accounts:</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button type="button" class="btn btn-outline-light btn-sm" style="font-size: 0.76rem; border-radius: 8px;"
+                            onclick="document.getElementById('loginEmail').value='alex.morgan@acme.com'; document.getElementById('loginPassword').value='Test@123';">
+                        <i class="bi bi-shield-lock text-info me-1"></i> SuperAdmin
+                    </button>
+                    <button type="button" class="btn btn-outline-light btn-sm" style="font-size: 0.76rem; border-radius: 8px;"
+                            onclick="document.getElementById('loginEmail').value='sarah.chen@acme.com'; document.getElementById('loginPassword').value='Test@123';">
+                        <i class="bi bi-person-badge text-primary me-1"></i> Admin
+                    </button>
+                </div>
+            </div>
         </form>
     </div>
 

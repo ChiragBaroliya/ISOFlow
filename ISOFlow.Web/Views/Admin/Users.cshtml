@@ -351,7 +351,7 @@
             <form asp-controller="Admin" asp-action="DeleteUser" method="post">
                 <input type="hidden" name="id" id="deleteUserId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to remove user account <strong id="deleteUserName"></strong> (<span id="deleteUserEmail"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to remove user account <strong id="deleteUserName"></strong>?</p>
                     <p class="text-muted small mb-0">This user will lose access to all organization resources.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -394,7 +394,6 @@
     function openDeleteUserModal(id, name, email) {
         document.getElementById('deleteUserId').value = id;
         document.getElementById('deleteUserName').textContent = name;
-        document.getElementById('deleteUserEmail').textContent = email;
         new bootstrap.Modal(document.getElementById('deleteUserModal')).show();
     }
 </script>

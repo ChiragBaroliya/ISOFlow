@@ -241,7 +241,7 @@
             <form asp-controller="ManagementReview" asp-action="Delete" method="post">
                 <input type="hidden" name="id" id="deleteRevId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to delete management review <strong id="deleteRevCode"></strong> (<span id="deleteRevTitle"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to delete management review <strong id="deleteRevCode"></strong>?</p>
                     <p class="text-muted small mb-0">This governance record will be removed.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -284,7 +284,6 @@
     function openDeleteReviewModal(id, code, title) {
         document.getElementById('deleteRevId').value = id;
         document.getElementById('deleteRevCode').textContent = code;
-        document.getElementById('deleteRevTitle').textContent = title;
         new bootstrap.Modal(document.getElementById('deleteReviewModal')).show();
     }
 </script>

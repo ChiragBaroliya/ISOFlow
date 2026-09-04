@@ -71,6 +71,7 @@ public class AuthController : ControllerBase
     /// Revoke active Refresh Token on User Logout
     /// </summary>
     [HttpPost("logout")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 400)]
     public async Task<ActionResult<ApiResponse<bool>>> Logout([FromBody] RevokeTokenRequestDto request)

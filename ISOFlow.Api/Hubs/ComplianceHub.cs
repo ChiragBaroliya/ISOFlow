@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace ISOFlow.Api.Hubs;
 
+[Authorize]
 public class ComplianceHub : Hub
 {
     public async Task SendNotification(string title, string message, string category)

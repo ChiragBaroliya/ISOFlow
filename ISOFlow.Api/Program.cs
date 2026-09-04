@@ -104,13 +104,33 @@ try
             ValidateAudience = true,
             ValidAudience = jwtSettings.Audience,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero,
+            ClockSkew = TimeSpan.FromMinutes(1),
             RequireExpirationTime = true
         };
 
         // Standardize 401 and 403 API responses to match ApiResponse<T> format
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context =>
+            {
+                var authHeader = context.Request.Headers.Authorization.ToString();
+                if (!string.IsNullOrWhiteSpace(authHeader))
+                {
+                    var token = authHeader.Trim();
+                    // Gracefully strip single or duplicated "Bearer " prefixes (e.g. if user pastes 'Bearer eyJ...' in Swagger)
+                    while (token.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        token = token.Substring(7).Trim();
+                    }
+                    context.Token = token;
+                }
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                Log.Warning(context.Exception, "JWT Authentication failed: {Message}", context.Exception.Message);
+                return Task.CompletedTask;
+            },
             OnChallenge = async context =>
             {
                 // Suppress default challenge response to write custom JSON
@@ -118,9 +138,13 @@ try
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.ContentType = "application/json";
 
+                var failureDetail = context.AuthenticateFailure != null
+                    ? $"Unauthorized: {context.AuthenticateFailure.Message}"
+                    : "Unauthorized: Missing, invalid, or expired JWT token.";
+
                 var failureResponse = ApiResponse<object>.FailureResponse(
                     "You are not authorized to access this resource. Please provide a valid Bearer token.",
-                    new[] { "Unauthorized: Missing, invalid, or expired JWT token." });
+                    new[] { failureDetail });
 
                 await context.Response.WriteAsync(JsonSerializer.Serialize(failureResponse, new JsonSerializerOptions
                 {
@@ -144,7 +168,12 @@ try
         };
     });
 
-    builder.Services.AddAuthorization();
+    builder.Services.AddAuthorization(options =>
+    {
+        options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
+    });
 
     // Configure Controllers with Standardized Model Validation Error Factory
     builder.Services.AddControllers()
@@ -154,17 +183,10 @@ try
             {
                 var errors = context.ModelState
                     .Where(e => e.Value?.Errors.Count > 0)
-                    .SelectMany(e => e.Value!.Errors.Select(x => string.IsNullOrWhiteSpace(x.ErrorMessage) ? "Invalid input." : x.ErrorMessage))
-                    .ToList();
+                    .SelectMany(e => e.Value!.Errors.Select(err => $"{e.Key}: {err.ErrorMessage}"))
+                    .ToArray();
 
-                var response = new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Validation failed for one or more fields.",
-                    Errors = errors,
-                    Data = null
-                };
-
+                var response = ApiResponse<object>.FailureResponse("Validation failed for one or more fields.", errors);
                 return new BadRequestObjectResult(response);
             };
         });
@@ -190,7 +212,7 @@ try
         var securityScheme = new OpenApiSecurityScheme
         {
             Name = "Authorization",
-            Description = "Enter JWT Bearer token format: `Bearer {your_token}`",
+            Description = "Enter JWT Bearer token. You can enter just the token (e.g. `eyJ...`) or `Bearer {token}`.",
             In = ParameterLocation.Header,
             Type = SecuritySchemeType.Http,
             Scheme = "bearer",
@@ -198,12 +220,13 @@ try
         };
         c.AddSecurityDefinition("Bearer", securityScheme);
 
-        var schemeRef = new OpenApiSecuritySchemeReference("Bearer", null);
-        var securityRequirement = new OpenApiSecurityRequirement
+        c.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
         {
-            [schemeRef] = new List<string>()
-        };
-        c.AddSecurityRequirement(doc => securityRequirement);
+            {
+                new OpenApiSecuritySchemeReference("Bearer", doc),
+                new List<string>()
+            }
+        });
 
         // Include XML documentation comments if present
         var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
@@ -250,7 +273,7 @@ try
     app.MapHub<ComplianceHub>("/hubs/compliance");
 
     // Redirect root to Swagger UI
-    app.MapGet("/", () => Results.Redirect("/swagger/index.html"));
+    app.MapGet("/", () => Results.Redirect("/swagger/index.html")).AllowAnonymous();
 
     app.Run();
 }

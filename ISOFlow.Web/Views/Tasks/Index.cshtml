@@ -320,7 +320,7 @@
             <form asp-controller="Tasks" asp-action="Delete" method="post">
                 <input type="hidden" name="id" id="deleteTaskId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to delete task <strong id="deleteTaskCode"></strong> (<span id="deleteTaskTitle"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to delete task <strong id="deleteTaskCode"></strong>?</p>
                     <p class="text-muted small mb-0">This operational activity will be removed.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -365,7 +365,6 @@
     function openDeleteTaskModal(id, code, title) {
         document.getElementById('deleteTaskId').value = id;
         document.getElementById('deleteTaskCode').textContent = code;
-        document.getElementById('deleteTaskTitle').textContent = title;
         new bootstrap.Modal(document.getElementById('deleteTaskModal')).show();
     }
 </script>

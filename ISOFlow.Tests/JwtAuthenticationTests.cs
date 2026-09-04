@@ -405,6 +405,42 @@ public class JwtAuthenticationTests
         Assert.Equal("user@isoflow.io", apiResponse.Data.Email);
     }
 
+    [Theory]
+    [InlineData(typeof(AuditsController))]
+    [InlineData(typeof(CapaController))]
+    [InlineData(typeof(ControlsController))]
+    [InlineData(typeof(DashboardController))]
+    [InlineData(typeof(DocumentsController))]
+    [InlineData(typeof(EvidenceController))]
+    [InlineData(typeof(FindingsController))]
+    [InlineData(typeof(ImprovementsController))]
+    [InlineData(typeof(LogsApiController))]
+    [InlineData(typeof(ManagementReviewsController))]
+    [InlineData(typeof(NotificationsController))]
+    [InlineData(typeof(OrganizationsController))]
+    [InlineData(typeof(RisksController))]
+    [InlineData(typeof(StandardsController))]
+    [InlineData(typeof(TasksController))]
+    [InlineData(typeof(TraceabilityController))]
+    [InlineData(typeof(UsersController))]
+    public void ApiControllers_HaveAuthorizeAttribute(Type controllerType)
+    {
+        var hasAuthorize = Attribute.IsDefined(controllerType, typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute));
+        Assert.True(hasAuthorize, $"{controllerType.Name} must be decorated with [Authorize] attribute for proper security.");
+    }
+
+    [Fact]
+    public void LogsApiController_HasRbacAdminRoles()
+    {
+        var logsAttr = typeof(LogsApiController).GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false)
+            .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>()
+            .FirstOrDefault();
+
+        Assert.NotNull(logsAttr);
+        Assert.Contains("SuperAdmin", logsAttr.Roles);
+        Assert.Contains("Admin", logsAttr.Roles);
+    }
+
     #endregion
 
     #region Mock Repositories Helper

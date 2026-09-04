@@ -311,7 +311,7 @@
             <form asp-controller="Findings" asp-action="Delete" method="post">
                 <input type="hidden" name="id" id="deleteFindId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to delete finding <strong id="deleteFindCode"></strong> (<span id="deleteFindTitle"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to delete finding <strong id="deleteFindCode"></strong>?</p>
                     <p class="text-muted small mb-0">This non-conformity log entry will be removed.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -357,7 +357,6 @@
     function openDeleteFindingModal(id, code, title) {
         document.getElementById('deleteFindId').value = id;
         document.getElementById('deleteFindCode').textContent = code;
-        document.getElementById('deleteFindTitle').textContent = title;
         new bootstrap.Modal(document.getElementById('deleteFindingModal')).show();
     }
 </script>

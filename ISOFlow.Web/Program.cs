@@ -79,8 +79,11 @@ try
         options.Cookie.IsEssential = true;
     });
 
-    // Register MVC Controllers with Views
-    builder.Services.AddControllersWithViews();
+    // Register MVC Controllers with Views and Global Session Authorization Filter
+    builder.Services.AddControllersWithViews(options =>
+    {
+        options.Filters.Add<ISOFlow.Web.Filters.SessionAuthorizeAttribute>();
+    });
 
     var app = builder.Build();
 

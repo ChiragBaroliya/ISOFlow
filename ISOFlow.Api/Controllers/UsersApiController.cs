@@ -1,7 +1,9 @@
 using System.Security.Claims;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,6 +12,7 @@ namespace ISOFlow.Api.Controllers;
 /// <summary>
 /// User Management, Roles and Authentication API
 /// </summary>
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
@@ -54,59 +57,77 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Get paginated and filtered list of Users
+    /// Get paginated and filtered list of Users. Non-SuperAdmin callers only ever see their own organization.
     /// </summary>
     [HttpGet]
     [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<PagedResponse<User>>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<PagedResponse<UserProfileDto>>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 401)]
-    public async Task<ActionResult<ApiResponse<PagedResponse<User>>>> GetPaged([FromQuery] PagedRequestDto request)
+    public async Task<ActionResult<ApiResponse<PagedResponse<UserProfileDto>>>> GetPaged([FromQuery] PagedRequestDto request)
     {
-        var paged = await _userRepository.GetPagedUsersAsync(request);
-        return Ok(ApiResponse<PagedResponse<User>>.SuccessResponse(paged));
+        var paged = User.IsSuperAdmin()
+            ? await _userRepository.GetPagedUsersAsync(request)
+            : await _userRepository.GetPagedUsersByOrganizationIdAsync(User.GetOrganizationId() ?? string.Empty, request);
+
+        var profiles = new PagedResponse<UserProfileDto>(paged.Items.Select(MapToProfile).ToList(), paged.TotalCount, paged.PageNumber, paged.PageSize);
+        return Ok(ApiResponse<PagedResponse<UserProfileDto>>.SuccessResponse(profiles));
     }
 
     /// <summary>
-    /// Get all registered Users
+    /// Get all registered Users. Non-SuperAdmin callers only ever see their own organization.
     /// </summary>
     [HttpGet("all")]
     [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<List<User>>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<List<UserProfileDto>>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 401)]
-    public async Task<ActionResult<ApiResponse<List<User>>>> GetAll()
+    public async Task<ActionResult<ApiResponse<List<UserProfileDto>>>> GetAll()
     {
-        var users = await _userRepository.GetAllUsersAsync();
-        return Ok(ApiResponse<List<User>>.SuccessResponse(users));
+        var users = User.IsSuperAdmin()
+            ? await _userRepository.GetAllUsersAsync()
+            : await _userRepository.GetUsersByOrganizationIdAsync(User.GetOrganizationId() ?? string.Empty);
+
+        return Ok(ApiResponse<List<UserProfileDto>>.SuccessResponse(users.Select(MapToProfile).ToList()));
     }
 
     /// <summary>
-    /// Get Users belonging to an Organization
+    /// Get Users belonging to an Organization. Callers may only request their own organization unless they are SuperAdmin.
     /// </summary>
     [HttpGet("organization/{orgId}")]
     [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<PagedResponse<User>>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<PagedResponse<UserProfileDto>>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 401)]
-    public async Task<ActionResult<ApiResponse<PagedResponse<User>>>> GetByOrg(string orgId, [FromQuery] PagedRequestDto request)
+    [ProducesResponseType(typeof(ApiResponse<object>), 403)]
+    public async Task<ActionResult<ApiResponse<PagedResponse<UserProfileDto>>>> GetByOrg(string orgId, [FromQuery] PagedRequestDto request)
     {
+        if (!User.IsSuperAdmin() && !User.IsSameOrganization(orgId))
+            return Forbid();
+
         var paged = await _userRepository.GetPagedUsersByOrganizationIdAsync(orgId, request);
-        return Ok(ApiResponse<PagedResponse<User>>.SuccessResponse(paged));
+        var profiles = new PagedResponse<UserProfileDto>(paged.Items.Select(MapToProfile).ToList(), paged.TotalCount, paged.PageNumber, paged.PageSize);
+        return Ok(ApiResponse<PagedResponse<UserProfileDto>>.SuccessResponse(profiles));
     }
 
     /// <summary>
-    /// Get User details by Identifier
+    /// Get User details by Identifier. Callers may only view their own record, or (if Admin/SuperAdmin)
+    /// a record belonging to their own organization; SuperAdmin may view any organization.
     /// </summary>
     [HttpGet("{id}")]
     [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<User>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<UserProfileDto>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 401)]
-    [ProducesResponseType(typeof(ApiResponse<User>), 404)]
-    public async Task<ActionResult<ApiResponse<User>>> GetById(string id)
+    [ProducesResponseType(typeof(ApiResponse<object>), 403)]
+    [ProducesResponseType(typeof(ApiResponse<UserProfileDto>), 404)]
+    public async Task<ActionResult<ApiResponse<UserProfileDto>>> GetById(string id)
     {
         var user = await _userRepository.GetUserByIdAsync(id);
         if (user == null)
-            return NotFound(ApiResponse<User>.FailureResponse($"User with ID '{id}' was not found."));
+            return NotFound(ApiResponse<UserProfileDto>.FailureResponse($"User with ID '{id}' was not found."));
 
-        return Ok(ApiResponse<User>.SuccessResponse(user));
+        var isPrivilegedSameOrgAdmin = User.IsAdmin() && User.IsSameOrganization(user.OrganizationId);
+        if (!User.IsSelf(id) && !User.IsSuperAdmin() && !isPrivilegedSameOrgAdmin)
+            return Forbid();
+
+        return Ok(ApiResponse<UserProfileDto>.SuccessResponse(MapToProfile(user)));
     }
 
     /// <summary>
@@ -119,6 +140,14 @@ public class UsersController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), 403)]
     public async Task<ActionResult<ApiResponse<User>>> Create([FromBody] UserRequestDto dto)
     {
+        if (!User.IsSuperAdmin())
+        {
+            // Admins may only provision users within their own organization, and can never mint a SuperAdmin.
+            if (dto.SystemRole == SystemRole.SuperAdmin)
+                return Forbid();
+            dto.OrganizationId = User.GetOrganizationId() ?? string.Empty;
+        }
+
         var user = new User
         {
             OrganizationId = dto.OrganizationId ?? string.Empty,
@@ -152,6 +181,17 @@ public class UsersController : ControllerBase
         if (existing == null)
             return NotFound(ApiResponse<User>.FailureResponse($"User with ID '{id}' was not found."));
 
+        if (!User.IsSuperAdmin())
+        {
+            // Admins may only manage users within their own organization, and can never touch/create a SuperAdmin.
+            if (!User.IsSameOrganization(existing.OrganizationId) ||
+                existing.SystemRole == SystemRole.SuperAdmin ||
+                dto.SystemRole == SystemRole.SuperAdmin)
+                return Forbid();
+
+            dto.OrganizationId = existing.OrganizationId;
+        }
+
         existing.Name = dto.Name;
         existing.Email = dto.Email;
         if (!string.IsNullOrWhiteSpace(dto.Password))
@@ -181,6 +221,17 @@ public class UsersController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
     {
+        if (!User.IsSuperAdmin())
+        {
+            var existing = await _userRepository.GetUserByIdAsync(id);
+            if (existing == null)
+                return NotFound(ApiResponse<bool>.FailureResponse($"User with ID '{id}' was not found."));
+
+            // Admins may only remove users within their own organization, and can never remove a SuperAdmin.
+            if (!User.IsSameOrganization(existing.OrganizationId) || existing.SystemRole == SystemRole.SuperAdmin)
+                return Forbid();
+        }
+
         var deleted = await _userRepository.DeleteUserAsync(id);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"User with ID '{id}' was not found."));
@@ -242,15 +293,20 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Update User Profile details
+    /// Update User Profile details. Self-service only: a caller may only update their own profile,
+    /// regardless of which id is supplied in the route.
     /// </summary>
     [HttpPut("{id}/profile")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 401)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 403)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> UpdateProfile(string id, [FromBody] UpdateProfileDto dto)
     {
+        if (!User.IsSelf(id))
+            return Forbid();
+
         var success = await _userRepository.UpdateProfileAsync(id, dto.Name, dto.Phone, dto.Department, dto.Bio);
         if (!success)
             return NotFound(ApiResponse<bool>.FailureResponse($"User with ID '{id}' was not found."));
@@ -259,19 +315,39 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Change password with current password verification
+    /// Change password with current password verification. Self-service only: a caller may only change
+    /// their own password, regardless of which id is supplied in the route.
     /// </summary>
     [HttpPost("{id}/change-password")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 401)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 403)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 400)]
     public async Task<ActionResult<ApiResponse<bool>>> ChangePassword(string id, [FromBody] ChangePasswordDto dto)
     {
+        if (!User.IsSelf(id))
+            return Forbid();
+
         var success = await _userRepository.ChangePasswordAsync(id, dto.CurrentPassword, dto.NewPassword);
         if (!success)
             return BadRequest(ApiResponse<bool>.FailureResponse("Current password does not match."));
 
         return Ok(ApiResponse<bool>.SuccessResponse(true, "Password changed successfully."));
     }
+
+    private static UserProfileDto MapToProfile(User user) => new()
+    {
+        Id = user.Id,
+        OrganizationId = user.OrganizationId,
+        Name = user.Name,
+        Email = user.Email,
+        SystemRole = user.SystemRole,
+        Role = user.Role,
+        Department = user.Department,
+        Location = user.Location,
+        AvatarUrl = user.AvatarUrl,
+        Phone = user.Phone,
+        Bio = user.Bio
+    };
 }

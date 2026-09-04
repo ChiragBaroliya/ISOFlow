@@ -1,8 +1,10 @@
+using ISOFlow.Web.Filters;
 using ISOFlow.Web.Services.Logs;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
+[SessionAuthorize(Roles = "SuperAdmin,Admin")]
 public class LogsController : Controller
 {
     private readonly ILogsApiClient _logsClient;

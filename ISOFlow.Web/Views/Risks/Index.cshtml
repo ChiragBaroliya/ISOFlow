@@ -323,7 +323,7 @@
             <form asp-controller="Risks" asp-action="Delete" method="post">
                 <input type="hidden" name="id" id="deleteRiskId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to permanently delete risk <strong id="deleteRiskCode"></strong> (<span id="deleteRiskTitle"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to permanently delete risk <strong id="deleteRiskCode"></strong>?</p>
                     <p class="text-muted small mb-0">This will remove the risk assessment and associated treatment plans.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -379,7 +379,6 @@
     function openDeleteRiskModal(id, code, title) {
         document.getElementById('deleteRiskId').value = id;
         document.getElementById('deleteRiskCode').textContent = code;
-        document.getElementById('deleteRiskTitle').textContent = title;
         new bootstrap.Modal(document.getElementById('deleteRiskModal')).show();
     }
 </script>

@@ -114,7 +114,7 @@ public class TaskRepository : BaseRepository, ITaskRepository
         parameters.Add("p_status", (int)task.Status);
         parameters.Add("p_comments", task.Comments);
 
-        var insertedId = await QuerySingleAsync<int>("SELECT sp_tasks_create(@p_code, @p_title, @p_control_id, @p_risk_id, @p_owner, @p_priority, @p_due_date, @p_status, @p_comments)", parameters);
+        var insertedId = await QuerySingleAsync<int>("SELECT sp_tasks_create(@p_code::VARCHAR, @p_title::VARCHAR, @p_control_id::INT, @p_risk_id::INT, @p_owner::VARCHAR, @p_priority::INT, @p_due_date::TIMESTAMP, @p_status::INT, @p_comments::TEXT)", parameters);
         task.Id = insertedId.ToString();
         return task;
     }
@@ -130,13 +130,13 @@ public class TaskRepository : BaseRepository, ITaskRepository
         parameters.Add("p_status", (int)task.Status);
         parameters.Add("p_comments", task.Comments);
 
-        var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_tasks_update(@p_id, @p_title, @p_owner, @p_priority, @p_due_date, @p_status, @p_comments)", parameters);
+        var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_tasks_update(@p_id::VARCHAR, @p_title::VARCHAR, @p_owner::VARCHAR, @p_priority::INT, @p_due_date::TIMESTAMP, @p_status::INT, @p_comments::TEXT)", parameters);
         return updated ? task : null;
     }
 
     public async Task<bool> UpdateTaskStatusAsync(string id, ComplianceTaskStatus status)
     {
-        return await QuerySingleOrDefaultAsync<bool>("SELECT sp_tasks_update_status(@id, @p_status)", new { id, p_status = (int)status });
+        return await QuerySingleOrDefaultAsync<bool>("SELECT sp_tasks_update_status(@id::VARCHAR, @p_status::INT)", new { id, p_status = (int)status });
     }
 
     public async Task<bool> DeleteTaskAsync(string id)

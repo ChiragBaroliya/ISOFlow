@@ -1,6 +1,7 @@
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Api.Controllers;
@@ -8,6 +9,7 @@ namespace ISOFlow.Api.Controllers;
 /// <summary>
 /// ISO Compliance Standards and Requirements Register API
 /// </summary>
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
@@ -64,6 +66,7 @@ public class StandardsController : ControllerBase
     /// </summary>
     /// <param name="dto">Standard creation payload</param>
     [HttpPost]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     [ProducesResponseType(typeof(ApiResponse<Standard>), 201)]
     [ProducesResponseType(typeof(ApiResponse<Standard>), 400)]
     public async Task<ActionResult<ApiResponse<Standard>>> Create([FromBody] StandardRequestDto dto)
@@ -117,6 +120,7 @@ public class StandardsController : ControllerBase
     /// </summary>
     /// <param name="id">Standard Identifier</param>
     [HttpDelete("{id}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 400)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]

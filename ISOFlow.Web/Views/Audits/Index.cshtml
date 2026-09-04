@@ -296,7 +296,7 @@
             <form asp-controller="Audits" asp-action="Delete" method="post">
                 <input type="hidden" name="id" id="deleteAuditId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to delete audit program <strong id="deleteAuditCode"></strong> (<span id="deleteAuditTitle"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to delete audit program <strong id="deleteAuditCode"></strong>?</p>
                     <p class="text-muted small mb-0">This will remove the inspection record from the schedule.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -341,7 +341,6 @@
     function openDeleteAuditModal(id, code, title) {
         document.getElementById('deleteAuditId').value = id;
         document.getElementById('deleteAuditCode').textContent = code;
-        document.getElementById('deleteAuditTitle').textContent = title;
         new bootstrap.Modal(document.getElementById('deleteAuditModal')).show();
     }
 </script>

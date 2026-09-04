@@ -1,5 +1,6 @@
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Api.Controllers;
@@ -7,6 +8,7 @@ namespace ISOFlow.Api.Controllers;
 /// <summary>
 /// System Logs and Date-Wise Log Filtering API
 /// </summary>
+[Authorize(Roles = "SuperAdmin,Admin")]
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]

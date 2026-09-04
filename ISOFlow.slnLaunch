@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "ISOFlow Full Platform (API + Web)",
+    "Projects": [
+      {
+        "Path": "ISOFlow.Api\\ISOFlow.Api.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "ISOFlow.Web\\ISOFlow.Web.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

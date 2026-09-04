@@ -1,11 +1,13 @@
 using ISOFlow.Domain.Entities;
 using ISOFlow.Domain.Enums;
+using ISOFlow.Web.Filters;
 using ISOFlow.Web.Services.Organizations;
 using ISOFlow.Web.Services.Users;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
 
+[SessionAuthorize(Roles = "SuperAdmin,Admin")]
 public class AdminController : Controller
 {
     private readonly IUsersApiClient _usersClient;

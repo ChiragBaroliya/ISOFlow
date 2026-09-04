@@ -2,6 +2,7 @@ using ISOFlow.Domain.Enums;
 using ISOFlow.Web.Services.Auth;
 using ISOFlow.Web.Services.Organizations;
 using ISOFlow.Web.Services.Users;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOFlow.Web.Controllers;
@@ -27,9 +28,15 @@ public class AccountController : Controller
     // ─────────────────────────────────────────────────────────────────────────
 
     [HttpGet]
-    public IActionResult Login(string? returnUrl = null)
+    [AllowAnonymous]
+    public IActionResult Login(string? returnUrl = null, bool sessionExpired = false)
     {
-        if (!string.IsNullOrEmpty(HttpContext.Session.GetString("ActiveUserId")))
+        if (sessionExpired)
+        {
+            ViewBag.SessionExpired = true;
+        }
+
+        if (!string.IsNullOrEmpty(HttpContext.Session.GetString("ActiveUserId")) && !sessionExpired)
             return RedirectToAction("Index", "Home");
 
         ViewData["Title"] = "Sign In — ISOFlow";
@@ -38,6 +45,7 @@ public class AccountController : Controller
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> Login(string email, string password, string? returnUrl = null)
     {
         void RenderLoginError(string msg)
@@ -105,6 +113,7 @@ public class AccountController : Controller
     // ─────────────────────────────────────────────────────────────────────────
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> Logout()
     {
         var refreshToken = HttpContext.Session.GetString("RefreshToken");
@@ -152,6 +161,7 @@ public class AccountController : Controller
     // ─────────────────────────────────────────────────────────────────────────
 
     [HttpGet]
+    [AllowAnonymous]
     public IActionResult ForgotPassword()
     {
         ViewData["Title"] = "Forgot Password — ISOFlow";
@@ -159,6 +169,7 @@ public class AccountController : Controller
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> ForgotPassword(string email)
     {
         ViewData["Title"] = "Forgot Password — ISOFlow";
@@ -182,6 +193,7 @@ public class AccountController : Controller
     // ─────────────────────────────────────────────────────────────────────────
 
     [HttpGet]
+    [AllowAnonymous]
     public IActionResult ResetPassword(string? token = null)
     {
         ViewData["Title"] = "Reset Password — ISOFlow";
@@ -190,6 +202,7 @@ public class AccountController : Controller
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> ResetPassword(string token, string newPassword, string confirmPassword)
     {
         ViewData["Title"] = "Reset Password — ISOFlow";
@@ -311,6 +324,7 @@ public class AccountController : Controller
     // ─────────────────────────────────────────────────────────────────────────
 
     [HttpGet]
+    [AllowAnonymous]
     public IActionResult AccessDenied()
     {
         ViewData["Title"] = "Access Denied — ISOFlow";

@@ -307,7 +307,7 @@
             <form asp-controller="Evidence" asp-action="Delete" method="post">
                 <input type="hidden" name="id" id="deleteEviId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to delete evidence artifact <strong id="deleteEviCode"></strong> (<span id="deleteEviName"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to delete evidence artifact <strong id="deleteEviCode"></strong>?</p>
                     <p class="text-muted small mb-0">This verified compliance record will be removed from the vault.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -353,7 +353,6 @@
     function openDeleteEvidenceModal(id, code, name) {
         document.getElementById('deleteEviId').value = id;
         document.getElementById('deleteEviCode').textContent = code;
-        document.getElementById('deleteEviName').textContent = name;
         new bootstrap.Modal(document.getElementById('deleteEvidenceModal')).show();
     }
 </script>

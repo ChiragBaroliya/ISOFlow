@@ -256,7 +256,7 @@
                 <input type="hidden" name="id" id="deleteReqId" />
                 <input type="hidden" name="standardId" value="@stdId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to delete requirement clause <strong id="deleteReqClause"></strong> (<span id="deleteReqTitle"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to delete requirement clause <strong id="deleteReqClause"></strong>?</p>
                     <p class="text-muted small mb-0">This requirement and its control mapping will be removed from this standard.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -297,7 +297,6 @@
     function openDeleteRequirementModal(id, clause, title) {
         document.getElementById('deleteReqId').value = id;
         document.getElementById('deleteReqClause').textContent = clause;
-        document.getElementById('deleteReqTitle').textContent = title;
         new bootstrap.Modal(document.getElementById('deleteRequirementModal')).show();
     }
 </script>

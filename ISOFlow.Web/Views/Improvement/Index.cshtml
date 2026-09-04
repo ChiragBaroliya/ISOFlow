@@ -280,7 +280,7 @@
             <form asp-controller="Improvement" asp-action="Delete" method="post">
                 <input type="hidden" name="id" id="deleteImpId" />
                 <div class="modal-body p-4">
-                    <p class="mb-1">Are you sure you want to delete improvement initiative <strong id="deleteImpCode"></strong> (<span id="deleteImpTitle"></span>)?</p>
+                    <p class="mb-1">Are you sure you want to delete improvement initiative <strong id="deleteImpCode"></strong>?</p>
                     <p class="text-muted small mb-0">This continual improvement record will be removed.</p>
                 </div>
                 <div class="modal-footer bg-light">
@@ -325,7 +325,6 @@
     function openDeleteImprovementModal(id, code, title) {
         document.getElementById('deleteImpId').value = id;
         document.getElementById('deleteImpCode').textContent = code;
-        document.getElementById('deleteImpTitle').textContent = title;
         new bootstrap.Modal(document.getElementById('deleteImprovementModal')).show();
     }
 </script>
