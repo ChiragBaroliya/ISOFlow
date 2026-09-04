@@ -283,11 +283,11 @@ BEGIN
     RETURN QUERY
     SELECT c.id AS control_id, c.code AS control_code, c.title AS control_title,
            c.is_applicable AS applicable, COALESCE(c.justification, 'Standard baseline control requirement') AS justification,
-           CASE c.status
+           (CASE c.status
                WHEN 0 THEN 'Not Implemented' WHEN 1 THEN 'In Development'
                WHEN 2 THEN 'Implemented' WHEN 3 THEN 'Tested' WHEN 4 THEN 'Needs Review'
                ELSE 'Unknown'
-           END AS implementation_status,
+           END)::VARCHAR(50) AS implementation_status,
            c.owner, COUNT(e.id) AS evidence_count
     FROM controls c
     LEFT JOIN evidence e ON c.id = e.control_id
