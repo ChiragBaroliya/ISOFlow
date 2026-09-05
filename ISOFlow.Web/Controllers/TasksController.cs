@@ -1,6 +1,9 @@
 using ISOFlow.Domain.Entities;
 using ISOFlow.Domain.Enums;
 using ISOFlow.Web.Models;
+using ISOFlow.Web.Services.Controls;
+using ISOFlow.Web.Services.Evidence;
+using ISOFlow.Web.Services.Risks;
 using ISOFlow.Web.Services.Tasks;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,10 +12,20 @@ namespace ISOFlow.Web.Controllers;
 public class TasksController : Controller
 {
     private readonly ITasksApiClient _tasksClient;
+    private readonly IControlsApiClient _controlsClient;
+    private readonly IRisksApiClient _risksClient;
+    private readonly IEvidenceApiClient _evidenceClient;
 
-    public TasksController(ITasksApiClient tasksClient)
+    public TasksController(
+        ITasksApiClient tasksClient,
+        IControlsApiClient controlsClient,
+        IRisksApiClient risksClient,
+        IEvidenceApiClient evidenceClient)
     {
         _tasksClient = tasksClient;
+        _controlsClient = controlsClient;
+        _risksClient = risksClient;
+        _evidenceClient = evidenceClient;
     }
 
     public async Task<IActionResult> Index()
@@ -20,6 +33,10 @@ public class TasksController : Controller
         ViewData["ActiveMenu"] = "Tasks";
         ViewData["ActiveTraceabilityId"] = "TASK-2026-003";
         var tasks = await _tasksClient.GetAllTasksAsync();
+        ViewBag.Templates = await _tasksClient.GetTaskTemplatesAsync();
+        ViewBag.Controls = await _controlsClient.GetAllControlsAsync();
+        ViewBag.Risks = await _risksClient.GetAllRisksAsync();
+        ViewBag.Evidence = await _evidenceClient.GetAllEvidenceAsync();
         return View(tasks);
     }
 
@@ -94,6 +111,58 @@ public class TasksController : Controller
         else
         {
             TempData["ErrorMessage"] = "Unable to delete task.";
+        }
+        return RedirectToAction(nameof(Index));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  RECURRING TASK TEMPLATES
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [HttpPost]
+    public async Task<IActionResult> CreateTemplate(TaskTemplate template)
+    {
+        if (ModelState.IsValid)
+        {
+            await _tasksClient.CreateTaskTemplateAsync(template);
+            TempData["SuccessMessage"] = $"Task template '{template.Title}' created successfully!";
+        }
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> EditTemplate(TaskTemplate template)
+    {
+        if (ModelState.IsValid)
+        {
+            var updated = await _tasksClient.UpdateTaskTemplateAsync(template);
+            if (updated != null)
+            {
+                TempData["SuccessMessage"] = $"Task template '{updated.Title}' updated successfully.";
+            }
+        }
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> DeleteTemplate(string id)
+    {
+        var result = await _tasksClient.DeleteTaskTemplateAsync(id);
+        TempData[result ? "SuccessMessage" : "ErrorMessage"] = result ? "Task template removed successfully." : "Unable to delete task template.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> GenerateFromTemplate(string templateId)
+    {
+        var created = await _tasksClient.GenerateTaskFromTemplateAsync(templateId);
+        if (created != null)
+        {
+            TempData["SuccessMessage"] = $"Task '{created.Code}' generated, due {created.DueDate:dd-MMM-yyyy}.";
+        }
+        else
+        {
+            TempData["ErrorMessage"] = "Unable to generate task from template.";
         }
         return RedirectToAction(nameof(Index));
     }

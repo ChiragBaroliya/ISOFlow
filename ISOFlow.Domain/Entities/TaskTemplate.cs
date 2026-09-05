@@ -1,3 +1,5 @@
+using ISOFlow.Domain.Enums;
+
 namespace ISOFlow.Domain.Entities;
 
 public class TaskTemplate
@@ -7,7 +9,7 @@ public class TaskTemplate
     public string Code { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string Frequency { get; set; } = "Quarterly";
+    public TaskFrequency Frequency { get; set; } = TaskFrequency.Monthly;
     public string DefaultOwner { get; set; } = string.Empty;
     public string RelatedControlId { get; set; } = string.Empty;
 }

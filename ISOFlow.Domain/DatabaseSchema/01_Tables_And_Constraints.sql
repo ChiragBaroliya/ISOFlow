@@ -214,7 +214,7 @@ CREATE TABLE task_templates (
     code VARCHAR(50) NOT NULL,
     title VARCHAR(250) NOT NULL,
     description TEXT NULL,
-    frequency VARCHAR(50) NOT NULL DEFAULT 'Quarterly',
+    frequency INT NOT NULL DEFAULT 3, -- 0=Daily, 1=Weekly, 2=Fortnightly, 3=Monthly, 4=HalfYearly, 5=Yearly
     default_owner VARCHAR(150) NOT NULL,
     related_control_id INT NULL,
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')

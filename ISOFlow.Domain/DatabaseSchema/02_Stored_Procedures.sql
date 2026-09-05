@@ -756,6 +756,72 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION sp_task_templates_get_all(p_organization_id INT DEFAULT NULL)
+RETURNS TABLE (
+    id INT, organization_id INT, code VARCHAR(50), title VARCHAR(250), description TEXT,
+    frequency INT, default_owner VARCHAR(150), related_control_id INT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT t.id, t.organization_id, t.code, t.title, t.description, t.frequency, t.default_owner, t.related_control_id
+    FROM task_templates t
+    WHERE (p_organization_id IS NULL OR t.organization_id = p_organization_id)
+    ORDER BY t.id ASC;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION sp_task_templates_get_by_id(p_id VARCHAR(50), p_organization_id INT DEFAULT NULL)
+RETURNS TABLE (
+    id INT, organization_id INT, code VARCHAR(50), title VARCHAR(250), description TEXT,
+    frequency INT, default_owner VARCHAR(150), related_control_id INT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT t.id, t.organization_id, t.code, t.title, t.description, t.frequency, t.default_owner, t.related_control_id
+    FROM task_templates t
+    WHERE (t.id::VARCHAR = p_id OR LOWER(t.code) = LOWER(p_id))
+      AND (p_organization_id IS NULL OR t.organization_id = p_organization_id)
+    LIMIT 1;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION sp_task_templates_create(
+    p_organization_id INT, p_code VARCHAR(50), p_title VARCHAR(250), p_description TEXT,
+    p_frequency INT, p_default_owner VARCHAR(150), p_related_control_id INT DEFAULT NULL
+)
+RETURNS INT AS $$
+DECLARE v_id INT;
+BEGIN
+    INSERT INTO task_templates (organization_id, code, title, description, frequency, default_owner, related_control_id, created_at)
+    VALUES (p_organization_id, p_code, p_title, p_description, p_frequency, p_default_owner, p_related_control_id, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata'))
+    RETURNING id INTO v_id;
+    RETURN v_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION sp_task_templates_update(
+    p_id VARCHAR(50), p_organization_id INT, p_title VARCHAR(250), p_description TEXT,
+    p_frequency INT, p_default_owner VARCHAR(150), p_related_control_id INT DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE task_templates
+    SET title = p_title, description = p_description, frequency = p_frequency,
+        default_owner = p_default_owner, related_control_id = p_related_control_id
+    WHERE (id::VARCHAR = p_id OR LOWER(code) = LOWER(p_id))
+      AND organization_id = p_organization_id;
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION sp_task_templates_delete(p_id VARCHAR(50), p_organization_id INT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    DELETE FROM task_templates WHERE (id::VARCHAR = p_id OR LOWER(code) = LOWER(p_id)) AND organization_id = p_organization_id;
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ============================================================================
 -- 6. EVIDENCE VAULT
 -- ============================================================================

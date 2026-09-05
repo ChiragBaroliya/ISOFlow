@@ -11,6 +11,12 @@ public interface ITasksApiClient
     Task<TaskItem?> UpdateTaskAsync(TaskItem task);
     Task<bool> UpdateTaskStatusAsync(string taskId, ComplianceTaskStatus status);
     Task<bool> DeleteTaskAsync(string id);
+
+    Task<List<TaskTemplate>> GetTaskTemplatesAsync();
+    Task<TaskTemplate?> CreateTaskTemplateAsync(TaskTemplate template);
+    Task<TaskTemplate?> UpdateTaskTemplateAsync(TaskTemplate template);
+    Task<bool> DeleteTaskTemplateAsync(string id);
+    Task<TaskItem?> GenerateTaskFromTemplateAsync(string templateId);
 }
 
 public class TasksApiClient : ITasksApiClient
@@ -46,4 +52,27 @@ public class TasksApiClient : ITasksApiClient
 
     public async Task<bool> DeleteTaskAsync(string id) =>
         await _api.DeleteAsync($"api/tasks/{Uri.EscapeDataString(id)}");
+
+    public async Task<List<TaskTemplate>> GetTaskTemplatesAsync() =>
+        await _api.GetAsync<List<TaskTemplate>>("api/tasks/templates") ?? new();
+
+    public async Task<TaskTemplate?> CreateTaskTemplateAsync(TaskTemplate template) =>
+        await _api.PostAsync<TaskTemplate>("api/tasks/templates", new
+        {
+            template.Code, template.Title, template.Description,
+            template.Frequency, template.DefaultOwner, template.RelatedControlId
+        });
+
+    public async Task<TaskTemplate?> UpdateTaskTemplateAsync(TaskTemplate template) =>
+        await _api.PutAsync<TaskTemplate>($"api/tasks/templates/{Uri.EscapeDataString(template.Id)}", new
+        {
+            template.Code, template.Title, template.Description,
+            template.Frequency, template.DefaultOwner, template.RelatedControlId
+        });
+
+    public async Task<bool> DeleteTaskTemplateAsync(string id) =>
+        await _api.DeleteAsync($"api/tasks/templates/{Uri.EscapeDataString(id)}");
+
+    public async Task<TaskItem?> GenerateTaskFromTemplateAsync(string templateId) =>
+        await _api.PostAsync<TaskItem>($"api/tasks/templates/{Uri.EscapeDataString(templateId)}/generate", new { });
 }

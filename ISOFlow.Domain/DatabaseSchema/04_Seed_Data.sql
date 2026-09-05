@@ -131,6 +131,17 @@ ON CONFLICT (id) DO UPDATE SET
     status = EXCLUDED.status, steps_json = EXCLUDED.steps_json, policy_id = EXCLUDED.policy_id,
     control_ids_json = EXCLUDED.control_ids_json;
 
+-- 9b. Task Templates (recurring task blueprints; frequency: 0=Daily,1=Weekly,2=Fortnightly,3=Monthly,4=HalfYearly,5=Yearly)
+INSERT INTO task_templates (id, organization_id, code, title, description, frequency, default_owner, related_control_id)
+OVERRIDING SYSTEM VALUE
+VALUES
+(1, 1, 'TMPL-001', 'Privileged Access Certification Review', 'Review and re-certify all privileged/admin accounts across production systems.', 3, 'Sarah Chen', 1),
+(2, 1, 'TMPL-002', 'Annual Penetration Test Review', 'Commission and review results of the annual external penetration test against payment gateway services.', 5, 'Alex Morgan', 3)
+ON CONFLICT (id) DO UPDATE SET
+    organization_id = EXCLUDED.organization_id, code = EXCLUDED.code, title = EXCLUDED.title,
+    description = EXCLUDED.description, frequency = EXCLUDED.frequency,
+    default_owner = EXCLUDED.default_owner, related_control_id = EXCLUDED.related_control_id;
+
 -- 10. Task Items
 INSERT INTO task_items (id, organization_id, code, title, control_id, risk_id, owner, priority, due_date, status, comments)
 OVERRIDING SYSTEM VALUE
@@ -243,6 +254,7 @@ SELECT setval(pg_get_serial_sequence('risks', 'id'), COALESCE(MAX(id), 1)) FROM 
 SELECT setval(pg_get_serial_sequence('risk_treatments', 'id'), COALESCE(MAX(id), 1)) FROM risk_treatments;
 SELECT setval(pg_get_serial_sequence('policies', 'id'), COALESCE(MAX(id), 1)) FROM policies;
 SELECT setval(pg_get_serial_sequence('processes', 'id'), COALESCE(MAX(id), 1)) FROM processes;
+SELECT setval(pg_get_serial_sequence('task_templates', 'id'), COALESCE(MAX(id), 1)) FROM task_templates;
 SELECT setval(pg_get_serial_sequence('task_items', 'id'), COALESCE(MAX(id), 1)) FROM task_items;
 SELECT setval(pg_get_serial_sequence('evidence', 'id'), COALESCE(MAX(id), 1)) FROM evidence;
 SELECT setval(pg_get_serial_sequence('audits', 'id'), COALESCE(MAX(id), 1)) FROM audits;

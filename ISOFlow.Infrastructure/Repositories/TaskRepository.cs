@@ -93,20 +93,72 @@ public class TaskRepository : BaseRepository, ITaskRepository
     public Task<List<TaskTemplate>> GetTaskTemplatesAsync(int? organizationId)
     {
         return QueryMappedListAsync(
-            "SELECT id, organization_id, code, title, description, frequency, default_owner, related_control_id FROM task_templates WHERE (@organizationId IS NULL OR organization_id = @organizationId) ORDER BY id ASC",
-            r => new TaskTemplate
-            {
-                Id = r.id.ToString(),
-                OrganizationId = (int)r.organization_id,
-                Code = (string)r.code,
-                Title = (string)r.title,
-                Description = (string)r.description ?? string.Empty,
-                Frequency = (string)r.frequency,
-                DefaultOwner = (string)r.default_owner,
-                RelatedControlId = r.related_control_id != null ? r.related_control_id.ToString() : string.Empty
-            },
-            new { organizationId });
+            "SELECT * FROM sp_task_templates_get_all(@p_organization_id)",
+            MapTemplate,
+            new { p_organization_id = organizationId });
     }
+
+    public Task<TaskTemplate?> GetTaskTemplateByIdAsync(string id, int? organizationId)
+    {
+        return QueryMappedFirstOrDefaultAsync(
+            "SELECT * FROM sp_task_templates_get_by_id(@id, @p_organization_id)",
+            MapTemplate,
+            new { id, p_organization_id = organizationId });
+    }
+
+    public async Task<TaskTemplate> CreateTaskTemplateAsync(TaskTemplate template)
+    {
+        int.TryParse(template.RelatedControlId, out var ctrlId);
+        var parameters = new DynamicParameters();
+        parameters.Add("p_organization_id", template.OrganizationId);
+        parameters.Add("p_code", template.Code);
+        parameters.Add("p_title", template.Title);
+        parameters.Add("p_description", template.Description);
+        parameters.Add("p_frequency", (int)template.Frequency);
+        parameters.Add("p_default_owner", template.DefaultOwner);
+        parameters.Add("p_related_control_id", ctrlId > 0 ? (int?)ctrlId : null);
+
+        var insertedId = await QuerySingleAsync<int>(
+            "SELECT sp_task_templates_create(@p_organization_id, @p_code, @p_title, @p_description, @p_frequency, @p_default_owner, @p_related_control_id)",
+            parameters);
+        template.Id = insertedId.ToString();
+        return template;
+    }
+
+    public async Task<TaskTemplate?> UpdateTaskTemplateAsync(TaskTemplate template, int organizationId)
+    {
+        int.TryParse(template.RelatedControlId, out var ctrlId);
+        var parameters = new DynamicParameters();
+        parameters.Add("p_id", template.Id);
+        parameters.Add("p_organization_id", organizationId);
+        parameters.Add("p_title", template.Title);
+        parameters.Add("p_description", template.Description);
+        parameters.Add("p_frequency", (int)template.Frequency);
+        parameters.Add("p_default_owner", template.DefaultOwner);
+        parameters.Add("p_related_control_id", ctrlId > 0 ? (int?)ctrlId : null);
+
+        var updated = await QuerySingleOrDefaultAsync<bool>(
+            "SELECT sp_task_templates_update(@p_id, @p_organization_id, @p_title, @p_description, @p_frequency, @p_default_owner, @p_related_control_id)",
+            parameters);
+        return updated ? template : null;
+    }
+
+    public async Task<bool> DeleteTaskTemplateAsync(string id, int organizationId)
+    {
+        return await QuerySingleOrDefaultAsync<bool>("SELECT sp_task_templates_delete(@id, @p_organization_id)", new { id, p_organization_id = organizationId });
+    }
+
+    private static TaskTemplate MapTemplate(dynamic r) => new()
+    {
+        Id = r.id.ToString(),
+        OrganizationId = (int)r.organization_id,
+        Code = (string)r.code,
+        Title = (string)r.title,
+        Description = (string)r.description ?? string.Empty,
+        Frequency = (TaskFrequency)(int)r.frequency,
+        DefaultOwner = (string)r.default_owner,
+        RelatedControlId = r.related_control_id != null ? r.related_control_id.ToString() : string.Empty
+    };
 
     public async Task<TaskItem> CreateTaskAsync(TaskItem task)
     {

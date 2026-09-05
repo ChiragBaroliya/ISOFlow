@@ -275,7 +275,7 @@ public class UserAuthorizationTests
         public Task<string?> GenerateResetTokenAsync(string email) => Task.FromResult<string?>("RESET123");
         public Task<bool> ResetPasswordAsync(string token, string newPassword) => Task.FromResult(true);
 
-        public Task<bool> UpdateProfileAsync(string id, string name, string phone, string department, string bio)
+        public Task<bool> UpdateProfileAsync(string id, string name, string phone, string department, string bio, string? avatarUrl = null)
         {
             var user = Get(id);
             if (user == null) return Task.FromResult(false);

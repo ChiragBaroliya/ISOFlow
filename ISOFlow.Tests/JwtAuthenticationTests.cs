@@ -485,7 +485,7 @@ public class JwtAuthenticationTests
         public Task<User?> ValidateLoginAsync(string email, string password) { var u = _users.FirstOrDefault(x => x.Email.Equals(email, StringComparison.OrdinalIgnoreCase)); return Task.FromResult(u != null && PasswordSecurityHelper.VerifyPassword(password, u.Password) ? u : null); }
         public Task<string?> GenerateResetTokenAsync(string email) => Task.FromResult<string?>("RESET123");
         public Task<bool> ResetPasswordAsync(string token, string newPassword) => Task.FromResult(true);
-        public Task<bool> UpdateProfileAsync(string id, string name, string phone, string department, string bio) => Task.FromResult(true);
+        public Task<bool> UpdateProfileAsync(string id, string name, string phone, string department, string bio, string? avatarUrl = null) => Task.FromResult(true);
         public Task<bool> ChangePasswordAsync(string id, string currentPassword, string newPassword) => Task.FromResult(true);
     }
 

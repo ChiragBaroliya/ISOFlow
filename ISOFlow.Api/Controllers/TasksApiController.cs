@@ -78,6 +78,116 @@ public class TasksController : ControllerBase
     }
 
     /// <summary>
+    /// Create a new recurring Task Template
+    /// </summary>
+    [HttpPost("templates")]
+    [Audit(Module = "Tasks", Entity = "TaskTemplate", Action = AuditActionType.Create)]
+    [ProducesResponseType(typeof(ApiResponse<TaskTemplate>), 201)]
+    public async Task<ActionResult<ApiResponse<TaskTemplate>>> CreateTemplate([FromBody] TaskTemplateRequestDto dto)
+    {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<TaskTemplate>.FailureResponse("A specific organization context is required to create this record."));
+
+        var template = new TaskTemplate
+        {
+            Code = dto.Code,
+            Title = dto.Title,
+            Description = dto.Description ?? string.Empty,
+            Frequency = dto.Frequency,
+            DefaultOwner = dto.DefaultOwner,
+            RelatedControlId = dto.RelatedControlId ?? string.Empty,
+            OrganizationId = organizationId.Value
+        };
+
+        var created = await _taskRepository.CreateTaskTemplateAsync(template);
+        return CreatedAtAction(nameof(GetTemplates), ApiResponse<TaskTemplate>.SuccessResponse(created, "Task template created successfully."));
+    }
+
+    /// <summary>
+    /// Update an existing recurring Task Template
+    /// </summary>
+    [HttpPut("templates/{id}")]
+    [Audit(Module = "Tasks", Entity = "TaskTemplate", Action = AuditActionType.Update)]
+    [ProducesResponseType(typeof(ApiResponse<TaskTemplate>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<TaskTemplate>), 404)]
+    public async Task<ActionResult<ApiResponse<TaskTemplate>>> UpdateTemplate(string id, [FromBody] TaskTemplateRequestDto dto)
+    {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<TaskTemplate>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _taskRepository.GetTaskTemplateByIdAsync(id, organizationId);
+        if (existing == null)
+            return NotFound(ApiResponse<TaskTemplate>.FailureResponse($"Task template with ID '{id}' was not found."));
+
+        existing.Title = dto.Title;
+        existing.Description = dto.Description ?? string.Empty;
+        existing.Frequency = dto.Frequency;
+        existing.DefaultOwner = dto.DefaultOwner;
+        existing.RelatedControlId = dto.RelatedControlId ?? string.Empty;
+
+        var updated = await _taskRepository.UpdateTaskTemplateAsync(existing, organizationId.Value);
+        return Ok(ApiResponse<TaskTemplate>.SuccessResponse(updated!, "Task template updated successfully."));
+    }
+
+    /// <summary>
+    /// Delete a recurring Task Template
+    /// </summary>
+    [HttpDelete("templates/{id}")]
+    [Audit(Module = "Tasks", Entity = "TaskTemplate", Action = AuditActionType.Delete)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteTemplate(string id)
+    {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var deleted = await _taskRepository.DeleteTaskTemplateAsync(id, organizationId.Value);
+        if (!deleted)
+            return NotFound(ApiResponse<bool>.FailureResponse($"Task template with ID '{id}' was not found."));
+
+        return Ok(ApiResponse<bool>.SuccessResponse(true, "Task template deleted successfully."));
+    }
+
+    /// <summary>
+    /// Generate a new Compliance Task instance from a recurring Task Template. The new task's due
+    /// date is computed from the template's frequency, counted forward from today.
+    /// </summary>
+    [HttpPost("templates/{id}/generate")]
+    [Audit(Module = "Tasks", Entity = "Task", Action = AuditActionType.Create)]
+    [ProducesResponseType(typeof(ApiResponse<TaskItem>), 201)]
+    [ProducesResponseType(typeof(ApiResponse<TaskItem>), 404)]
+    public async Task<ActionResult<ApiResponse<TaskItem>>> GenerateFromTemplate(string id)
+    {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<TaskItem>.FailureResponse("A specific organization context is required to create this record."));
+
+        var template = await _taskRepository.GetTaskTemplateByIdAsync(id, organizationId);
+        if (template == null)
+            return NotFound(ApiResponse<TaskItem>.FailureResponse($"Task template with ID '{id}' was not found."));
+
+        var now = DateTime.UtcNow;
+        var task = new TaskItem
+        {
+            Code = $"{template.Code}-{now:yyyyMMdd}",
+            Title = template.Title,
+            ControlId = template.RelatedControlId,
+            Owner = template.DefaultOwner,
+            Priority = TaskPriority.Medium,
+            DueDate = template.Frequency.GetNextDueDate(now),
+            Status = ComplianceTaskStatus.NotStarted,
+            Comments = template.Description,
+            OrganizationId = organizationId.Value
+        };
+
+        var created = await _taskRepository.CreateTaskAsync(task);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, ApiResponse<TaskItem>.SuccessResponse(created, $"Task generated from template '{template.Code}'."));
+    }
+
+    /// <summary>
     /// Create a new Compliance Task
     /// </summary>
     [HttpPost]

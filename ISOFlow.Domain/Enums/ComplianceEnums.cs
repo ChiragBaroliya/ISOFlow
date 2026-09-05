@@ -141,3 +141,14 @@ public enum NotificationCategory
     Policy,
     Audit
 }
+
+/// <summary>Recurrence cadence for a <see cref="Entities.TaskTemplate"/>.</summary>
+public enum TaskFrequency
+{
+    Daily,
+    Weekly,
+    Fortnightly,
+    Monthly,
+    HalfYearly,
+    Yearly
+}

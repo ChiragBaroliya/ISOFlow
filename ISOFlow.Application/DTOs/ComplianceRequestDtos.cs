@@ -222,6 +222,25 @@ public class TaskStatusUpdateDto
     public ComplianceTaskStatus Status { get; set; }
 }
 
+public class TaskTemplateRequestDto
+{
+    [Required(ErrorMessage = "Template Code is required.")]
+    public string Code { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Template Title is required.")]
+    [StringLength(250, ErrorMessage = "Title cannot exceed 250 characters.")]
+    public string Title { get; set; } = string.Empty;
+
+    public string? Description { get; set; }
+
+    public TaskFrequency Frequency { get; set; } = TaskFrequency.Monthly;
+
+    [Required(ErrorMessage = "Default Owner is required.")]
+    public string DefaultOwner { get; set; } = string.Empty;
+
+    public string? RelatedControlId { get; set; }
+}
+
 public class EvidenceRequestDto
 {
     [Required(ErrorMessage = "Evidence Code is required.")]
