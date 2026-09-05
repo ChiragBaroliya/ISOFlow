@@ -1,4 +1,5 @@
 using ISOFlow.Api.Auditing;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -32,7 +33,8 @@ public class StandardsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<Standard>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<Standard>>>> GetPaged([FromQuery] PagedRequestDto request)
     {
-        var paged = await _standardRepository.GetPagedStandardsAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _standardRepository.GetPagedStandardsAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<Standard>>.SuccessResponse(paged, "Standards retrieved successfully."));
     }
 
@@ -43,7 +45,8 @@ public class StandardsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<Standard>>), 200)]
     public async Task<ActionResult<ApiResponse<List<Standard>>>> GetAll()
     {
-        var standards = await _standardRepository.GetAllStandardsAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var standards = await _standardRepository.GetAllStandardsAsync(organizationId);
         return Ok(ApiResponse<List<Standard>>.SuccessResponse(standards));
     }
 
@@ -56,7 +59,8 @@ public class StandardsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Standard>), 404)]
     public async Task<ActionResult<ApiResponse<Standard>>> GetById(string id)
     {
-        var standard = await _standardRepository.GetStandardByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var standard = await _standardRepository.GetStandardByIdAsync(id, organizationId);
         if (standard == null)
             return NotFound(ApiResponse<Standard>.FailureResponse($"Standard with ID '{id}' was not found."));
 
@@ -74,6 +78,10 @@ public class StandardsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Standard>), 400)]
     public async Task<ActionResult<ApiResponse<Standard>>> Create([FromBody] StandardRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Standard>.FailureResponse("A specific organization context is required to create this record."));
+
         var entity = new Standard
         {
             Code = dto.Code,
@@ -82,7 +90,8 @@ public class StandardsController : ControllerBase
             Description = dto.Description,
             CompliancePercentage = dto.CompliancePercentage,
             Status = dto.Status,
-            IsPreseeded = false
+            IsPreseeded = false,
+            OrganizationId = organizationId.Value
         };
 
         var created = await _standardRepository.CreateStandardAsync(entity);
@@ -100,7 +109,11 @@ public class StandardsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Standard>), 404)]
     public async Task<ActionResult<ApiResponse<Standard>>> Update(string id, [FromBody] StandardRequestDto dto)
     {
-        var existing = await _standardRepository.GetStandardByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Standard>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _standardRepository.GetStandardByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<Standard>.FailureResponse($"Standard with ID '{id}' was not found."));
 
@@ -115,7 +128,7 @@ public class StandardsController : ControllerBase
             existing.Status = dto.Status;
         }
 
-        var updated = await _standardRepository.UpdateStandardAsync(existing);
+        var updated = await _standardRepository.UpdateStandardAsync(existing, organizationId.Value);
         return Ok(ApiResponse<Standard>.SuccessResponse(updated!, "Standard updated successfully."));
     }
 
@@ -131,14 +144,18 @@ public class StandardsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
     {
-        var existing = await _standardRepository.GetStandardByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var existing = await _standardRepository.GetStandardByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<bool>.FailureResponse($"Standard with ID '{id}' was not found."));
 
         if (existing.IsPreseeded)
             return BadRequest(ApiResponse<bool>.FailureResponse("Pre-seeded official standards (e.g. ISO 27001) cannot be deleted."));
 
-        var deleted = await _standardRepository.DeleteStandardAsync(id);
+        var deleted = await _standardRepository.DeleteStandardAsync(id, organizationId.Value);
         return Ok(ApiResponse<bool>.SuccessResponse(deleted, "Standard deleted successfully."));
     }
 
@@ -151,7 +168,8 @@ public class StandardsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<Requirement>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<Requirement>>>> GetRequirements(string id, [FromQuery] PagedRequestDto request)
     {
-        var paged = await _standardRepository.GetPagedRequirementsByStandardIdAsync(id, request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _standardRepository.GetPagedRequirementsByStandardIdAsync(id, request, organizationId);
         return Ok(ApiResponse<PagedResponse<Requirement>>.SuccessResponse(paged));
     }
 
@@ -165,6 +183,10 @@ public class StandardsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Requirement>), 201)]
     public async Task<ActionResult<ApiResponse<Requirement>>> CreateRequirement(string id, [FromBody] RequirementRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Requirement>.FailureResponse("A specific organization context is required to create this record."));
+
         var req = new Requirement
         {
             StandardId = id,
@@ -173,7 +195,8 @@ public class StandardsController : ControllerBase
             Description = dto.Description,
             Category = dto.Category,
             CompliancePercentage = dto.CompliancePercentage,
-            RelatedControlIds = dto.RelatedControlIds ?? new List<string>()
+            RelatedControlIds = dto.RelatedControlIds ?? new List<string>(),
+            OrganizationId = organizationId.Value
         };
 
         var created = await _standardRepository.CreateRequirementAsync(req);
@@ -189,7 +212,11 @@ public class StandardsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Requirement>), 404)]
     public async Task<ActionResult<ApiResponse<Requirement>>> UpdateRequirement(string id, string reqId, [FromBody] RequirementRequestDto dto)
     {
-        var existing = await _standardRepository.GetRequirementByIdAsync(reqId);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Requirement>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _standardRepository.GetRequirementByIdAsync(reqId, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<Requirement>.FailureResponse($"Requirement with ID '{reqId}' was not found."));
 
@@ -200,7 +227,7 @@ public class StandardsController : ControllerBase
         existing.CompliancePercentage = dto.CompliancePercentage;
         existing.RelatedControlIds = dto.RelatedControlIds ?? new List<string>();
 
-        var updated = await _standardRepository.UpdateRequirementAsync(existing);
+        var updated = await _standardRepository.UpdateRequirementAsync(existing, organizationId.Value);
         return Ok(ApiResponse<Requirement>.SuccessResponse(updated!, "Requirement updated successfully."));
     }
 
@@ -212,7 +239,11 @@ public class StandardsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     public async Task<ActionResult<ApiResponse<bool>>> DeleteRequirement(string id, string reqId)
     {
-        var deleted = await _standardRepository.DeleteRequirementAsync(reqId);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var deleted = await _standardRepository.DeleteRequirementAsync(reqId, organizationId.Value);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"Requirement with ID '{reqId}' was not found."));
 

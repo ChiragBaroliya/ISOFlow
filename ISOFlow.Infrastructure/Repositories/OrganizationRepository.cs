@@ -14,7 +14,7 @@ public class OrganizationRepository : BaseRepository, IOrganizationRepository
     {
         return QueryMappedListAsync("SELECT * FROM sp_organizations_get_all()", r => new Organization
         {
-            Id = r.id.ToString(),
+            Id = (int)r.id,
             Code = (string)r.code,
             Name = (string)r.name,
             Industry = (string)r.industry,
@@ -39,7 +39,7 @@ public class OrganizationRepository : BaseRepository, IOrganizationRepository
             "SELECT * FROM sp_organizations_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_status)",
             r => new Organization
             {
-                Id = r.id.ToString(),
+                Id = (int)r.id,
                 Code = (string)r.code,
                 Name = (string)r.name,
                 Industry = (string)r.industry,
@@ -61,7 +61,7 @@ public class OrganizationRepository : BaseRepository, IOrganizationRepository
             "SELECT id, code, name, industry, employees, primary_standard, status, compliance_percentage, contact_email, created_at FROM organizations WHERE id::VARCHAR = @id OR LOWER(code) = LOWER(@id)",
             r => new Organization
             {
-                Id = r.id.ToString(),
+                Id = (int)r.id,
                 Code = (string)r.code,
                 Name = (string)r.name,
                 Industry = (string)r.industry,
@@ -91,14 +91,14 @@ public class OrganizationRepository : BaseRepository, IOrganizationRepository
             "INSERT INTO organizations (code, name, industry, employees, primary_standard, status, compliance_percentage, contact_email) VALUES (@p_code, @p_name, @p_industry, @p_employees, @p_primary_standard, @p_status, @p_compliance_percentage, @p_contact_email) RETURNING id",
             parameters);
 
-        organization.Id = insertedId.ToString();
+        organization.Id = insertedId;
         return organization;
     }
 
     public async Task<Organization?> UpdateOrganizationAsync(Organization organization)
     {
         var parameters = new DynamicParameters();
-        parameters.Add("p_id", organization.Id);
+        parameters.Add("p_id", organization.Id.ToString());
         parameters.Add("p_name", organization.Name);
         parameters.Add("p_industry", organization.Industry);
         parameters.Add("p_employees", organization.Employees);

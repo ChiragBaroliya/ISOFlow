@@ -2,7 +2,7 @@ namespace ISOFlow.Domain.Entities;
 
 public class Organization
 {
-    public string Id { get; set; } = string.Empty;
+    public int Id { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Industry { get; set; } = string.Empty;

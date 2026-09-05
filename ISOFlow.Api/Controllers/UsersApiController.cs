@@ -68,7 +68,7 @@ public class UsersController : ControllerBase
     {
         var paged = User.IsSuperAdmin()
             ? await _userRepository.GetPagedUsersAsync(request)
-            : await _userRepository.GetPagedUsersByOrganizationIdAsync(User.GetOrganizationId() ?? string.Empty, request);
+            : await _userRepository.GetPagedUsersByOrganizationIdAsync(User.GetOrganizationIdOrNull() ?? 0, request);
 
         var profiles = new PagedResponse<UserProfileDto>(paged.Items.Select(MapToProfile).ToList(), paged.TotalCount, paged.PageNumber, paged.PageSize);
         return Ok(ApiResponse<PagedResponse<UserProfileDto>>.SuccessResponse(profiles));
@@ -85,7 +85,7 @@ public class UsersController : ControllerBase
     {
         var users = User.IsSuperAdmin()
             ? await _userRepository.GetAllUsersAsync()
-            : await _userRepository.GetUsersByOrganizationIdAsync(User.GetOrganizationId() ?? string.Empty);
+            : await _userRepository.GetUsersByOrganizationIdAsync(User.GetOrganizationIdOrNull() ?? 0);
 
         return Ok(ApiResponse<List<UserProfileDto>>.SuccessResponse(users.Select(MapToProfile).ToList()));
     }
@@ -103,7 +103,10 @@ public class UsersController : ControllerBase
         if (!User.IsSuperAdmin() && !User.IsSameOrganization(orgId))
             return Forbid();
 
-        var paged = await _userRepository.GetPagedUsersByOrganizationIdAsync(orgId, request);
+        if (!int.TryParse(orgId, out var orgIdInt))
+            return NotFound(ApiResponse<PagedResponse<UserProfileDto>>.FailureResponse($"Organization '{orgId}' was not found."));
+
+        var paged = await _userRepository.GetPagedUsersByOrganizationIdAsync(orgIdInt, request);
         var profiles = new PagedResponse<UserProfileDto>(paged.Items.Select(MapToProfile).ToList(), paged.TotalCount, paged.PageNumber, paged.PageSize);
         return Ok(ApiResponse<PagedResponse<UserProfileDto>>.SuccessResponse(profiles));
     }
@@ -124,7 +127,7 @@ public class UsersController : ControllerBase
         if (user == null)
             return NotFound(ApiResponse<UserProfileDto>.FailureResponse($"User with ID '{id}' was not found."));
 
-        var isPrivilegedSameOrgAdmin = User.IsAdmin() && User.IsSameOrganization(user.OrganizationId);
+        var isPrivilegedSameOrgAdmin = User.IsAdmin() && User.IsSameOrganization(user.OrganizationId?.ToString());
         if (!User.IsSelf(id) && !User.IsSuperAdmin() && !isPrivilegedSameOrgAdmin)
             return Forbid();
 
@@ -152,7 +155,7 @@ public class UsersController : ControllerBase
 
         var user = new User
         {
-            OrganizationId = dto.OrganizationId ?? string.Empty,
+            OrganizationId = string.IsNullOrWhiteSpace(dto.OrganizationId) ? null : int.Parse(dto.OrganizationId),
             Name = dto.Name,
             Email = dto.Email,
             Password = dto.Password,
@@ -187,12 +190,12 @@ public class UsersController : ControllerBase
         if (!User.IsSuperAdmin())
         {
             // Admins may only manage users within their own organization, and can never touch/create a SuperAdmin.
-            if (!User.IsSameOrganization(existing.OrganizationId) ||
+            if (!User.IsSameOrganization(existing.OrganizationId?.ToString()) ||
                 existing.SystemRole == SystemRole.SuperAdmin ||
                 dto.SystemRole == SystemRole.SuperAdmin)
                 return Forbid();
 
-            dto.OrganizationId = existing.OrganizationId;
+            dto.OrganizationId = existing.OrganizationId?.ToString();
         }
 
         existing.Name = dto.Name;
@@ -204,7 +207,7 @@ public class UsersController : ControllerBase
         existing.SystemRole = dto.SystemRole;
         existing.Role = dto.Role;
         existing.Department = dto.Department;
-        existing.OrganizationId = dto.OrganizationId ?? string.Empty;
+        existing.OrganizationId = string.IsNullOrWhiteSpace(dto.OrganizationId) ? null : int.Parse(dto.OrganizationId);
         existing.Location = dto.Location;
         existing.Phone = dto.Phone;
         existing.Bio = dto.Bio;
@@ -232,7 +235,7 @@ public class UsersController : ControllerBase
                 return NotFound(ApiResponse<bool>.FailureResponse($"User with ID '{id}' was not found."));
 
             // Admins may only remove users within their own organization, and can never remove a SuperAdmin.
-            if (!User.IsSameOrganization(existing.OrganizationId) || existing.SystemRole == SystemRole.SuperAdmin)
+            if (!User.IsSameOrganization(existing.OrganizationId?.ToString()) || existing.SystemRole == SystemRole.SuperAdmin)
                 return Forbid();
         }
 
@@ -311,7 +314,7 @@ public class UsersController : ControllerBase
         if (!User.IsSelf(id))
             return Forbid();
 
-        var success = await _userRepository.UpdateProfileAsync(id, dto.Name, dto.Phone, dto.Department, dto.Bio);
+        var success = await _userRepository.UpdateProfileAsync(id, dto.Name, dto.Phone, dto.Department, dto.Bio, dto.AvatarUrl);
         if (!success)
             return NotFound(ApiResponse<bool>.FailureResponse($"User with ID '{id}' was not found."));
 
@@ -343,7 +346,7 @@ public class UsersController : ControllerBase
     private static UserProfileDto MapToProfile(User user) => new()
     {
         Id = user.Id,
-        OrganizationId = user.OrganizationId,
+        OrganizationId = user.OrganizationId?.ToString() ?? string.Empty,
         Name = user.Name,
         Email = user.Email,
         SystemRole = user.SystemRole,

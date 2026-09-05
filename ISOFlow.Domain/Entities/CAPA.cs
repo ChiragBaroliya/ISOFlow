@@ -5,6 +5,7 @@ namespace ISOFlow.Domain.Entities;
 public class CAPA
 {
     public string Id { get; set; } = string.Empty; // CAPA-001
+    public int OrganizationId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string FindingId { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;

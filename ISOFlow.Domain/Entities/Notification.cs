@@ -3,6 +3,7 @@ namespace ISOFlow.Domain.Entities;
 public class Notification
 {
     public string Id { get; set; } = string.Empty;
+    public int OrganizationId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public string Category { get; set; } = "General"; // Warning, Task, Policy, Audit

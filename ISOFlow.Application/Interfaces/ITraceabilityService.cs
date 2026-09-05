@@ -4,5 +4,5 @@ namespace ISOFlow.Application.Interfaces;
 
 public interface ITraceabilityService
 {
-    Task<TraceabilityGraphDto> GetTraceabilityChainAsync(string entityId);
+    Task<TraceabilityGraphDto> GetTraceabilityChainAsync(string entityId, int? organizationId);
 }

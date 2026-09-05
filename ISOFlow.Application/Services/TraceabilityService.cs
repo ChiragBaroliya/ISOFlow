@@ -14,13 +14,13 @@ public class TraceabilityService : ITraceabilityService
         _cacheService = cacheService;
     }
 
-    public async Task<TraceabilityGraphDto> GetTraceabilityChainAsync(string entityId)
+    public async Task<TraceabilityGraphDto> GetTraceabilityChainAsync(string entityId, int? organizationId)
     {
-        string cacheKey = $"TraceabilityChain_{entityId}";
+        string cacheKey = $"TraceabilityChain_{(organizationId?.ToString() ?? "all")}_{entityId}";
         var cached = _cacheService.Get<TraceabilityGraphDto>(cacheKey);
         if (cached != null) return cached;
 
-        var graph = await _traceabilityRepository.GetTraceabilityGraphAsync(entityId);
+        var graph = await _traceabilityRepository.GetTraceabilityGraphAsync(entityId, organizationId);
         _cacheService.Set(cacheKey, graph, TimeSpan.FromMinutes(10));
         return graph;
     }

@@ -127,12 +127,12 @@ public class AuditLoggingTests
             return Task.CompletedTask;
         }
 
-        public Task<Application.DTOs.PagedResponse<Application.DTOs.AuditLogDto>> GetPagedAsync(Application.DTOs.AuditLogFilterDto filter)
+        public Task<Application.DTOs.PagedResponse<Application.DTOs.AuditLogDto>> GetPagedAsync(Application.DTOs.AuditLogFilterDto filter, int? organizationId = null)
             => throw new NotImplementedException();
 
-        public Task<Application.DTOs.AuditLogDetailDto?> GetByIdAsync(string id) => throw new NotImplementedException();
+        public Task<Application.DTOs.AuditLogDetailDto?> GetByIdAsync(string id, int? organizationId = null) => throw new NotImplementedException();
 
-        public Task<List<Application.DTOs.AuditLogDto>> GetHistoryAsync(string entityName, string entityId)
+        public Task<List<Application.DTOs.AuditLogDto>> GetHistoryAsync(string entityName, string entityId, int? organizationId = null)
             => throw new NotImplementedException();
     }
 
@@ -144,7 +144,7 @@ public class AuditLoggingTests
         Action = action,
         OldEntity = oldEntity,
         NewEntity = newEntity,
-        TenantId = "acme",
+        OrganizationId = 1,
         PerformedBy = "alex.morgan@acme.com"
     };
 

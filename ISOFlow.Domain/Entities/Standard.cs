@@ -3,6 +3,7 @@ namespace ISOFlow.Domain.Entities;
 public class Standard
 {
     public string Id { get; set; } = string.Empty;
+    public int OrganizationId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Revision { get; set; } = string.Empty;

@@ -4,8 +4,8 @@ namespace ISOFlow.Application.Interfaces;
 
 public interface IDashboardService
 {
-    Task<DashboardKpiDto> GetDashboardKpisAsync();
-    Task<List<ComplianceTrendDto>> GetComplianceTrendsAsync();
-    Task<List<RiskMatrixCellDto>> GetRiskMatrixAsync();
-    Task<TraceabilityGraphDto> GetGoldenScenarioTraceabilityAsync();
+    Task<DashboardKpiDto> GetDashboardKpisAsync(int? organizationId);
+    Task<List<ComplianceTrendDto>> GetComplianceTrendsAsync(int? organizationId);
+    Task<List<RiskMatrixCellDto>> GetRiskMatrixAsync(int? organizationId);
+    Task<TraceabilityGraphDto> GetGoldenScenarioTraceabilityAsync(int? organizationId);
 }

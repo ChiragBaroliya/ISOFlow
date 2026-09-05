@@ -1,4 +1,5 @@
 using ISOFlow.Api.Auditing;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -31,7 +32,8 @@ public class RisksController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<Risk>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<Risk>>>> GetPaged([FromQuery] PagedRequestDto request)
     {
-        var paged = await _riskRepository.GetPagedRisksAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _riskRepository.GetPagedRisksAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<Risk>>.SuccessResponse(paged));
     }
 
@@ -42,7 +44,8 @@ public class RisksController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<Risk>>), 200)]
     public async Task<ActionResult<ApiResponse<List<Risk>>>> GetAll()
     {
-        var risks = await _riskRepository.GetAllRisksAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var risks = await _riskRepository.GetAllRisksAsync(organizationId);
         return Ok(ApiResponse<List<Risk>>.SuccessResponse(risks));
     }
 
@@ -54,7 +57,8 @@ public class RisksController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Risk>), 404)]
     public async Task<ActionResult<ApiResponse<Risk>>> GetById(string id)
     {
-        var risk = await _riskRepository.GetRiskByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var risk = await _riskRepository.GetRiskByIdAsync(id, organizationId);
         if (risk == null)
             return NotFound(ApiResponse<Risk>.FailureResponse($"Risk with ID '{id}' was not found."));
 
@@ -69,6 +73,10 @@ public class RisksController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Risk>), 201)]
     public async Task<ActionResult<ApiResponse<Risk>>> Create([FromBody] RiskRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Risk>.FailureResponse("A specific organization context is required to create this record."));
+
         var risk = new Risk
         {
             Code = dto.Code,
@@ -80,7 +88,8 @@ public class RisksController : ControllerBase
             Likelihood = dto.Likelihood,
             Impact = dto.Impact,
             ControlId = dto.ControlId ?? string.Empty,
-            Status = dto.Status
+            Status = dto.Status,
+            OrganizationId = organizationId.Value
         };
 
         RiskTreatment? treatment = null;
@@ -111,7 +120,11 @@ public class RisksController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Risk>), 404)]
     public async Task<ActionResult<ApiResponse<Risk>>> Update(string id, [FromBody] RiskRequestDto dto)
     {
-        var existing = await _riskRepository.GetRiskByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Risk>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _riskRepository.GetRiskByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<Risk>.FailureResponse($"Risk with ID '{id}' was not found."));
 
@@ -142,7 +155,7 @@ public class RisksController : ControllerBase
             };
         }
 
-        var updated = await _riskRepository.UpdateRiskAsync(existing, treatment);
+        var updated = await _riskRepository.UpdateRiskAsync(existing, organizationId.Value, treatment);
         return Ok(ApiResponse<Risk>.SuccessResponse(updated!, "Risk updated successfully."));
     }
 
@@ -155,7 +168,11 @@ public class RisksController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
     {
-        var deleted = await _riskRepository.DeleteRiskAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var deleted = await _riskRepository.DeleteRiskAsync(id, organizationId.Value);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"Risk with ID '{id}' was not found."));
 
@@ -170,7 +187,8 @@ public class RisksController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<RiskTreatment>), 404)]
     public async Task<ActionResult<ApiResponse<RiskTreatment>>> GetTreatment(string id)
     {
-        var treatment = await _riskRepository.GetRiskTreatmentByRiskIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var treatment = await _riskRepository.GetRiskTreatmentByRiskIdAsync(id, organizationId);
         if (treatment == null)
             return NotFound(ApiResponse<RiskTreatment>.FailureResponse($"Treatment for Risk ID '{id}' was not found."));
 
@@ -184,7 +202,8 @@ public class RisksController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<RiskTreatment>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<RiskTreatment>>>> GetPagedTreatments([FromQuery] PagedRequestDto request)
     {
-        var paged = await _riskRepository.GetPagedRiskTreatmentsAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _riskRepository.GetPagedRiskTreatmentsAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<RiskTreatment>>.SuccessResponse(paged));
     }
 
@@ -195,7 +214,8 @@ public class RisksController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<RiskMatrixCellDto>>), 200)]
     public async Task<ActionResult<ApiResponse<List<RiskMatrixCellDto>>>> GetRiskMatrix()
     {
-        var matrix = await _riskRepository.GetRiskMatrixDataAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var matrix = await _riskRepository.GetRiskMatrixDataAsync(organizationId);
         return Ok(ApiResponse<List<RiskMatrixCellDto>>.SuccessResponse(matrix));
     }
 }

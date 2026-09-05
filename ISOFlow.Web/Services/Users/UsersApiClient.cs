@@ -12,7 +12,7 @@ public interface IUsersApiClient
     Task<User?> UpdateUserAsync(User user);
     Task<bool> DeleteUserAsync(string id);
     Task<List<User>> GetUsersByOrganizationIdAsync(string orgId);
-    Task<bool> UpdateProfileAsync(string userId, string name, string phone, string department, string bio);
+    Task<bool> UpdateProfileAsync(string userId, string name, string phone, string department, string bio, string? avatarUrl = null);
     Task<bool> ChangePasswordAsync(string userId, string currentPassword, string newPassword);
 }
 
@@ -57,10 +57,10 @@ public class UsersApiClient : IUsersApiClient
         return paged?.Items ?? new();
     }
 
-    public async Task<bool> UpdateProfileAsync(string userId, string name, string phone, string department, string bio) =>
+    public async Task<bool> UpdateProfileAsync(string userId, string name, string phone, string department, string bio, string? avatarUrl = null) =>
         await _api.PutBoolAsync($"api/users/{Uri.EscapeDataString(userId)}/profile", new
         {
-            Name = name, Phone = phone, Department = department, Bio = bio
+            Name = name, Phone = phone, Department = department, Bio = bio, AvatarUrl = avatarUrl
         });
 
     public async Task<bool> ChangePasswordAsync(string userId, string currentPassword, string newPassword) =>

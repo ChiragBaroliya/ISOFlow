@@ -40,7 +40,7 @@ public class JwtService : IJwtService
             new(ClaimTypes.Name, user.Name),
             new(ClaimTypes.Role, user.SystemRole.ToString()),
             new("role", user.SystemRole.ToString()),
-            new("org_id", user.OrganizationId ?? string.Empty),
+            new("org_id", user.OrganizationId?.ToString() ?? string.Empty),
             new("job_role", user.Role ?? string.Empty),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };

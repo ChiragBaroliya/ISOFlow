@@ -86,7 +86,7 @@ public class JwtAuthenticationTests
             Email = "alice@acme.com",
             SystemRole = SystemRole.Admin,
             Role = "Compliance Lead",
-            OrganizationId = "5"
+            OrganizationId = 5
         };
 
         var (token, expiresAt) = _jwtService.GenerateAccessToken(user);
@@ -458,7 +458,7 @@ public class JwtAuthenticationTests
                 SystemRole = SystemRole.SuperAdmin,
                 Role = "Super Administrator",
                 Department = "Engineering",
-                OrganizationId = "1"
+                OrganizationId = 1
             },
             new User
             {
@@ -469,14 +469,14 @@ public class JwtAuthenticationTests
                 SystemRole = SystemRole.User,
                 Role = "Compliance Manager",
                 Department = "Compliance",
-                OrganizationId = "1"
+                OrganizationId = 1
             }
         };
 
         public Task<List<User>> GetAllUsersAsync() => Task.FromResult(_users.ToList());
         public Task<PagedResponse<User>> GetPagedUsersAsync(PagedRequestDto request) => Task.FromResult(new PagedResponse<User>(_users, _users.Count, 1, 10));
-        public Task<List<User>> GetUsersByOrganizationIdAsync(string organizationId) => Task.FromResult(_users.Where(u => u.OrganizationId == organizationId).ToList());
-        public Task<PagedResponse<User>> GetPagedUsersByOrganizationIdAsync(string organizationId, PagedRequestDto request) => Task.FromResult(new PagedResponse<User>(_users.Where(u => u.OrganizationId == organizationId).ToList(), 1, 1, 10));
+        public Task<List<User>> GetUsersByOrganizationIdAsync(int organizationId) => Task.FromResult(_users.Where(u => u.OrganizationId == organizationId).ToList());
+        public Task<PagedResponse<User>> GetPagedUsersByOrganizationIdAsync(int organizationId, PagedRequestDto request) => Task.FromResult(new PagedResponse<User>(_users.Where(u => u.OrganizationId == organizationId).ToList(), 1, 1, 10));
         public Task<User?> GetUserByIdAsync(string id) => Task.FromResult(_users.FirstOrDefault(u => u.Id == id));
         public Task<User?> GetUserByEmailAsync(string email) => Task.FromResult(_users.FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)));
         public Task<User> CreateUserAsync(User user) { user.Id = (_users.Count + 1).ToString(); _users.Add(user); return Task.FromResult(user); }

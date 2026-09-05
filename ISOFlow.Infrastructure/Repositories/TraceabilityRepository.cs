@@ -9,25 +9,26 @@ public class TraceabilityRepository : BaseRepository, ITraceabilityRepository
 {
     public TraceabilityRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
-    public async Task<TraceabilityGraphDto> GetTraceabilityGraphAsync(string rootEntityId)
+    public async Task<TraceabilityGraphDto> GetTraceabilityGraphAsync(string rootEntityId, int? organizationId)
     {
         using var conn = await DbConnectionFactory.CreateOpenConnectionAsync();
+        var p = new { organizationId };
 
-        // 1. Fetch real entities from PostgreSQL
-        var standard = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, name, status FROM standards WHERE code ILIKE '%27001%' OR id = 1 LIMIT 1;");
-        var requirement = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, clause, title, compliance_percentage FROM requirements WHERE clause ILIKE '%5.18%' OR id = 1 LIMIT 1;");
-        var control = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM controls WHERE code = 'CTRL-001' OR id = 1 LIMIT 1;");
-        var risk = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status, likelihood, impact FROM risks WHERE code = 'RISK-001' OR id = 1 LIMIT 1;");
-        var treatment = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, option, status, treatment_plan FROM risk_treatments WHERE risk_id = 1 OR id = 1 LIMIT 1;");
-        var policy = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, version, status FROM policies WHERE code = 'POL-001' OR id = 1 LIMIT 1;");
-        var process = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM processes WHERE code = 'PROC-001' OR id = 1 LIMIT 1;");
-        var task = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM task_items WHERE code = 'TASK-2026-003' OR id = 3 LIMIT 1;");
-        var evidence = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, name, status FROM evidence WHERE code = 'EVI-2026-001' OR id = 1 LIMIT 1;");
-        var audit = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status, completion_percentage FROM audits WHERE code = 'AUD-2026-001' OR id = 1 LIMIT 1;");
-        var finding = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, severity, status FROM findings WHERE code = 'FIND-001' OR id = 1 LIMIT 1;");
-        var capa = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM capas WHERE code = 'CAPA-001' OR id = 1 LIMIT 1;");
-        var review = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status, period FROM management_reviews WHERE code = 'MR-Q4-2026' OR id = 1 LIMIT 1;");
-        var improvement = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM improvements WHERE code = 'IMP-001' OR id = 1 LIMIT 1;");
+        // 1. Fetch real entities from PostgreSQL, scoped to the caller's organization (NULL = no filter, SuperAdmin only)
+        var standard = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, name, status FROM standards WHERE (code ILIKE '%27001%' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var requirement = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, clause, title, compliance_percentage FROM requirements WHERE (clause ILIKE '%5.18%' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var control = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM controls WHERE (code = 'CTRL-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var risk = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status, likelihood, impact FROM risks WHERE (code = 'RISK-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var treatment = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, option, status, treatment_plan FROM risk_treatments WHERE (risk_id = 1 OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var policy = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, version, status FROM policies WHERE (code = 'POL-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var process = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM processes WHERE (code = 'PROC-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var task = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM task_items WHERE (code = 'TASK-2026-003' OR id = 3) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var evidence = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, name, status FROM evidence WHERE (code = 'EVI-2026-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var audit = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status, completion_percentage FROM audits WHERE (code = 'AUD-2026-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var finding = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, severity, status FROM findings WHERE (code = 'FIND-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var capa = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM capas WHERE (code = 'CAPA-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var review = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status, period FROM management_reviews WHERE (code = 'MR-Q4-2026' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var improvement = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM improvements WHERE (code = 'IMP-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
 
         // 2. Build 14-Step dynamic traceability node chain
         var steps = new List<TraceabilityNodeDto>

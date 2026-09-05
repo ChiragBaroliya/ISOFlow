@@ -1,4 +1,5 @@
 using ISOFlow.Api.Auditing;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -42,7 +43,8 @@ public class AuditsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<Audit>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<Audit>>>> GetPagedAudits([FromQuery] PagedRequestDto request)
     {
-        var paged = await _auditRepository.GetPagedAuditsAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _auditRepository.GetPagedAuditsAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<Audit>>.SuccessResponse(paged));
     }
 
@@ -53,7 +55,8 @@ public class AuditsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<Audit>>), 200)]
     public async Task<ActionResult<ApiResponse<List<Audit>>>> GetAllAudits()
     {
-        var audits = await _auditRepository.GetAllAuditsAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var audits = await _auditRepository.GetAllAuditsAsync(organizationId);
         return Ok(ApiResponse<List<Audit>>.SuccessResponse(audits));
     }
 
@@ -65,7 +68,8 @@ public class AuditsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Audit>), 404)]
     public async Task<ActionResult<ApiResponse<Audit>>> GetAuditById(string id)
     {
-        var audit = await _auditRepository.GetAuditByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var audit = await _auditRepository.GetAuditByIdAsync(id, organizationId);
         if (audit == null)
             return NotFound(ApiResponse<Audit>.FailureResponse($"Audit with ID '{id}' was not found."));
 
@@ -80,6 +84,10 @@ public class AuditsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Audit>), 201)]
     public async Task<ActionResult<ApiResponse<Audit>>> CreateAudit([FromBody] AuditRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Audit>.FailureResponse("A specific organization context is required to create this record."));
+
         var audit = new Audit
         {
             Code = dto.Code,
@@ -91,7 +99,8 @@ public class AuditsController : ControllerBase
             Status = dto.Status,
             CompletionPercentage = dto.CompletionPercentage,
             Scope = dto.Scope,
-            CheckListControlIds = dto.CheckListControlIds ?? new List<string>()
+            CheckListControlIds = dto.CheckListControlIds ?? new List<string>(),
+            OrganizationId = organizationId.Value
         };
 
         var created = await _auditRepository.CreateAuditAsync(audit);
@@ -107,7 +116,11 @@ public class AuditsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Audit>), 404)]
     public async Task<ActionResult<ApiResponse<Audit>>> UpdateAudit(string id, [FromBody] AuditRequestDto dto)
     {
-        var existing = await _auditRepository.GetAuditByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Audit>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _auditRepository.GetAuditByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<Audit>.FailureResponse($"Audit with ID '{id}' was not found."));
 
@@ -121,7 +134,7 @@ public class AuditsController : ControllerBase
         existing.Scope = dto.Scope;
         existing.CheckListControlIds = dto.CheckListControlIds ?? new List<string>();
 
-        var updated = await _auditRepository.UpdateAuditAsync(existing);
+        var updated = await _auditRepository.UpdateAuditAsync(existing, organizationId.Value);
         return Ok(ApiResponse<Audit>.SuccessResponse(updated!, "Audit updated successfully."));
     }
 
@@ -134,7 +147,11 @@ public class AuditsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> DeleteAudit(string id)
     {
-        var deleted = await _auditRepository.DeleteAuditAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var deleted = await _auditRepository.DeleteAuditAsync(id, organizationId.Value);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"Audit with ID '{id}' was not found."));
 

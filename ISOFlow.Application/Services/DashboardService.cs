@@ -34,18 +34,18 @@ public class DashboardService : IDashboardService
         _cacheService = cacheService;
     }
 
-    public async Task<DashboardKpiDto> GetDashboardKpisAsync()
+    public async Task<DashboardKpiDto> GetDashboardKpisAsync(int? organizationId)
     {
-        const string cacheKey = "DashboardKpis";
+        string cacheKey = $"DashboardKpis_{(organizationId?.ToString() ?? "all")}";
         var cached = _cacheService.Get<DashboardKpiDto>(cacheKey);
         if (cached != null) return cached;
 
-        var controls = await _controlRepository.GetAllControlsAsync();
-        var risks = await _riskRepository.GetAllRisksAsync();
-        var findings = await _auditRepository.GetAllFindingsAsync();
-        var capas = await _capaRepository.GetAllCapasAsync();
-        var tasks = await _taskRepository.GetAllTasksAsync();
-        var evidence = await _evidenceRepository.GetAllEvidenceAsync();
+        var controls = await _controlRepository.GetAllControlsAsync(organizationId);
+        var risks = await _riskRepository.GetAllRisksAsync(organizationId);
+        var findings = await _auditRepository.GetAllFindingsAsync(organizationId);
+        var capas = await _capaRepository.GetAllCapasAsync(organizationId);
+        var tasks = await _taskRepository.GetAllTasksAsync(organizationId);
+        var evidence = await _evidenceRepository.GetAllEvidenceAsync(organizationId);
 
         var avgCompliance = controls.Count > 0 
             ? Math.Round(controls.Average(c => c.CompliancePercentage), 1) 
@@ -68,10 +68,10 @@ public class DashboardService : IDashboardService
         return kpi;
     }
 
-    public async Task<List<ComplianceTrendDto>> GetComplianceTrendsAsync()
+    public async Task<List<ComplianceTrendDto>> GetComplianceTrendsAsync(int? organizationId)
     {
-        var controls = await _controlRepository.GetAllControlsAsync();
-        var risks = await _riskRepository.GetAllRisksAsync();
+        var controls = await _controlRepository.GetAllControlsAsync(organizationId);
+        var risks = await _riskRepository.GetAllRisksAsync(organizationId);
 
         var currentScore = controls.Count > 0 ? Math.Round(controls.Average(c => c.CompliancePercentage), 1) : 85.0;
         var openRisks = risks.Count(r => r.Status != "Closed");
@@ -95,13 +95,13 @@ public class DashboardService : IDashboardService
         return trends;
     }
 
-    public async Task<List<RiskMatrixCellDto>> GetRiskMatrixAsync()
+    public async Task<List<RiskMatrixCellDto>> GetRiskMatrixAsync(int? organizationId)
     {
-        return await _riskRepository.GetRiskMatrixDataAsync();
+        return await _riskRepository.GetRiskMatrixDataAsync(organizationId);
     }
 
-    public async Task<TraceabilityGraphDto> GetGoldenScenarioTraceabilityAsync()
+    public async Task<TraceabilityGraphDto> GetGoldenScenarioTraceabilityAsync(int? organizationId)
     {
-        return await _traceabilityRepository.GetTraceabilityGraphAsync("CTRL-001");
+        return await _traceabilityRepository.GetTraceabilityGraphAsync("CTRL-001", organizationId);
     }
 }

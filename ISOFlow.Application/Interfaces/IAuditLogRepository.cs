@@ -15,10 +15,16 @@ public interface IAuditLogRepository
     /// </summary>
     Task InsertAsync(AuditLog log);
 
-    Task<PagedResponse<AuditLogDto>> GetPagedAsync(AuditLogFilterDto filter);
+    /// <param name="organizationId">
+    /// Optional tenant filter. Null means "no filter" — callers must pass a concrete value for
+    /// every non-SuperAdmin caller; only a SuperAdmin caller should ever leave this null.
+    /// </param>
+    Task<PagedResponse<AuditLogDto>> GetPagedAsync(AuditLogFilterDto filter, int? organizationId = null);
 
-    Task<AuditLogDetailDto?> GetByIdAsync(string id);
+    /// <param name="organizationId">Optional tenant filter (see <see cref="GetPagedAsync"/>).</param>
+    Task<AuditLogDetailDto?> GetByIdAsync(string id, int? organizationId = null);
 
     /// <summary>Full change history for one entity, newest first, for an entity's "History" tab.</summary>
-    Task<List<AuditLogDto>> GetHistoryAsync(string entityName, string entityId);
+    /// <param name="organizationId">Optional tenant filter (see <see cref="GetPagedAsync"/>).</param>
+    Task<List<AuditLogDto>> GetHistoryAsync(string entityName, string entityId, int? organizationId = null);
 }

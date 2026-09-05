@@ -10,7 +10,8 @@ namespace ISOFlow.Domain.Entities;
 public class AuditLog
 {
     public string Id { get; set; } = string.Empty;
-    public string TenantId { get; set; } = string.Empty;
+    /// <summary>Organization this log entry belongs to. Null for platform-level (SuperAdmin) actions.</summary>
+    public int? OrganizationId { get; set; }
     public string ModuleName { get; set; } = string.Empty;
     public string EntityName { get; set; } = string.Empty;
     public string EntityId { get; set; } = string.Empty;

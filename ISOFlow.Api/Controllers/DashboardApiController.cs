@@ -1,3 +1,4 @@
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -28,7 +29,7 @@ public class DashboardController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<DashboardKpiDto>), 200)]
     public async Task<ActionResult<ApiResponse<DashboardKpiDto>>> GetKpis()
     {
-        var kpis = await _dashboardService.GetDashboardKpisAsync();
+        var kpis = await _dashboardService.GetDashboardKpisAsync(User.GetOrganizationIdOrNull());
         return Ok(new ApiResponse<DashboardKpiDto> { Data = kpis });
     }
 
@@ -39,7 +40,7 @@ public class DashboardController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<ComplianceTrendDto>>), 200)]
     public async Task<ActionResult<ApiResponse<List<ComplianceTrendDto>>>> GetTrends()
     {
-        var trends = await _dashboardService.GetComplianceTrendsAsync();
+        var trends = await _dashboardService.GetComplianceTrendsAsync(User.GetOrganizationIdOrNull());
         return Ok(new ApiResponse<List<ComplianceTrendDto>> { Data = trends });
     }
 
@@ -50,7 +51,7 @@ public class DashboardController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<RiskMatrixCellDto>>), 200)]
     public async Task<ActionResult<ApiResponse<List<RiskMatrixCellDto>>>> GetRiskMatrix()
     {
-        var matrix = await _dashboardService.GetRiskMatrixAsync();
+        var matrix = await _dashboardService.GetRiskMatrixAsync(User.GetOrganizationIdOrNull());
         return Ok(new ApiResponse<List<RiskMatrixCellDto>> { Data = matrix });
     }
 
@@ -61,7 +62,7 @@ public class DashboardController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<TraceabilityGraphDto>), 200)]
     public async Task<ActionResult<ApiResponse<TraceabilityGraphDto>>> GetTraceability()
     {
-        var graph = await _dashboardService.GetGoldenScenarioTraceabilityAsync();
+        var graph = await _dashboardService.GetGoldenScenarioTraceabilityAsync(User.GetOrganizationIdOrNull());
         return Ok(new ApiResponse<TraceabilityGraphDto> { Data = graph });
     }
 }

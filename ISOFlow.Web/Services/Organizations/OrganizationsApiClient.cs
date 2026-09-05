@@ -35,7 +35,7 @@ public class OrganizationsApiClient : IOrganizationsApiClient
         });
 
     public async Task<Organization?> UpdateOrganizationAsync(Organization org) =>
-        await _api.PutAsync<Organization>($"api/organizations/{Uri.EscapeDataString(org.Id)}", new
+        await _api.PutAsync<Organization>($"api/organizations/{Uri.EscapeDataString(org.Id.ToString())}", new
         {
             org.Code, org.Name, org.Industry, org.Employees, org.Locations,
             org.PrimaryStandard, org.Status, org.CompliancePercentage, org.ContactEmail

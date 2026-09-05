@@ -17,7 +17,7 @@ public class UserRepository : BaseRepository, IUserRepository
         return QueryMappedListAsync("SELECT * FROM sp_users_get_all()", r => new User
         {
             Id = r.id.ToString(),
-            OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+            OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
             Name = (string)r.name,
             Email = (string)r.email,
             Password = (string)r.password_hash,
@@ -46,7 +46,7 @@ public class UserRepository : BaseRepository, IUserRepository
             r => new User
             {
                 Id = r.id.ToString(),
-                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
                 Name = (string)r.name,
                 Email = (string)r.email,
                 Password = (string)r.password_hash,
@@ -64,15 +64,14 @@ public class UserRepository : BaseRepository, IUserRepository
             request.PageSize);
     }
 
-    public Task<List<User>> GetUsersByOrganizationIdAsync(string organizationId)
+    public Task<List<User>> GetUsersByOrganizationIdAsync(int organizationId)
     {
-        int.TryParse(organizationId, out var orgId);
         return QueryMappedListAsync(
-            "SELECT id, organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio, reset_token FROM users WHERE organization_id = @orgId ORDER BY id ASC",
+            "SELECT id, organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio, reset_token FROM users WHERE organization_id = @organizationId ORDER BY id ASC",
             r => new User
             {
                 Id = r.id.ToString(),
-                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
                 Name = (string)r.name,
                 Email = (string)r.email,
                 Password = (string)r.password_hash,
@@ -85,25 +84,24 @@ public class UserRepository : BaseRepository, IUserRepository
                 Bio = (string)r.bio ?? string.Empty,
                 ResetToken = (string?)r.reset_token
             },
-            new { orgId });
+            new { organizationId });
     }
 
-    public Task<PagedResponse<User>> GetPagedUsersByOrganizationIdAsync(string organizationId, PagedRequestDto request)
+    public Task<PagedResponse<User>> GetPagedUsersByOrganizationIdAsync(int organizationId, PagedRequestDto request)
     {
-        int.TryParse(organizationId, out var orgId);
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
         parameters.Add("p_page_size", request.PageSize);
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
         parameters.Add("p_department", (string?)null);
-        parameters.Add("p_organization_id", orgId > 0 ? (int?)orgId : null);
+        parameters.Add("p_organization_id", organizationId);
 
         return QueryPagedAsync(
             "SELECT * FROM sp_users_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_department, @p_organization_id)",
             r => new User
             {
                 Id = r.id.ToString(),
-                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
                 Name = (string)r.name,
                 Email = (string)r.email,
                 Password = (string)r.password_hash,
@@ -128,7 +126,7 @@ public class UserRepository : BaseRepository, IUserRepository
             r => new User
             {
                 Id = r.id.ToString(),
-                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
                 Name = (string)r.name,
                 Email = (string)r.email,
                 Password = (string)r.password_hash,
@@ -151,7 +149,7 @@ public class UserRepository : BaseRepository, IUserRepository
             r => new User
             {
                 Id = r.id.ToString(),
-                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
                 Name = (string)r.name,
                 Email = (string)r.email,
                 Password = (string)r.password_hash,
@@ -169,9 +167,8 @@ public class UserRepository : BaseRepository, IUserRepository
 
     public async Task<User> CreateUserAsync(User user)
     {
-        int.TryParse(user.OrganizationId, out var orgId);
         var parameters = new DynamicParameters();
-        parameters.Add("p_org_id", orgId > 0 ? (int?)orgId : null);
+        parameters.Add("p_org_id", user.OrganizationId);
         parameters.Add("p_name", user.Name);
         parameters.Add("p_email", user.Email);
         parameters.Add("p_password", user.Password);
@@ -190,10 +187,9 @@ public class UserRepository : BaseRepository, IUserRepository
 
     public async Task<User?> UpdateUserAsync(User user)
     {
-        int.TryParse(user.OrganizationId, out var orgId);
         var parameters = new DynamicParameters();
         parameters.Add("p_id", user.Id);
-        parameters.Add("p_org_id", orgId > 0 ? (int?)orgId : null);
+        parameters.Add("p_org_id", user.OrganizationId);
         parameters.Add("p_name", user.Name);
         parameters.Add("p_email", user.Email);
         parameters.Add("p_system_role", (int)user.SystemRole);
@@ -221,7 +217,7 @@ public class UserRepository : BaseRepository, IUserRepository
             r => new User
             {
                 Id = r.id.ToString(),
-                OrganizationId = r.organization_id != null ? r.organization_id.ToString() : string.Empty,
+                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
                 Name = (string)r.name,
                 Email = (string)r.email,
                 Password = password,
@@ -252,9 +248,12 @@ public class UserRepository : BaseRepository, IUserRepository
         return rows > 0;
     }
 
-    public async Task<bool> UpdateProfileAsync(string id, string name, string phone, string department, string bio)
+    public async Task<bool> UpdateProfileAsync(string id, string name, string phone, string department, string bio, string? avatarUrl = null)
     {
-        var rows = await ExecuteAsync("UPDATE users SET name = @name, phone = @phone, department = @department, bio = @bio, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @id", new { id, name, phone, department, bio });
+        var sql = "UPDATE users SET name = @name, phone = @phone, department = @department, bio = @bio, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')"
+            + (avatarUrl != null ? ", avatar_url = @avatarUrl" : "")
+            + " WHERE id::VARCHAR = @id";
+        var rows = await ExecuteAsync(sql, new { id, name, phone, department, bio, avatarUrl });
         return rows > 0;
     }
 

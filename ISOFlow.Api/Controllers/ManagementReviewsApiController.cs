@@ -1,4 +1,5 @@
 using ISOFlow.Api.Auditing;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -31,7 +32,8 @@ public class ManagementReviewsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<ManagementReview>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<ManagementReview>>>> GetPaged([FromQuery] PagedRequestDto request)
     {
-        var paged = await _reviewRepository.GetPagedReviewsAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _reviewRepository.GetPagedReviewsAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<ManagementReview>>.SuccessResponse(paged));
     }
 
@@ -42,7 +44,8 @@ public class ManagementReviewsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<ManagementReview>>), 200)]
     public async Task<ActionResult<ApiResponse<List<ManagementReview>>>> GetAll()
     {
-        var reviews = await _reviewRepository.GetAllReviewsAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var reviews = await _reviewRepository.GetAllReviewsAsync(organizationId);
         return Ok(ApiResponse<List<ManagementReview>>.SuccessResponse(reviews));
     }
 
@@ -54,7 +57,8 @@ public class ManagementReviewsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<ManagementReview>), 404)]
     public async Task<ActionResult<ApiResponse<ManagementReview>>> GetById(string id)
     {
-        var review = await _reviewRepository.GetReviewByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var review = await _reviewRepository.GetReviewByIdAsync(id, organizationId);
         if (review == null)
             return NotFound(ApiResponse<ManagementReview>.FailureResponse($"Review with ID '{id}' was not found."));
 
@@ -69,6 +73,10 @@ public class ManagementReviewsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<ManagementReview>), 201)]
     public async Task<ActionResult<ApiResponse<ManagementReview>>> Create([FromBody] ManagementReviewRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<ManagementReview>.FailureResponse("A specific organization context is required to create this record."));
+
         var review = new ManagementReview
         {
             Code = dto.Code,
@@ -78,7 +86,8 @@ public class ManagementReviewsController : ControllerBase
             ChairPerson = dto.ChairPerson,
             Attendees = dto.Attendees ?? new List<string>(),
             Summary = dto.Summary,
-            Status = dto.Status
+            Status = dto.Status,
+            OrganizationId = organizationId.Value
         };
 
         var created = await _reviewRepository.CreateReviewAsync(review);
@@ -94,7 +103,11 @@ public class ManagementReviewsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<ManagementReview>), 404)]
     public async Task<ActionResult<ApiResponse<ManagementReview>>> Update(string id, [FromBody] ManagementReviewRequestDto dto)
     {
-        var existing = await _reviewRepository.GetReviewByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<ManagementReview>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _reviewRepository.GetReviewByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<ManagementReview>.FailureResponse($"Review with ID '{id}' was not found."));
 
@@ -106,7 +119,7 @@ public class ManagementReviewsController : ControllerBase
         existing.Summary = dto.Summary;
         existing.Status = dto.Status;
 
-        var updated = await _reviewRepository.UpdateReviewAsync(existing);
+        var updated = await _reviewRepository.UpdateReviewAsync(existing, organizationId.Value);
         return Ok(ApiResponse<ManagementReview>.SuccessResponse(updated!, "Management review updated successfully."));
     }
 
@@ -119,7 +132,11 @@ public class ManagementReviewsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
     {
-        var deleted = await _reviewRepository.DeleteReviewAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var deleted = await _reviewRepository.DeleteReviewAsync(id, organizationId.Value);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"Review with ID '{id}' was not found."));
 

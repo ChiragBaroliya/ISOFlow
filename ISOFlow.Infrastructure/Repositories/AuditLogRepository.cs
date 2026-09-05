@@ -16,7 +16,7 @@ public class AuditLogRepository : BaseRepository, IAuditLogRepository
     public async Task InsertAsync(AuditLog log)
     {
         var parameters = new DynamicParameters();
-        parameters.Add("p_tenant_id", log.TenantId ?? string.Empty);
+        parameters.Add("p_organization_id", log.OrganizationId);
         parameters.Add("p_module_name", log.ModuleName);
         parameters.Add("p_entity_name", log.EntityName);
         parameters.Add("p_entity_id", log.EntityId);
@@ -32,17 +32,18 @@ public class AuditLogRepository : BaseRepository, IAuditLogRepository
 
         await QuerySingleAsync<int>(
             @"SELECT sp_audit_logs_insert(
-                @p_tenant_id, @p_module_name, @p_entity_name, @p_entity_id, @p_action, @p_performed_by,
+                @p_organization_id, @p_module_name, @p_entity_name, @p_entity_id, @p_action, @p_performed_by,
                 @p_ip_address, @p_user_agent, @p_correlation_id, @p_description,
                 @p_old_values::jsonb, @p_new_values::jsonb, @p_changed_fields::jsonb)",
             parameters);
     }
 
-    public Task<PagedResponse<AuditLogDto>> GetPagedAsync(AuditLogFilterDto filter)
+    public Task<PagedResponse<AuditLogDto>> GetPagedAsync(AuditLogFilterDto filter, int? organizationId = null)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", filter.PageNumber);
         parameters.Add("p_page_size", filter.PageSize);
+        parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(filter.SearchTerm) ? null : filter.SearchTerm.Trim());
         parameters.Add("p_from_date", filter.FromDate);
         parameters.Add("p_to_date", filter.ToDate);
@@ -54,7 +55,7 @@ public class AuditLogRepository : BaseRepository, IAuditLogRepository
 
         return QueryPagedAsync(
             @"SELECT * FROM sp_audit_logs_get_paged(
-                @p_page_number, @p_page_size, @p_search_term, @p_from_date, @p_to_date,
+                @p_page_number, @p_page_size, @p_organization_id, @p_search_term, @p_from_date, @p_to_date,
                 @p_module_name, @p_entity_name, @p_entity_id, @p_action, @p_performed_by)",
             MapListRow,
             parameters,
@@ -62,11 +63,11 @@ public class AuditLogRepository : BaseRepository, IAuditLogRepository
             filter.PageSize);
     }
 
-    public async Task<AuditLogDetailDto?> GetByIdAsync(string id)
+    public async Task<AuditLogDetailDto?> GetByIdAsync(string id, int? organizationId = null)
     {
         if (!int.TryParse(id, out var numericId)) return null;
 
-        var row = await QueryFirstOrDefaultAsync<dynamic>("SELECT * FROM sp_audit_logs_get_by_id(@id)", new { id = numericId });
+        var row = await QueryFirstOrDefaultAsync<dynamic>("SELECT * FROM sp_audit_logs_get_by_id(@id, @organizationId)", new { id = numericId, organizationId });
         if (row == null) return null;
 
         var action = ParseAction((string)row.action);
@@ -77,7 +78,7 @@ public class AuditLogRepository : BaseRepository, IAuditLogRepository
         return new AuditLogDetailDto
         {
             Id = row.id.ToString(),
-            TenantId = (string?)row.tenant_id ?? string.Empty,
+            OrganizationId = row.organization_id == null ? (int?)null : (int)row.organization_id,
             ModuleName = (string)row.module_name,
             EntityName = (string)row.entity_name,
             EntityId = (string)row.entity_id,
@@ -92,12 +93,12 @@ public class AuditLogRepository : BaseRepository, IAuditLogRepository
         };
     }
 
-    public Task<List<AuditLogDto>> GetHistoryAsync(string entityName, string entityId)
+    public Task<List<AuditLogDto>> GetHistoryAsync(string entityName, string entityId, int? organizationId = null)
     {
         return QueryMappedListAsync(
-            "SELECT * FROM sp_audit_logs_get_history(@entityName, @entityId)",
+            "SELECT * FROM sp_audit_logs_get_history(@entityName, @entityId, @organizationId)",
             MapListRow,
-            new { entityName, entityId });
+            new { entityName, entityId, organizationId });
     }
 
     private static AuditLogDto MapListRow(dynamic r) => new()

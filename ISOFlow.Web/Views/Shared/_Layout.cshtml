@@ -237,7 +237,8 @@
                         <button class="btn p-0 border-0 bg-transparent d-flex align-items-center gap-2"
                                 type="button" data-bs-toggle="dropdown" aria-expanded="false" id="userMenuBtn">
                             <img src="@activeUserAvatar" class="rounded-circle" width="36" height="36" alt="User Avatar"
-                                 style="border:2px solid rgba(255,255,255,.15);" />
+                                 style="border:2px solid rgba(255,255,255,.15); object-fit:cover;"
+                                 onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=@Uri.EscapeDataString(activeUserName)&background=4f46e5&color=fff';" />
                             <div class="d-none d-lg-block text-start">
                                 <div class="fw-bold small lh-1">@activeUserName</div>
                                 <div class="text-muted" style="font-size:.72rem;">@activeOrgCode</div>
@@ -277,7 +278,10 @@
             <!-- Page Container -->
             <main class="page-container">
                 <!-- Dynamic Traceability Bar -->
-                @await Html.PartialAsync("_TraceabilityBar")
+                @if (ViewData["HideTraceabilityBar"] == null)
+                {
+                    @await Html.PartialAsync("_TraceabilityBar")
+                }
 
                 <!-- Page Body Content -->
                 @RenderBody()

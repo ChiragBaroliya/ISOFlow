@@ -1,4 +1,5 @@
 using ISOFlow.Api.Auditing;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -31,7 +32,8 @@ public class FindingsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<Finding>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<Finding>>>> GetPaged([FromQuery] PagedRequestDto request)
     {
-        var paged = await _auditRepository.GetPagedFindingsAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _auditRepository.GetPagedFindingsAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<Finding>>.SuccessResponse(paged));
     }
 
@@ -42,7 +44,8 @@ public class FindingsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<Finding>>), 200)]
     public async Task<ActionResult<ApiResponse<List<Finding>>>> GetAll()
     {
-        var findings = await _auditRepository.GetAllFindingsAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var findings = await _auditRepository.GetAllFindingsAsync(organizationId);
         return Ok(ApiResponse<List<Finding>>.SuccessResponse(findings));
     }
 
@@ -54,7 +57,8 @@ public class FindingsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Finding>), 404)]
     public async Task<ActionResult<ApiResponse<Finding>>> GetById(string id)
     {
-        var finding = await _auditRepository.GetFindingByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var finding = await _auditRepository.GetFindingByIdAsync(id, organizationId);
         if (finding == null)
             return NotFound(ApiResponse<Finding>.FailureResponse($"Finding with ID '{id}' was not found."));
 
@@ -69,6 +73,10 @@ public class FindingsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Finding>), 201)]
     public async Task<ActionResult<ApiResponse<Finding>>> Create([FromBody] FindingRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Finding>.FailureResponse("A specific organization context is required to create this record."));
+
         var finding = new Finding
         {
             Code = dto.Code,
@@ -82,7 +90,8 @@ public class FindingsController : ControllerBase
             RootCause = dto.RootCause,
             IdentifiedDate = dto.IdentifiedDate,
             Auditor = dto.Auditor,
-            CapaId = dto.CapaId ?? string.Empty
+            CapaId = dto.CapaId ?? string.Empty,
+            OrganizationId = organizationId.Value
         };
 
         var created = await _auditRepository.CreateFindingAsync(finding);
@@ -98,7 +107,11 @@ public class FindingsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Finding>), 404)]
     public async Task<ActionResult<ApiResponse<Finding>>> Update(string id, [FromBody] FindingRequestDto dto)
     {
-        var existing = await _auditRepository.GetFindingByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Finding>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _auditRepository.GetFindingByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<Finding>.FailureResponse($"Finding with ID '{id}' was not found."));
 
@@ -113,7 +126,7 @@ public class FindingsController : ControllerBase
         existing.Auditor = dto.Auditor;
         existing.CapaId = dto.CapaId ?? string.Empty;
 
-        var updated = await _auditRepository.UpdateFindingAsync(existing);
+        var updated = await _auditRepository.UpdateFindingAsync(existing, organizationId.Value);
         return Ok(ApiResponse<Finding>.SuccessResponse(updated!, "Finding updated successfully."));
     }
 
@@ -126,7 +139,11 @@ public class FindingsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
     {
-        var deleted = await _auditRepository.DeleteFindingAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var deleted = await _auditRepository.DeleteFindingAsync(id, organizationId.Value);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"Finding with ID '{id}' was not found."));
 

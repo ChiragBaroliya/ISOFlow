@@ -1,4 +1,5 @@
 using ISOFlow.Api.Auditing;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -31,7 +32,8 @@ public class CapaController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<CAPA>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<CAPA>>>> GetPaged([FromQuery] PagedRequestDto request)
     {
-        var paged = await _capaRepository.GetPagedCapasAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _capaRepository.GetPagedCapasAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<CAPA>>.SuccessResponse(paged));
     }
 
@@ -42,7 +44,8 @@ public class CapaController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<CAPA>>), 200)]
     public async Task<ActionResult<ApiResponse<List<CAPA>>>> GetAll()
     {
-        var capas = await _capaRepository.GetAllCapasAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var capas = await _capaRepository.GetAllCapasAsync(organizationId);
         return Ok(ApiResponse<List<CAPA>>.SuccessResponse(capas));
     }
 
@@ -54,7 +57,8 @@ public class CapaController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<CAPA>), 404)]
     public async Task<ActionResult<ApiResponse<CAPA>>> GetById(string id)
     {
-        var capa = await _capaRepository.GetCapaByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var capa = await _capaRepository.GetCapaByIdAsync(id, organizationId);
         if (capa == null)
             return NotFound(ApiResponse<CAPA>.FailureResponse($"CAPA with ID '{id}' was not found."));
 
@@ -69,6 +73,10 @@ public class CapaController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<CAPA>), 201)]
     public async Task<ActionResult<ApiResponse<CAPA>>> Create([FromBody] CapaRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<CAPA>.FailureResponse("A specific organization context is required to create this record."));
+
         var capa = new CAPA
         {
             Code = dto.Code,
@@ -79,7 +87,8 @@ public class CapaController : ControllerBase
             Owner = dto.Owner,
             DueDate = dto.DueDate,
             Status = dto.Status,
-            EffectivenessVerification = dto.EffectivenessVerification
+            EffectivenessVerification = dto.EffectivenessVerification,
+            OrganizationId = organizationId.Value
         };
 
         var created = await _capaRepository.CreateCapaAsync(capa);
@@ -95,7 +104,11 @@ public class CapaController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<CAPA>), 404)]
     public async Task<ActionResult<ApiResponse<CAPA>>> Update(string id, [FromBody] CapaRequestDto dto)
     {
-        var existing = await _capaRepository.GetCapaByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<CAPA>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _capaRepository.GetCapaByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<CAPA>.FailureResponse($"CAPA with ID '{id}' was not found."));
 
@@ -108,7 +121,7 @@ public class CapaController : ControllerBase
         existing.Status = dto.Status;
         existing.EffectivenessVerification = dto.EffectivenessVerification;
 
-        var updated = await _capaRepository.UpdateCapaAsync(existing);
+        var updated = await _capaRepository.UpdateCapaAsync(existing, organizationId.Value);
         return Ok(ApiResponse<CAPA>.SuccessResponse(updated!, "CAPA updated successfully."));
     }
 
@@ -121,7 +134,11 @@ public class CapaController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
     {
-        var deleted = await _capaRepository.DeleteCapaAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var deleted = await _capaRepository.DeleteCapaAsync(id, organizationId.Value);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"CAPA with ID '{id}' was not found."));
 
@@ -136,6 +153,10 @@ public class CapaController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     public async Task<ActionResult<ApiResponse<bool>>> AddActionItem(string id, [FromBody] CapaActionItemRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to add an action item."));
+
         var item = new CapaActionItem
         {
             Title = dto.Title,
@@ -144,7 +165,7 @@ public class CapaController : ControllerBase
             IsCompleted = dto.IsCompleted
         };
 
-        var added = await _capaRepository.AddActionItemAsync(id, item);
+        var added = await _capaRepository.AddActionItemAsync(id, item, organizationId.Value);
         if (!added)
             return NotFound(ApiResponse<bool>.FailureResponse($"CAPA with ID '{id}' was not found."));
 
@@ -159,7 +180,11 @@ public class CapaController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     public async Task<ActionResult<ApiResponse<bool>>> ToggleActionItem(string id, string actionItemId)
     {
-        var toggled = await _capaRepository.ToggleActionItemAsync(id, actionItemId);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to toggle an action item."));
+
+        var toggled = await _capaRepository.ToggleActionItemAsync(id, actionItemId, organizationId.Value);
         if (!toggled)
             return NotFound(ApiResponse<bool>.FailureResponse("CAPA or Action Item was not found."));
 

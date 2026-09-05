@@ -3,6 +3,7 @@ namespace ISOFlow.Domain.Entities;
 public class ManagementDecision
 {
     public string Id { get; set; } = string.Empty;
+    public int OrganizationId { get; set; }
     public string ManagementReviewId { get; set; } = string.Empty;
     public string DecisionText { get; set; } = string.Empty;
     public string Owner { get; set; } = string.Empty;

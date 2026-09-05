@@ -1,4 +1,5 @@
 using ISOFlow.Api.Auditing;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -54,6 +55,9 @@ public class OrganizationsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Organization>), 404)]
     public async Task<ActionResult<ApiResponse<Organization>>> GetById(string id)
     {
+        if (!User.IsSuperAdmin() && !User.IsSameOrganization(id))
+            return Forbid();
+
         var org = await _orgRepository.GetOrganizationByIdAsync(id);
         if (org == null)
             return NotFound(ApiResponse<Organization>.FailureResponse($"Organization with ID '{id}' was not found."));
@@ -97,6 +101,9 @@ public class OrganizationsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Organization>), 404)]
     public async Task<ActionResult<ApiResponse<Organization>>> Update(string id, [FromBody] OrganizationRequestDto dto)
     {
+        if (!User.IsSuperAdmin() && !User.IsSameOrganization(id))
+            return Forbid();
+
         var existing = await _orgRepository.GetOrganizationByIdAsync(id);
         if (existing == null)
             return NotFound(ApiResponse<Organization>.FailureResponse($"Organization with ID '{id}' was not found."));
@@ -124,6 +131,9 @@ public class OrganizationsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
     {
+        if (!User.IsSuperAdmin())
+            return Forbid();
+
         var deleted = await _orgRepository.DeleteOrganizationAsync(id);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"Organization with ID '{id}' was not found."));

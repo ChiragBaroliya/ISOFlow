@@ -5,6 +5,7 @@ namespace ISOFlow.Domain.Entities;
 public class Evidence
 {
     public string Id { get; set; } = string.Empty; // EVI-2026-001
+    public int OrganizationId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public EvidenceType Type { get; set; }

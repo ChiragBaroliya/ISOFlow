@@ -95,7 +95,7 @@ public class AccountController : Controller
         else
         {
             var org = await _orgsClient.GetOrganizationByIdAsync(user.OrganizationId);
-            HttpContext.Session.SetString("ActiveOrgId",   org?.Id   ?? user.OrganizationId);
+            HttpContext.Session.SetString("ActiveOrgId",   org?.Id.ToString() ?? user.OrganizationId);
             HttpContext.Session.SetString("ActiveOrgName", org?.Name ?? "Unknown Organization");
             HttpContext.Session.SetString("ActiveOrgCode", org?.Code ?? "N/A");
         }
@@ -144,7 +144,7 @@ public class AccountController : Controller
         var org = await _orgsClient.GetOrganizationByIdAsync(orgId);
         if (org != null)
         {
-            HttpContext.Session.SetString("ActiveOrgId",   org.Id);
+            HttpContext.Session.SetString("ActiveOrgId",   org.Id.ToString());
             HttpContext.Session.SetString("ActiveOrgName", org.Name);
             HttpContext.Session.SetString("ActiveOrgCode", org.Code);
             TempData["SuccessMessage"] = $"Switched active tenant to: {org.Name} ({org.Code})";
@@ -256,7 +256,7 @@ public class AccountController : Controller
 
     [HttpPost]
     [ActionName("Profile")]
-    public async Task<IActionResult> ProfileSave(string name, string phone, string department, string bio)
+    public async Task<IActionResult> ProfileSave(string name, string phone, string department, string bio, string? avatarUrl = null)
     {
         var userId = HttpContext.Session.GetString("ActiveUserId");
         if (string.IsNullOrEmpty(userId)) return RedirectToAction(nameof(Login));
@@ -267,12 +267,16 @@ public class AccountController : Controller
             return RedirectToAction(nameof(Profile));
         }
 
-        var success = await _usersClient.UpdateProfileAsync(userId, name.Trim(), phone?.Trim() ?? "", department?.Trim() ?? "", bio?.Trim() ?? "");
+        // avatarUrl is only sent by the client when the user picked a new photo — an empty/missing
+        // value here means "leave the current avatar untouched", not "clear it".
+        var success = await _usersClient.UpdateProfileAsync(userId, name.Trim(), phone?.Trim() ?? "", department?.Trim() ?? "", bio?.Trim() ?? "", string.IsNullOrWhiteSpace(avatarUrl) ? null : avatarUrl);
 
         if (success)
         {
             HttpContext.Session.SetString("ActiveUserName", name.Trim());
             HttpContext.Session.SetString("ActiveUserDept", department?.Trim() ?? "");
+            if (!string.IsNullOrWhiteSpace(avatarUrl))
+                HttpContext.Session.SetString("ActiveUserAvatar", avatarUrl);
             TempData["SuccessMessage"] = "Profile updated successfully.";
         }
         else

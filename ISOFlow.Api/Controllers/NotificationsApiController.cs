@@ -1,3 +1,4 @@
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -29,7 +30,8 @@ public class NotificationsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<Notification>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<Notification>>>> GetPaged([FromQuery] PagedRequestDto request)
     {
-        var paged = await _notificationRepository.GetPagedNotificationsAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _notificationRepository.GetPagedNotificationsAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<Notification>>.SuccessResponse(paged));
     }
 
@@ -40,7 +42,8 @@ public class NotificationsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<Notification>>), 200)]
     public async Task<ActionResult<ApiResponse<List<Notification>>>> GetAll()
     {
-        var list = await _notificationRepository.GetNotificationsAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var list = await _notificationRepository.GetNotificationsAsync(organizationId);
         return Ok(ApiResponse<List<Notification>>.SuccessResponse(list));
     }
 }

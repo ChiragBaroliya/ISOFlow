@@ -22,8 +22,8 @@ namespace ISOFlow.Tests;
 /// </summary>
 public class UserAuthorizationTests
 {
-    private const string AcmeOrg = "acme";
-    private const string OtherOrg = "globex";
+    private const string AcmeOrg = "1";
+    private const string OtherOrg = "2";
 
     private readonly MockUserRepository _userRepository = new();
     private readonly UsersController _controller;
@@ -246,20 +246,20 @@ public class UserAuthorizationTests
     {
         private readonly List<User> _users = new()
         {
-            new User { Id = "alex-id", Name = "Alex Morgan", Email = "alex.morgan@acme.com", Password = "Test@123", SystemRole = SystemRole.Admin, Role = "Compliance Lead", Department = "Compliance", OrganizationId = AcmeOrg },
-            new User { Id = "sarah-id", Name = "Sarah Chen", Email = "sarah.chen@acme.com", Password = "Test@123", SystemRole = SystemRole.User, Role = "Compliance Manager", Department = "Compliance", OrganizationId = AcmeOrg },
-            new User { Id = "dana-id", Name = "Dana Cross", Email = "dana@globex.com", Password = "Test@123", SystemRole = SystemRole.Admin, Role = "IT Lead", Department = "IT", OrganizationId = OtherOrg },
-            new User { Id = "root-id", Name = "Root SuperAdmin", Email = "root@isoflow.io", Password = "Test@123", SystemRole = SystemRole.SuperAdmin, Role = "Platform Admin", Department = "Platform", OrganizationId = string.Empty }
+            new User { Id = "alex-id", Name = "Alex Morgan", Email = "alex.morgan@acme.com", Password = "Test@123", SystemRole = SystemRole.Admin, Role = "Compliance Lead", Department = "Compliance", OrganizationId = int.Parse(AcmeOrg) },
+            new User { Id = "sarah-id", Name = "Sarah Chen", Email = "sarah.chen@acme.com", Password = "Test@123", SystemRole = SystemRole.User, Role = "Compliance Manager", Department = "Compliance", OrganizationId = int.Parse(AcmeOrg) },
+            new User { Id = "dana-id", Name = "Dana Cross", Email = "dana@globex.com", Password = "Test@123", SystemRole = SystemRole.Admin, Role = "IT Lead", Department = "IT", OrganizationId = int.Parse(OtherOrg) },
+            new User { Id = "root-id", Name = "Root SuperAdmin", Email = "root@isoflow.io", Password = "Test@123", SystemRole = SystemRole.SuperAdmin, Role = "Platform Admin", Department = "Platform", OrganizationId = null }
         };
 
         public User? Get(string id) => _users.FirstOrDefault(u => u.Id == id);
 
         public Task<List<User>> GetAllUsersAsync() => Task.FromResult(_users.ToList());
         public Task<PagedResponse<User>> GetPagedUsersAsync(PagedRequestDto request) => Task.FromResult(new PagedResponse<User>(_users.ToList(), _users.Count, 1, 50));
-        public Task<List<User>> GetUsersByOrganizationIdAsync(string orgId) => Task.FromResult(_users.Where(u => u.OrganizationId == orgId).ToList());
-        public Task<PagedResponse<User>> GetPagedUsersByOrganizationIdAsync(string orgId, PagedRequestDto request)
+        public Task<List<User>> GetUsersByOrganizationIdAsync(int organizationId) => Task.FromResult(_users.Where(u => u.OrganizationId == organizationId).ToList());
+        public Task<PagedResponse<User>> GetPagedUsersByOrganizationIdAsync(int organizationId, PagedRequestDto request)
         {
-            var items = _users.Where(u => u.OrganizationId == orgId).ToList();
+            var items = _users.Where(u => u.OrganizationId == organizationId).ToList();
             return Task.FromResult(new PagedResponse<User>(items, items.Count, 1, 50));
         }
         public Task<User?> GetUserByIdAsync(string id) => Task.FromResult(Get(id));

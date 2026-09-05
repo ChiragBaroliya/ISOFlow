@@ -10,7 +10,7 @@
     // SuperAdmin sees everyone; Admin/User see only their org
     var visibleUsers = currentSystemRole == "SuperAdmin"
         ? Model
-        : Model.Where(u => u.OrganizationId == currentOrgId).ToList();
+        : Model.Where(u => u.OrganizationId != null && u.OrganizationId.ToString() == currentOrgId).ToList();
 
     var organizations = ViewBag.Organizations as List<ISOFlow.Domain.Entities.Organization> ?? new List<ISOFlow.Domain.Entities.Organization>();
 }
@@ -134,7 +134,8 @@
                     <tr>
                         <td>
                             <div class="d-flex align-items-center gap-2">
-                                <img src="@user.AvatarUrl" class="rounded-circle" width="34" height="34" alt="@user.Name" />
+                                <img src="@user.AvatarUrl" class="rounded-circle" width="34" height="34" alt="@user.Name" style="object-fit:cover;"
+                                     onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=@Uri.EscapeDataString(user.Name)&background=4f46e5&color=fff';" />
                                 <span class="fw-semibold">@user.Name</span>
                             </div>
                         </td>
@@ -147,7 +148,7 @@
                         <td><span class="badge bg-primary-subtle text-primary fw-semibold">@user.Role</span></td>
                         <td class="small">@user.Department</td>
                         <td class="small">
-                            @if (string.IsNullOrEmpty(user.OrganizationId))
+                            @if (user.OrganizationId == null)
                             {
                                 <span class="badge" style="background:rgba(124,58,237,.15);color:#7c3aed;border:1px solid rgba(124,58,237,.3); font-size:.7rem;">
                                     <i class="bi bi-globe me-1"></i>Global

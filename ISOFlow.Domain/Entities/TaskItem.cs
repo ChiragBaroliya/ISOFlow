@@ -5,6 +5,7 @@ namespace ISOFlow.Domain.Entities;
 public class TaskItem
 {
     public string Id { get; set; } = string.Empty; // TASK-2026-003
+    public int OrganizationId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string ControlId { get; set; } = string.Empty;

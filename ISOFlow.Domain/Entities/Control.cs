@@ -5,6 +5,7 @@ namespace ISOFlow.Domain.Entities;
 public class Control
 {
     public string Id { get; set; } = string.Empty; // e.g., CTRL-001
+    public int OrganizationId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string RequirementId { get; set; } = string.Empty;

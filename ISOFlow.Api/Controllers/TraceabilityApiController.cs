@@ -1,3 +1,4 @@
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -28,7 +29,7 @@ public class TraceabilityController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<TraceabilityGraphDto>), 200)]
     public async Task<ActionResult<ApiResponse<TraceabilityGraphDto>>> GetGraph(string entityId)
     {
-        var graph = await _traceabilityService.GetTraceabilityChainAsync(entityId);
+        var graph = await _traceabilityService.GetTraceabilityChainAsync(entityId, User.GetOrganizationIdOrNull());
         return Ok(new ApiResponse<TraceabilityGraphDto> { Data = graph });
     }
 }

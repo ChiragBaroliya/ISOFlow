@@ -8,25 +8,25 @@ namespace ISOFlow.Api.Auditing;
 /// </summary>
 public interface IAuditSnapshotRegistry
 {
-    void Register(string entityName, Func<IServiceProvider, string, Task<object?>> resolver);
+    void Register(string entityName, Func<IServiceProvider, string, int?, Task<object?>> resolver);
     bool IsRegistered(string entityName);
-    Task<object?> ResolveAsync(IServiceProvider serviceProvider, string entityName, string entityId);
+    Task<object?> ResolveAsync(IServiceProvider serviceProvider, string entityName, string entityId, int? organizationId);
 }
 
 public class AuditSnapshotRegistry : IAuditSnapshotRegistry
 {
-    private readonly Dictionary<string, Func<IServiceProvider, string, Task<object?>>> _resolvers =
+    private readonly Dictionary<string, Func<IServiceProvider, string, int?, Task<object?>>> _resolvers =
         new(StringComparer.OrdinalIgnoreCase);
 
-    public void Register(string entityName, Func<IServiceProvider, string, Task<object?>> resolver) =>
+    public void Register(string entityName, Func<IServiceProvider, string, int?, Task<object?>> resolver) =>
         _resolvers[entityName] = resolver;
 
     public bool IsRegistered(string entityName) => _resolvers.ContainsKey(entityName);
 
-    public Task<object?> ResolveAsync(IServiceProvider serviceProvider, string entityName, string entityId)
+    public Task<object?> ResolveAsync(IServiceProvider serviceProvider, string entityName, string entityId, int? organizationId)
     {
         return _resolvers.TryGetValue(entityName, out var resolver)
-            ? resolver(serviceProvider, entityId)
+            ? resolver(serviceProvider, entityId, organizationId)
             : Task.FromResult<object?>(null);
     }
 }

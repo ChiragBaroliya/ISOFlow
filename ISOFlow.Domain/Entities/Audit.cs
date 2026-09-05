@@ -5,6 +5,7 @@ namespace ISOFlow.Domain.Entities;
 public class Audit
 {
     public string Id { get; set; } = string.Empty; // AUD-2026-001
+    public int OrganizationId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string StandardId { get; set; } = string.Empty;

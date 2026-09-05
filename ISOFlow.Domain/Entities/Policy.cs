@@ -3,6 +3,7 @@ namespace ISOFlow.Domain.Entities;
 public class Policy
 {
     public string Id { get; set; } = string.Empty; // POL-001
+    public int OrganizationId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Version { get; set; } = "1.0";

@@ -56,9 +56,10 @@ public class AuditActionFilter : IAsyncActionFilter
         var httpContext = context.HttpContext;
         var serviceProvider = httpContext.RequestServices;
         var routeEntityId = ResolveRouteId(context, auditAttribute.IdParameter);
+        var organizationId = httpContext.User.GetOrganizationIdOrNull();
 
         var oldEntity = auditAttribute.CaptureOldValue && routeEntityId != null
-            ? await _snapshotRegistry.ResolveAsync(serviceProvider, auditAttribute.Entity, routeEntityId)
+            ? await _snapshotRegistry.ResolveAsync(serviceProvider, auditAttribute.Entity, routeEntityId, organizationId)
             : null;
 
         using var connection = (DbConnection)_dbConnectionFactory.CreateConnection();
@@ -84,7 +85,7 @@ public class AuditActionFilter : IAsyncActionFilter
         if (auditAttribute.CaptureNewValue)
         {
             newEntity = !string.IsNullOrEmpty(entityId)
-                ? await _snapshotRegistry.ResolveAsync(serviceProvider, auditAttribute.Entity, entityId)
+                ? await _snapshotRegistry.ResolveAsync(serviceProvider, auditAttribute.Entity, entityId, organizationId)
                 : null;
             newEntity ??= ExtractApiResponseData(responseBody);
         }
@@ -99,7 +100,7 @@ public class AuditActionFilter : IAsyncActionFilter
                 Action = auditAttribute.Action,
                 OldEntity = oldEntity,
                 NewEntity = newEntity,
-                TenantId = httpContext.User.GetOrganizationId() ?? string.Empty,
+                OrganizationId = organizationId,
                 PerformedBy = ResolvePerformedBy(httpContext.User),
                 IpAddress = httpContext.Connection.RemoteIpAddress?.ToString(),
                 UserAgent = httpContext.Request.Headers.UserAgent.ToString(),

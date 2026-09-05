@@ -4,6 +4,7 @@
 @{
     ViewData["Title"] = "My Profile — ISOFlow";
     ViewData["ActiveMenu"] = "Profile";
+    ViewData["HideTraceabilityBar"] = true;
 
     var (sysRoleBg, sysRoleLabel, sysRoleIcon) = Model.SystemRole switch {
         SystemRole.SuperAdmin => ("rgba(124,58,237,.2)", "Super Admin", "bi-shield-fill-check"),
@@ -61,13 +62,19 @@
         <div class="card-enterprise p-4 text-center h-100">
             <!-- Avatar -->
             <div class="position-relative d-inline-block mb-3">
-                <img src="@Model.AvatarUrl" class="rounded-circle border border-3"
-                     style="width:96px; height:96px; border-color:rgba(255,255,255,.15) !important; box-shadow:0 8px 24px rgba(0,0,0,.3);"
-                     alt="@Model.Name" />
-                <span class="position-absolute bottom-0 end-0 rounded-circle d-flex align-items-center justify-content-center"
-                      style="width:26px; height:26px; background:linear-gradient(135deg,#4f46e5,#7c3aed); border:2px solid #fff;">
+                <img id="avatarPreview" src="@Model.AvatarUrl" class="rounded-circle border border-3"
+                     style="width:96px; height:96px; object-fit:cover; border-color:rgba(255,255,255,.15) !important; box-shadow:0 8px 24px rgba(0,0,0,.3);"
+                     alt="@Model.Name"
+                     onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=@Uri.EscapeDataString(Model.Name)&background=4f46e5&color=fff';" />
+                <button type="button" id="avatarUploadBtn" title="Change photo"
+                        class="position-absolute bottom-0 end-0 rounded-circle d-flex align-items-center justify-content-center border-0"
+                        style="width:26px; height:26px; background:linear-gradient(135deg,#4f46e5,#7c3aed); border:2px solid #fff; cursor:pointer; padding:0;">
                     <i class="bi bi-camera-fill" style="font-size:.6rem; color:#fff;"></i>
-                </span>
+                </button>
+                <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" />
+            </div>
+            <div id="avatarUploadHint" class="text-muted mb-2" style="font-size:.7rem; display:none;">
+                <i class="bi bi-arrow-repeat me-1"></i>Processing photo…
             </div>
 
             <h5 class="fw-bold mb-1">@Model.Name</h5>
@@ -124,6 +131,7 @@
             <p class="text-muted small mb-4">Update your display name, contact details, and bio.</p>
 
             <form asp-controller="Account" asp-action="Profile" method="post" id="profileForm">
+                <input type="hidden" name="avatarUrl" id="avatarUrlField" value="" />
                 <div class="row g-3">
                     <div class="col-sm-6">
                         <label class="form-label small fw-semibold">Full Name <span class="text-danger">*</span></label>
@@ -258,4 +266,71 @@
         const inst = bootstrap.Toast.getOrCreateInstance(t, { delay: 5000 });
         inst.hide();
     }), 5000);
+
+    // ── Avatar upload: pick an image, downscale/compress client-side into a
+    // square JPEG data URL, preview it instantly, and stash it in a hidden
+    // field so it rides along with the normal profile-save POST. ──────────
+    (function () {
+        const MAX_DIMENSION = 256;
+        const JPEG_QUALITY = 0.85;
+        const MAX_SOURCE_BYTES = 8 * 1024 * 1024; // 8MB — plenty for a phone photo
+
+        const btn      = document.getElementById('avatarUploadBtn');
+        const input    = document.getElementById('avatarFileInput');
+        const preview  = document.getElementById('avatarPreview');
+        const hidden   = document.getElementById('avatarUrlField');
+        const hint     = document.getElementById('avatarUploadHint');
+
+        function setHint(text, isError) {
+            hint.textContent = text;
+            hint.style.color = isError ? '#f87171' : '';
+            hint.style.display = text ? 'block' : 'none';
+        }
+
+        btn.addEventListener('click', () => input.click());
+
+        input.addEventListener('change', () => {
+            const file = input.files && input.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                setHint('Please choose an image file.', true);
+                input.value = '';
+                return;
+            }
+            if (file.size > MAX_SOURCE_BYTES) {
+                setHint('Image is too large (max 8MB).', true);
+                input.value = '';
+                return;
+            }
+
+            setHint('Processing photo…', false);
+
+            const reader = new FileReader();
+            reader.onerror = () => setHint('Could not read that file. Please try another image.', true);
+            reader.onload = () => {
+                const img = new Image();
+                img.onerror = () => setHint('That file does not look like a valid image.', true);
+                img.onload = () => {
+                    // Center-crop to a square, then downscale to MAX_DIMENSION x MAX_DIMENSION.
+                    const side = Math.min(img.width, img.height);
+                    const sx = (img.width - side) / 2;
+                    const sy = (img.height - side) / 2;
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = MAX_DIMENSION;
+                    canvas.height = MAX_DIMENSION;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, sx, sy, side, side, 0, 0, MAX_DIMENSION, MAX_DIMENSION);
+
+                    const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+                    preview.src = dataUrl;
+                    hidden.value = dataUrl;
+                    setHint('', false);
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    })();
 </script>

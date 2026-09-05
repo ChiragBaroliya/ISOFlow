@@ -3,6 +3,7 @@ namespace ISOFlow.Domain.Entities;
 public class ManagementReview
 {
     public string Id { get; set; } = string.Empty; // REV-2026-Q4
+    public int OrganizationId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Period { get; set; } = "Q4 2026";

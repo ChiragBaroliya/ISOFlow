@@ -5,6 +5,7 @@ namespace ISOFlow.Domain.Entities;
 public class RiskTreatment
 {
     public string Id { get; set; } = string.Empty; // TRT-001
+    public int OrganizationId { get; set; }
     public string RiskId { get; set; } = string.Empty;
     public string Option { get; set; } = "Mitigate"; // Mitigate, Avoid, Transfer, Accept
     public string TreatmentPlan { get; set; } = string.Empty;

@@ -22,7 +22,8 @@ public sealed class AuditEntryContext
 
     public string? Description { get; init; }
 
-    public required string TenantId { get; init; }
+    /// <summary>Organization this action belongs to. Null for platform-level (SuperAdmin) actions.</summary>
+    public int? OrganizationId { get; init; }
     public required string PerformedBy { get; init; }
     public string? IpAddress { get; init; }
     public string? UserAgent { get; init; }

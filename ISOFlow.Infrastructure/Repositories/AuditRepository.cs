@@ -33,11 +33,15 @@ public class AuditRepository : BaseRepository, IAuditRepository
         return new PagedResponse<AuditProgram>(paged, total, request.PageNumber, request.PageSize);
     }
 
-    public Task<List<Audit>> GetAllAuditsAsync()
+    public Task<List<Audit>> GetAllAuditsAsync(int? organizationId)
     {
-        return QueryMappedListAsync("SELECT * FROM sp_audits_get_all()", r => new Audit
+        var parameters = new DynamicParameters();
+        parameters.Add("p_organization_id", organizationId);
+
+        return QueryMappedListAsync("SELECT * FROM sp_audits_get_all(@p_organization_id)", r => new Audit
         {
             Id = r.id.ToString(),
+            OrganizationId = (int)r.organization_id,
             Code = (string)r.code,
             Title = (string)r.title,
             StandardId = r.standard_id != null ? r.standard_id.ToString() : string.Empty,
@@ -47,22 +51,24 @@ public class AuditRepository : BaseRepository, IAuditRepository
             Status = (AuditStatus)(int)r.status,
             CompletionPercentage = (int)r.completion_percentage,
             Scope = (string)r.scope ?? string.Empty
-        });
+        }, parameters);
     }
 
-    public Task<PagedResponse<Audit>> GetPagedAuditsAsync(PagedRequestDto request)
+    public Task<PagedResponse<Audit>> GetPagedAuditsAsync(PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
         parameters.Add("p_page_size", request.PageSize);
+        parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
         parameters.Add("p_status", int.TryParse(request.StatusFilter, out var st) ? st : (int?)null);
 
         return QueryPagedAsync(
-            "SELECT * FROM sp_audits_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_status)",
+            "SELECT * FROM sp_audits_get_paged(@p_page_number, @p_page_size, @p_organization_id, @p_search_term, @p_status)",
             r => new Audit
             {
                 Id = r.id.ToString(),
+                OrganizationId = (int)r.organization_id,
                 Code = (string)r.code,
                 Title = (string)r.title,
                 StandardId = r.standard_id != null ? r.standard_id.ToString() : string.Empty,
@@ -78,13 +84,18 @@ public class AuditRepository : BaseRepository, IAuditRepository
             request.PageSize);
     }
 
-    public Task<Audit?> GetAuditByIdAsync(string id)
+    public Task<Audit?> GetAuditByIdAsync(string id, int? organizationId)
     {
+        var parameters = new DynamicParameters();
+        parameters.Add("id", id);
+        parameters.Add("p_organization_id", organizationId);
+
         return QueryMappedFirstOrDefaultAsync(
-            "SELECT id, code, title, standard_id, lead_auditor, start_date, end_date, status, completion_percentage, scope FROM audits WHERE id::VARCHAR = @id OR LOWER(code) = LOWER(@id)",
+            "SELECT * FROM sp_audits_get_by_id(@id, @p_organization_id)",
             r => new Audit
             {
                 Id = r.id.ToString(),
+                OrganizationId = (int)r.organization_id,
                 Code = (string)r.code,
                 Title = (string)r.title,
                 StandardId = r.standard_id != null ? r.standard_id.ToString() : string.Empty,
@@ -95,13 +106,14 @@ public class AuditRepository : BaseRepository, IAuditRepository
                 CompletionPercentage = (int)r.completion_percentage,
                 Scope = (string)r.scope ?? string.Empty
             },
-            new { id });
+            parameters);
     }
 
     public async Task<Audit> CreateAuditAsync(Audit audit)
     {
         int.TryParse(audit.StandardId, out var stdId);
         var parameters = new DynamicParameters();
+        parameters.Add("p_organization_id", audit.OrganizationId);
         parameters.Add("p_code", audit.Code);
         parameters.Add("p_title", audit.Title);
         parameters.Add("p_standard_id", stdId > 0 ? (int?)stdId : null);
@@ -112,18 +124,17 @@ public class AuditRepository : BaseRepository, IAuditRepository
         parameters.Add("p_completion_percentage", audit.CompletionPercentage);
         parameters.Add("p_scope", audit.Scope);
 
-        var insertedId = await QuerySingleAsync<int>("INSERT INTO audits (code, title, standard_id, lead_auditor, start_date, end_date, status, completion_percentage, scope) VALUES (@p_code, @p_title, @p_standard_id, @p_lead_auditor, @p_start_date, @p_end_date, @p_status, @p_completion_percentage, @p_scope) RETURNING id", parameters);
+        var insertedId = await QuerySingleAsync<int>("SELECT sp_audits_create(@p_organization_id, @p_code, @p_title, @p_standard_id, @p_lead_auditor, @p_start_date, @p_end_date, @p_status, @p_completion_percentage, @p_scope)", parameters);
         audit.Id = insertedId.ToString();
         return audit;
     }
 
-    public async Task<Audit?> UpdateAuditAsync(Audit audit)
+    public async Task<Audit?> UpdateAuditAsync(Audit audit, int organizationId)
     {
-        int.TryParse(audit.StandardId, out var stdId);
         var parameters = new DynamicParameters();
         parameters.Add("p_id", audit.Id);
+        parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_title", audit.Title);
-        parameters.Add("p_standard_id", stdId > 0 ? (int?)stdId : null);
         parameters.Add("p_lead_auditor", audit.LeadAuditor);
         parameters.Add("p_start_date", audit.StartDate);
         parameters.Add("p_end_date", audit.EndDate);
@@ -131,23 +142,26 @@ public class AuditRepository : BaseRepository, IAuditRepository
         parameters.Add("p_completion_percentage", audit.CompletionPercentage);
         parameters.Add("p_scope", audit.Scope);
 
-        var rows = await ExecuteAsync("UPDATE audits SET title = @p_title, standard_id = @p_standard_id, lead_auditor = @p_lead_auditor, start_date = @p_start_date, end_date = @p_end_date, status = @p_status, completion_percentage = @p_completion_percentage, scope = @p_scope, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @p_id OR LOWER(code) = LOWER(@p_id)", parameters);
-        return rows > 0 ? audit : null;
+        var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_audits_update(@p_id, @p_organization_id, @p_title, @p_lead_auditor, @p_start_date, @p_end_date, @p_status, @p_completion_percentage, @p_scope)", parameters);
+        return updated ? audit : null;
     }
 
-    public async Task<bool> DeleteAuditAsync(string id)
+    public async Task<bool> DeleteAuditAsync(string id, int organizationId)
     {
-        var rows = await ExecuteAsync("DELETE FROM audits WHERE id::VARCHAR = @id OR LOWER(code) = LOWER(@id)", new { id });
-        return rows > 0;
+        return await QuerySingleOrDefaultAsync<bool>("SELECT sp_audits_delete(@id, @organizationId)", new { id, organizationId });
     }
 
-    public Task<List<Finding>> GetAllFindingsAsync()
+    public Task<List<Finding>> GetAllFindingsAsync(int? organizationId)
     {
+        var parameters = new DynamicParameters();
+        parameters.Add("p_organization_id", organizationId);
+
         return QueryMappedListAsync(
-            "SELECT id, code, title, audit_id, requirement_id, control_id, severity, status, description, root_cause, identified_date, auditor, capa_id FROM findings ORDER BY identified_date DESC",
+            "SELECT * FROM sp_findings_get_all(@p_organization_id)",
             f => new Finding
             {
                 Id = f.id.ToString(),
+                OrganizationId = (int)f.organization_id,
                 Code = (string)f.code,
                 Title = (string)f.title,
                 AuditId = f.audit_id != null ? f.audit_id.ToString() : string.Empty,
@@ -160,22 +174,25 @@ public class AuditRepository : BaseRepository, IAuditRepository
                 IdentifiedDate = (DateTime)f.identified_date,
                 Auditor = (string)f.auditor,
                 CapaId = f.capa_id != null ? f.capa_id.ToString() : string.Empty
-            });
+            },
+            parameters);
     }
 
-    public Task<PagedResponse<Finding>> GetPagedFindingsAsync(PagedRequestDto request)
+    public Task<PagedResponse<Finding>> GetPagedFindingsAsync(PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
         parameters.Add("p_page_size", request.PageSize);
+        parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
         parameters.Add("p_status", int.TryParse(request.StatusFilter, out var st) ? st : (int?)null);
 
         return QueryPagedAsync(
-            "SELECT * FROM sp_findings_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_status)",
+            "SELECT * FROM sp_findings_get_paged(@p_page_number, @p_page_size, @p_organization_id, @p_search_term, @p_status)",
             f => new Finding
             {
                 Id = f.id.ToString(),
+                OrganizationId = (int)f.organization_id,
                 Code = (string)f.code,
                 Title = (string)f.title,
                 AuditId = f.audit_id != null ? f.audit_id.ToString() : string.Empty,
@@ -194,13 +211,18 @@ public class AuditRepository : BaseRepository, IAuditRepository
             request.PageSize);
     }
 
-    public Task<Finding?> GetFindingByIdAsync(string id)
+    public Task<Finding?> GetFindingByIdAsync(string id, int? organizationId)
     {
+        var parameters = new DynamicParameters();
+        parameters.Add("id", id);
+        parameters.Add("p_organization_id", organizationId);
+
         return QueryMappedFirstOrDefaultAsync(
-            "SELECT id, code, title, audit_id, requirement_id, control_id, severity, status, description, root_cause, identified_date, auditor, capa_id FROM findings WHERE id::VARCHAR = @id OR LOWER(code) = LOWER(@id)",
+            "SELECT * FROM sp_findings_get_by_id(@id, @p_organization_id)",
             f => new Finding
             {
                 Id = f.id.ToString(),
+                OrganizationId = (int)f.organization_id,
                 Code = (string)f.code,
                 Title = (string)f.title,
                 AuditId = f.audit_id != null ? f.audit_id.ToString() : string.Empty,
@@ -214,7 +236,7 @@ public class AuditRepository : BaseRepository, IAuditRepository
                 Auditor = (string)f.auditor,
                 CapaId = f.capa_id != null ? f.capa_id.ToString() : string.Empty
             },
-            new { id });
+            parameters);
     }
 
     public async Task<Finding> CreateFindingAsync(Finding finding)
@@ -224,6 +246,7 @@ public class AuditRepository : BaseRepository, IAuditRepository
         int.TryParse(finding.ControlId, out var ctrlId);
 
         var parameters = new DynamicParameters();
+        parameters.Add("p_organization_id", finding.OrganizationId);
         parameters.Add("p_code", finding.Code);
         parameters.Add("p_title", finding.Title);
         parameters.Add("p_audit_id", auditId > 0 ? (int?)auditId : null);
@@ -235,36 +258,28 @@ public class AuditRepository : BaseRepository, IAuditRepository
         parameters.Add("p_root_cause", finding.RootCause);
         parameters.Add("p_auditor", finding.Auditor);
 
-        var insertedId = await QuerySingleAsync<int>("INSERT INTO findings (code, title, audit_id, requirement_id, control_id, severity, status, description, root_cause, auditor) VALUES (@p_code, @p_title, @p_audit_id, @p_requirement_id, @p_control_id, @p_severity, @p_status, @p_description, @p_root_cause, @p_auditor) RETURNING id", parameters);
+        var insertedId = await QuerySingleAsync<int>("SELECT sp_findings_create(@p_organization_id, @p_code, @p_title, @p_audit_id, @p_requirement_id, @p_control_id, @p_severity, @p_status, @p_description, @p_root_cause, @p_auditor)", parameters);
         finding.Id = insertedId.ToString();
         return finding;
     }
 
-    public async Task<Finding?> UpdateFindingAsync(Finding finding)
+    public async Task<Finding?> UpdateFindingAsync(Finding finding, int organizationId)
     {
-        int.TryParse(finding.AuditId, out var auditId);
-        int.TryParse(finding.RequirementId, out var reqId);
-        int.TryParse(finding.ControlId, out var ctrlId);
-
         var parameters = new DynamicParameters();
         parameters.Add("p_id", finding.Id);
+        parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_title", finding.Title);
-        parameters.Add("p_audit_id", auditId > 0 ? (int?)auditId : null);
-        parameters.Add("p_requirement_id", reqId > 0 ? (int?)reqId : null);
-        parameters.Add("p_control_id", ctrlId > 0 ? (int?)ctrlId : null);
         parameters.Add("p_severity", (int)finding.Severity);
         parameters.Add("p_status", (int)finding.Status);
         parameters.Add("p_description", finding.Description);
         parameters.Add("p_root_cause", finding.RootCause);
-        parameters.Add("p_auditor", finding.Auditor);
 
-        var rows = await ExecuteAsync("UPDATE findings SET title = @p_title, audit_id = @p_audit_id, requirement_id = @p_requirement_id, control_id = @p_control_id, severity = @p_severity, status = @p_status, description = @p_description, root_cause = @p_root_cause, auditor = @p_auditor, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @p_id OR LOWER(code) = LOWER(@p_id)", parameters);
-        return rows > 0 ? finding : null;
+        var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_findings_update(@p_id, @p_organization_id, @p_title, @p_severity, @p_status, @p_description, @p_root_cause)", parameters);
+        return updated ? finding : null;
     }
 
-    public async Task<bool> DeleteFindingAsync(string id)
+    public async Task<bool> DeleteFindingAsync(string id, int organizationId)
     {
-        var rows = await ExecuteAsync("DELETE FROM findings WHERE id::VARCHAR = @id OR LOWER(code) = LOWER(@id)", new { id });
-        return rows > 0;
+        return await QuerySingleOrDefaultAsync<bool>("SELECT sp_findings_delete(@id, @organizationId)", new { id, organizationId });
     }
 }

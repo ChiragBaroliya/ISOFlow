@@ -62,7 +62,7 @@ public class AuditLogService : IAuditLogService
 
         await _repository.InsertAsync(new AuditLog
         {
-            TenantId = context.TenantId,
+            OrganizationId = context.OrganizationId,
             ModuleName = context.ModuleName,
             EntityName = context.EntityName,
             EntityId = context.EntityId,

@@ -11,11 +11,15 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
 {
     public ManagementReviewRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
-    public Task<List<ManagementReview>> GetAllReviewsAsync()
+    public Task<List<ManagementReview>> GetAllReviewsAsync(int? organizationId)
     {
-        return QueryMappedListAsync("SELECT * FROM sp_management_reviews_get_all()", r => new ManagementReview
+        var parameters = new DynamicParameters();
+        parameters.Add("p_organization_id", organizationId);
+
+        return QueryMappedListAsync("SELECT * FROM sp_management_reviews_get_all(@p_organization_id)", r => new ManagementReview
         {
             Id = r.id.ToString(),
+            OrganizationId = (int)r.organization_id,
             Code = (string)r.code,
             Title = (string)r.title,
             Period = (string)r.period,
@@ -23,22 +27,24 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
             ChairPerson = (string)r.chair_person,
             Summary = (string)r.summary ?? string.Empty,
             Status = (string)r.status
-        });
+        }, parameters);
     }
 
-    public Task<PagedResponse<ManagementReview>> GetPagedReviewsAsync(PagedRequestDto request)
+    public Task<PagedResponse<ManagementReview>> GetPagedReviewsAsync(PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
         parameters.Add("p_page_size", request.PageSize);
+        parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
         parameters.Add("p_status", string.IsNullOrWhiteSpace(request.StatusFilter) ? null : request.StatusFilter.Trim());
 
         return QueryPagedAsync(
-            "SELECT * FROM sp_management_reviews_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_status)",
+            "SELECT * FROM sp_management_reviews_get_paged(@p_page_number, @p_page_size, @p_organization_id, @p_search_term, @p_status)",
             r => new ManagementReview
             {
                 Id = r.id.ToString(),
+                OrganizationId = (int)r.organization_id,
                 Code = (string)r.code,
                 Title = (string)r.title,
                 Period = (string)r.period,
@@ -52,13 +58,18 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
             request.PageSize);
     }
 
-    public Task<ManagementReview?> GetReviewByIdAsync(string id)
+    public Task<ManagementReview?> GetReviewByIdAsync(string id, int? organizationId)
     {
+        var parameters = new DynamicParameters();
+        parameters.Add("id", id);
+        parameters.Add("p_organization_id", organizationId);
+
         return QueryMappedFirstOrDefaultAsync(
-            "SELECT id, code, title, period, review_date, chair_person, summary, status FROM management_reviews WHERE id::VARCHAR = @id OR LOWER(code) = LOWER(@id)",
+            "SELECT * FROM sp_management_reviews_get_by_id(@id, @p_organization_id)",
             r => new ManagementReview
             {
                 Id = r.id.ToString(),
+                OrganizationId = (int)r.organization_id,
                 Code = (string)r.code,
                 Title = (string)r.title,
                 Period = (string)r.period,
@@ -67,12 +78,13 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
                 Summary = (string)r.summary ?? string.Empty,
                 Status = (string)r.status
             },
-            new { id });
+            parameters);
     }
 
     public async Task<ManagementReview> CreateReviewAsync(ManagementReview review)
     {
         var parameters = new DynamicParameters();
+        parameters.Add("p_organization_id", review.OrganizationId);
         parameters.Add("p_code", review.Code);
         parameters.Add("p_title", review.Title);
         parameters.Add("p_period", review.Period);
@@ -81,39 +93,41 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
         parameters.Add("p_summary", review.Summary);
         parameters.Add("p_status", string.IsNullOrWhiteSpace(review.Status) ? "Completed" : review.Status);
 
-        var insertedId = await QuerySingleAsync<int>("INSERT INTO management_reviews (code, title, period, review_date, chair_person, summary, status) VALUES (@p_code, @p_title, @p_period, @p_review_date, @p_chair_person, @p_summary, @p_status) RETURNING id", parameters);
+        var insertedId = await QuerySingleAsync<int>("SELECT sp_management_reviews_create(@p_organization_id, @p_code, @p_title, @p_period, @p_review_date, @p_chair_person, @p_summary, @p_status)", parameters);
         review.Id = insertedId.ToString();
         return review;
     }
 
-    public async Task<ManagementReview?> UpdateReviewAsync(ManagementReview review)
+    public async Task<ManagementReview?> UpdateReviewAsync(ManagementReview review, int organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_id", review.Id);
+        parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_title", review.Title);
-        parameters.Add("p_period", review.Period);
-        parameters.Add("p_review_date", review.ReviewDate);
         parameters.Add("p_chair_person", review.ChairPerson);
         parameters.Add("p_summary", review.Summary);
         parameters.Add("p_status", review.Status);
 
-        var rows = await ExecuteAsync("UPDATE management_reviews SET title = @p_title, period = @p_period, review_date = @p_review_date, chair_person = @p_chair_person, summary = @p_summary, status = @p_status, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @p_id OR LOWER(code) = LOWER(@p_id)", parameters);
-        return rows > 0 ? review : null;
+        var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_management_reviews_update(@p_id, @p_organization_id, @p_title, @p_chair_person, @p_summary, @p_status)", parameters);
+        return updated ? review : null;
     }
 
-    public async Task<bool> DeleteReviewAsync(string id)
+    public async Task<bool> DeleteReviewAsync(string id, int organizationId)
     {
-        var rows = await ExecuteAsync("DELETE FROM management_reviews WHERE id::VARCHAR = @id OR LOWER(code) = LOWER(@id)", new { id });
-        return rows > 0;
+        return await QuerySingleOrDefaultAsync<bool>("SELECT sp_management_reviews_delete(@id, @organizationId)", new { id, organizationId });
     }
 
-    public Task<List<Improvement>> GetAllImprovementsAsync()
+    public Task<List<Improvement>> GetAllImprovementsAsync(int? organizationId)
     {
+        var parameters = new DynamicParameters();
+        parameters.Add("p_organization_id", organizationId);
+
         return QueryMappedListAsync(
-            "SELECT id, code, title, current_state, future_state, source, expected_benefit, owner, status, related_review_id, related_finding_id FROM improvements ORDER BY id ASC",
+            "SELECT * FROM sp_improvements_get_all(@p_organization_id)",
             i => new Improvement
             {
                 Id = i.id.ToString(),
+                OrganizationId = (int)i.organization_id,
                 Code = (string)i.code,
                 Title = (string)i.title,
                 CurrentState = (string)i.current_state ?? string.Empty,
@@ -124,22 +138,25 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
                 Status = (ImprovementStatus)(int)i.status,
                 RelatedReviewId = i.related_review_id != null ? i.related_review_id.ToString() : string.Empty,
                 RelatedFindingId = i.related_finding_id != null ? i.related_finding_id.ToString() : string.Empty
-            });
+            },
+            parameters);
     }
 
-    public Task<PagedResponse<Improvement>> GetPagedImprovementsAsync(PagedRequestDto request)
+    public Task<PagedResponse<Improvement>> GetPagedImprovementsAsync(PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
         parameters.Add("p_page_size", request.PageSize);
+        parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
         parameters.Add("p_status", int.TryParse(request.StatusFilter, out var st) ? st : (int?)null);
 
         return QueryPagedAsync(
-            "SELECT * FROM sp_improvements_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_status)",
+            "SELECT * FROM sp_improvements_get_paged(@p_page_number, @p_page_size, @p_organization_id, @p_search_term, @p_status)",
             i => new Improvement
             {
                 Id = i.id.ToString(),
+                OrganizationId = (int)i.organization_id,
                 Code = (string)i.code,
                 Title = (string)i.title,
                 CurrentState = (string)i.current_state ?? string.Empty,
@@ -156,13 +173,18 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
             request.PageSize);
     }
 
-    public Task<Improvement?> GetImprovementByIdAsync(string id)
+    public Task<Improvement?> GetImprovementByIdAsync(string id, int? organizationId)
     {
+        var parameters = new DynamicParameters();
+        parameters.Add("id", id);
+        parameters.Add("p_organization_id", organizationId);
+
         return QueryMappedFirstOrDefaultAsync(
-            "SELECT id, code, title, current_state, future_state, source, expected_benefit, owner, status, related_review_id, related_finding_id FROM improvements WHERE id::VARCHAR = @id OR LOWER(code) = LOWER(@id)",
+            "SELECT * FROM sp_improvements_get_by_id(@id, @p_organization_id)",
             i => new Improvement
             {
                 Id = i.id.ToString(),
+                OrganizationId = (int)i.organization_id,
                 Code = (string)i.code,
                 Title = (string)i.title,
                 CurrentState = (string)i.current_state ?? string.Empty,
@@ -174,7 +196,7 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
                 RelatedReviewId = i.related_review_id != null ? i.related_review_id.ToString() : string.Empty,
                 RelatedFindingId = i.related_finding_id != null ? i.related_finding_id.ToString() : string.Empty
             },
-            new { id });
+            parameters);
     }
 
     public async Task<Improvement> CreateImprovementAsync(Improvement improvement)
@@ -183,6 +205,7 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
         int.TryParse(improvement.RelatedFindingId, out var findId);
 
         var parameters = new DynamicParameters();
+        parameters.Add("p_organization_id", improvement.OrganizationId);
         parameters.Add("p_code", improvement.Code);
         parameters.Add("p_title", improvement.Title);
         parameters.Add("p_current_state", improvement.CurrentState);
@@ -194,35 +217,29 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
         parameters.Add("p_related_review_id", revId > 0 ? (int?)revId : null);
         parameters.Add("p_related_finding_id", findId > 0 ? (int?)findId : null);
 
-        var insertedId = await QuerySingleAsync<int>("INSERT INTO improvements (code, title, current_state, future_state, source, expected_benefit, owner, status, related_review_id, related_finding_id) VALUES (@p_code, @p_title, @p_current_state, @p_future_state, @p_source, @p_expected_benefit, @p_owner, @p_status, @p_related_review_id, @p_related_finding_id) RETURNING id", parameters);
+        var insertedId = await QuerySingleAsync<int>("SELECT sp_improvements_create(@p_organization_id, @p_code, @p_title, @p_current_state, @p_future_state, @p_source, @p_expected_benefit, @p_owner, @p_status, @p_related_review_id, @p_related_finding_id)", parameters);
         improvement.Id = insertedId.ToString();
         return improvement;
     }
 
-    public async Task<Improvement?> UpdateImprovementAsync(Improvement improvement)
+    public async Task<Improvement?> UpdateImprovementAsync(Improvement improvement, int organizationId)
     {
-        int.TryParse(improvement.RelatedReviewId, out var revId);
-        int.TryParse(improvement.RelatedFindingId, out var findId);
-
         var parameters = new DynamicParameters();
         parameters.Add("p_id", improvement.Id);
+        parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_title", improvement.Title);
         parameters.Add("p_current_state", improvement.CurrentState);
         parameters.Add("p_future_state", improvement.FutureState);
-        parameters.Add("p_source", (int)improvement.Source);
         parameters.Add("p_expected_benefit", improvement.ExpectedBenefit);
         parameters.Add("p_owner", improvement.Owner);
         parameters.Add("p_status", (int)improvement.Status);
-        parameters.Add("p_related_review_id", revId > 0 ? (int?)revId : null);
-        parameters.Add("p_related_finding_id", findId > 0 ? (int?)findId : null);
 
-        var rows = await ExecuteAsync("UPDATE improvements SET title = @p_title, current_state = @p_current_state, future_state = @p_future_state, source = @p_source, expected_benefit = @p_expected_benefit, owner = @p_owner, status = @p_status, related_review_id = @p_related_review_id, related_finding_id = @p_related_finding_id, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @p_id OR LOWER(code) = LOWER(@p_id)", parameters);
-        return rows > 0 ? improvement : null;
+        var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_improvements_update(@p_id, @p_organization_id, @p_title, @p_current_state, @p_future_state, @p_expected_benefit, @p_owner, @p_status)", parameters);
+        return updated ? improvement : null;
     }
 
-    public async Task<bool> DeleteImprovementAsync(string id)
+    public async Task<bool> DeleteImprovementAsync(string id, int organizationId)
     {
-        var rows = await ExecuteAsync("DELETE FROM improvements WHERE id::VARCHAR = @id OR LOWER(code) = LOWER(@id)", new { id });
-        return rows > 0;
+        return await QuerySingleOrDefaultAsync<bool>("SELECT sp_improvements_delete(@id, @organizationId)", new { id, organizationId });
     }
 }

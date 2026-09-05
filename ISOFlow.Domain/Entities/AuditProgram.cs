@@ -3,6 +3,7 @@ namespace ISOFlow.Domain.Entities;
 public class AuditProgram
 {
     public string Id { get; set; } = string.Empty;
+    public int OrganizationId { get; set; }
     public string Title { get; set; } = string.Empty;
     public int Year { get; set; }
     public string Scope { get; set; } = string.Empty;

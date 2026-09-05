@@ -11,11 +11,12 @@ public class RiskRepository : BaseRepository, IRiskRepository
 {
     public RiskRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
-    public Task<List<Risk>> GetAllRisksAsync()
+    public Task<List<Risk>> GetAllRisksAsync(int? organizationId)
     {
-        return QueryMappedListAsync("SELECT * FROM sp_risks_get_all()", r => new Risk
+        return QueryMappedListAsync("SELECT * FROM sp_risks_get_all(@organizationId)", r => new Risk
         {
             Id = r.id.ToString(),
+            OrganizationId = (int)r.organization_id,
             Code = (string)r.code,
             Title = (string)r.title,
             Description = (string)r.description ?? string.Empty,
@@ -27,22 +28,24 @@ public class RiskRepository : BaseRepository, IRiskRepository
             TreatmentId = r.treatment_id != null ? r.treatment_id.ToString() : string.Empty,
             ControlId = r.control_id != null ? r.control_id.ToString() : string.Empty,
             Status = (string)r.status
-        });
+        }, new { organizationId });
     }
 
-    public Task<PagedResponse<Risk>> GetPagedRisksAsync(PagedRequestDto request)
+    public Task<PagedResponse<Risk>> GetPagedRisksAsync(PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
         parameters.Add("p_page_size", request.PageSize);
+        parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
         parameters.Add("p_status", string.IsNullOrWhiteSpace(request.StatusFilter) ? null : request.StatusFilter.Trim());
 
         return QueryPagedAsync(
-            "SELECT * FROM sp_risks_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_status)",
+            "SELECT * FROM sp_risks_get_paged(@p_page_number, @p_page_size, @p_organization_id, @p_search_term, @p_status)",
             r => new Risk
             {
                 Id = r.id.ToString(),
+                OrganizationId = (int)r.organization_id,
                 Code = (string)r.code,
                 Title = (string)r.title,
                 Description = (string)r.description ?? string.Empty,
@@ -60,13 +63,14 @@ public class RiskRepository : BaseRepository, IRiskRepository
             request.PageSize);
     }
 
-    public Task<Risk?> GetRiskByIdAsync(string id)
+    public Task<Risk?> GetRiskByIdAsync(string id, int? organizationId)
     {
         return QueryMappedFirstOrDefaultAsync(
-            "SELECT * FROM sp_risks_get_by_id(@id)",
+            "SELECT * FROM sp_risks_get_by_id(@id, @organizationId)",
             r => new Risk
             {
                 Id = r.id.ToString(),
+                OrganizationId = (int)r.organization_id,
                 Code = (string)r.code,
                 Title = (string)r.title,
                 Description = (string)r.description ?? string.Empty,
@@ -79,13 +83,14 @@ public class RiskRepository : BaseRepository, IRiskRepository
                 ControlId = r.control_id != null ? r.control_id.ToString() : string.Empty,
                 Status = (string)r.status
             },
-            new { id });
+            new { id, organizationId });
     }
 
     public async Task<Risk> CreateRiskAsync(Risk risk, RiskTreatment? treatment = null)
     {
         int.TryParse(risk.ControlId, out var ctrlId);
         var parameters = new DynamicParameters();
+        parameters.Add("p_organization_id", risk.OrganizationId);
         parameters.Add("p_code", risk.Code);
         parameters.Add("p_title", risk.Title);
         parameters.Add("p_description", risk.Description);
@@ -97,12 +102,14 @@ public class RiskRepository : BaseRepository, IRiskRepository
         parameters.Add("p_control_id", ctrlId > 0 ? (int?)ctrlId : null);
         parameters.Add("p_status", risk.Status);
 
-        var insertedId = await QuerySingleAsync<int>("SELECT sp_risks_create(@p_code, @p_title, @p_description, @p_asset, @p_department, @p_owner, @p_likelihood, @p_impact, @p_control_id, @p_status)", parameters);
+        var insertedId = await QuerySingleAsync<int>("SELECT sp_risks_create(@p_organization_id, @p_code, @p_title, @p_description, @p_asset, @p_department, @p_owner, @p_likelihood, @p_impact, @p_control_id, @p_status)", parameters);
         risk.Id = insertedId.ToString();
 
         if (treatment != null)
         {
+            treatment.OrganizationId = risk.OrganizationId;
             var trtParams = new DynamicParameters();
+            trtParams.Add("p_organization_id", risk.OrganizationId);
             trtParams.Add("p_risk_id", insertedId);
             trtParams.Add("p_option", treatment.Option);
             trtParams.Add("p_treatment_plan", treatment.TreatmentPlan);
@@ -112,7 +119,7 @@ public class RiskRepository : BaseRepository, IRiskRepository
             trtParams.Add("p_residual_impact", (int)treatment.ResidualImpact);
             trtParams.Add("p_status", treatment.Status);
 
-            var trtId = await QuerySingleAsync<int>("SELECT sp_risk_treatments_create(@p_risk_id, @p_option, @p_treatment_plan, @p_owner, @p_target_date, @p_residual_likelihood, @p_residual_impact, @p_status)", trtParams);
+            var trtId = await QuerySingleAsync<int>("SELECT sp_risk_treatments_create(@p_organization_id, @p_risk_id, @p_option, @p_treatment_plan, @p_owner, @p_target_date, @p_residual_likelihood, @p_residual_impact, @p_status)", trtParams);
             treatment.Id = trtId.ToString();
             treatment.RiskId = risk.Id;
             risk.TreatmentId = treatment.Id;
@@ -121,11 +128,12 @@ public class RiskRepository : BaseRepository, IRiskRepository
         return risk;
     }
 
-    public async Task<Risk?> UpdateRiskAsync(Risk risk, RiskTreatment? treatment = null)
+    public async Task<Risk?> UpdateRiskAsync(Risk risk, int organizationId, RiskTreatment? treatment = null)
     {
         int.TryParse(risk.ControlId, out var ctrlId);
         var parameters = new DynamicParameters();
         parameters.Add("p_id", risk.Id);
+        parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_title", risk.Title);
         parameters.Add("p_description", risk.Description);
         parameters.Add("p_asset", risk.Asset);
@@ -136,22 +144,23 @@ public class RiskRepository : BaseRepository, IRiskRepository
         parameters.Add("p_control_id", ctrlId > 0 ? (int?)ctrlId : null);
         parameters.Add("p_status", risk.Status);
 
-        var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_risks_update(@p_id, @p_title, @p_description, @p_asset, @p_department, @p_owner, @p_likelihood, @p_impact, @p_control_id, @p_status)", parameters);
+        var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_risks_update(@p_id, @p_organization_id, @p_title, @p_description, @p_asset, @p_department, @p_owner, @p_likelihood, @p_impact, @p_control_id, @p_status)", parameters);
         return updated ? risk : null;
     }
 
-    public async Task<bool> DeleteRiskAsync(string id)
+    public async Task<bool> DeleteRiskAsync(string id, int organizationId)
     {
-        return await QuerySingleOrDefaultAsync<bool>("SELECT sp_risks_delete(@id)", new { id });
+        return await QuerySingleOrDefaultAsync<bool>("SELECT sp_risks_delete(@id, @organizationId)", new { id, organizationId });
     }
 
-    public Task<RiskTreatment?> GetRiskTreatmentByRiskIdAsync(string riskId)
+    public Task<RiskTreatment?> GetRiskTreatmentByRiskIdAsync(string riskId, int? organizationId)
     {
         return QueryMappedFirstOrDefaultAsync(
-            "SELECT * FROM sp_risk_treatments_get_by_risk_id(@riskId)",
+            "SELECT * FROM sp_risk_treatments_get_by_risk_id(@riskId, @organizationId)",
             t => new RiskTreatment
             {
                 Id = t.id.ToString(),
+                OrganizationId = (int)t.organization_id,
                 RiskId = t.risk_id.ToString(),
                 Option = (string)t.option,
                 TreatmentPlan = (string)t.treatment_plan,
@@ -161,16 +170,17 @@ public class RiskRepository : BaseRepository, IRiskRepository
                 ResidualImpact = (RiskImpact)(int)t.residual_impact,
                 Status = (string)t.status
             },
-            new { riskId });
+            new { riskId, organizationId });
     }
 
-    public Task<List<RiskTreatment>> GetAllRiskTreatmentsAsync()
+    public Task<List<RiskTreatment>> GetAllRiskTreatmentsAsync(int? organizationId)
     {
         return QueryMappedListAsync(
-            "SELECT id, risk_id, option, treatment_plan, owner, target_date, residual_likelihood, residual_impact, status FROM risk_treatments ORDER BY id ASC",
+            "SELECT id, organization_id, risk_id, option, treatment_plan, owner, target_date, residual_likelihood, residual_impact, status FROM risk_treatments WHERE (@organizationId IS NULL OR organization_id = @organizationId) ORDER BY id ASC",
             t => new RiskTreatment
             {
                 Id = t.id.ToString(),
+                OrganizationId = (int)t.organization_id,
                 RiskId = t.risk_id.ToString(),
                 Option = (string)t.option,
                 TreatmentPlan = (string)t.treatment_plan,
@@ -179,20 +189,23 @@ public class RiskRepository : BaseRepository, IRiskRepository
                 ResidualLikelihood = (RiskLikelihood)(int)t.residual_likelihood,
                 ResidualImpact = (RiskImpact)(int)t.residual_impact,
                 Status = (string)t.status
-            });
+            },
+            new { organizationId });
     }
 
-    public Task<PagedResponse<RiskTreatment>> GetPagedRiskTreatmentsAsync(PagedRequestDto request)
+    public Task<PagedResponse<RiskTreatment>> GetPagedRiskTreatmentsAsync(PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
         parameters.Add("p_page_size", request.PageSize);
+        parameters.Add("p_organization_id", organizationId);
 
         return QueryPagedAsync(
-            "SELECT * FROM sp_risk_treatments_get_paged(@p_page_number, @p_page_size)",
+            "SELECT * FROM sp_risk_treatments_get_paged(@p_page_number, @p_page_size, @p_organization_id)",
             t => new RiskTreatment
             {
                 Id = t.id.ToString(),
+                OrganizationId = (int)t.organization_id,
                 RiskId = t.risk_id.ToString(),
                 Option = (string)t.option,
                 TreatmentPlan = (string)t.treatment_plan,
@@ -207,14 +220,14 @@ public class RiskRepository : BaseRepository, IRiskRepository
             request.PageSize);
     }
 
-    public Task<List<RiskMatrixCellDto>> GetRiskMatrixDataAsync()
+    public Task<List<RiskMatrixCellDto>> GetRiskMatrixDataAsync(int? organizationId)
     {
-        return QueryMappedListAsync("SELECT * FROM sp_get_risk_heatmap_matrix()", r => new RiskMatrixCellDto
+        return QueryMappedListAsync("SELECT * FROM sp_get_risk_heatmap_matrix(@organizationId)", r => new RiskMatrixCellDto
         {
             Likelihood = (int)r.likelihood,
             Impact = (int)r.impact,
             Count = (int)(r.risk_count ?? 0),
             RiskCodes = ((string)r.risk_ids ?? string.Empty).Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList()
-        });
+        }, new { organizationId });
     }
 }

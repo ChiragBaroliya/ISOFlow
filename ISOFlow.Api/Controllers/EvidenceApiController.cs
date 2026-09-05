@@ -1,4 +1,5 @@
 using ISOFlow.Api.Auditing;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -31,7 +32,8 @@ public class EvidenceController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<Evidence>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<Evidence>>>> GetPaged([FromQuery] PagedRequestDto request)
     {
-        var paged = await _evidenceRepository.GetPagedEvidenceAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _evidenceRepository.GetPagedEvidenceAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<Evidence>>.SuccessResponse(paged));
     }
 
@@ -42,7 +44,8 @@ public class EvidenceController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<Evidence>>), 200)]
     public async Task<ActionResult<ApiResponse<List<Evidence>>>> GetAll()
     {
-        var evidence = await _evidenceRepository.GetAllEvidenceAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var evidence = await _evidenceRepository.GetAllEvidenceAsync(organizationId);
         return Ok(ApiResponse<List<Evidence>>.SuccessResponse(evidence));
     }
 
@@ -54,7 +57,8 @@ public class EvidenceController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Evidence>), 404)]
     public async Task<ActionResult<ApiResponse<Evidence>>> GetById(string id)
     {
-        var evidence = await _evidenceRepository.GetEvidenceByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var evidence = await _evidenceRepository.GetEvidenceByIdAsync(id, organizationId);
         if (evidence == null)
             return NotFound(ApiResponse<Evidence>.FailureResponse($"Evidence with ID '{id}' was not found."));
 
@@ -69,6 +73,10 @@ public class EvidenceController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Evidence>), 201)]
     public async Task<ActionResult<ApiResponse<Evidence>>> Create([FromBody] EvidenceRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Evidence>.FailureResponse("A specific organization context is required to create this record."));
+
         var entity = new Evidence
         {
             Code = dto.Code,
@@ -82,7 +90,8 @@ public class EvidenceController : ControllerBase
             UploadDate = dto.UploadDate,
             ExpiryDate = dto.ExpiryDate,
             Status = dto.Status,
-            FileUrl = dto.FileUrl
+            FileUrl = dto.FileUrl,
+            OrganizationId = organizationId.Value
         };
 
         var created = await _evidenceRepository.CreateEvidenceAsync(entity);
@@ -98,7 +107,11 @@ public class EvidenceController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Evidence>), 404)]
     public async Task<ActionResult<ApiResponse<Evidence>>> Update(string id, [FromBody] EvidenceRequestDto dto)
     {
-        var existing = await _evidenceRepository.GetEvidenceByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Evidence>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _evidenceRepository.GetEvidenceByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<Evidence>.FailureResponse($"Evidence with ID '{id}' was not found."));
 
@@ -112,7 +125,7 @@ public class EvidenceController : ControllerBase
         existing.Status = dto.Status;
         existing.FileUrl = dto.FileUrl;
 
-        var updated = await _evidenceRepository.UpdateEvidenceAsync(existing);
+        var updated = await _evidenceRepository.UpdateEvidenceAsync(existing, organizationId.Value);
         return Ok(ApiResponse<Evidence>.SuccessResponse(updated!, "Evidence updated successfully."));
     }
 
@@ -125,7 +138,11 @@ public class EvidenceController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
     {
-        var deleted = await _evidenceRepository.DeleteEvidenceAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var deleted = await _evidenceRepository.DeleteEvidenceAsync(id, organizationId.Value);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"Evidence with ID '{id}' was not found."));
 

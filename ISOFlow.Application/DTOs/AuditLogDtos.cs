@@ -38,7 +38,7 @@ public class AuditLogFieldChangeDto
 /// <summary>Full detail of a single audit entry, including the field-level diff.</summary>
 public class AuditLogDetailDto : AuditLogDto
 {
-    public string TenantId { get; set; } = string.Empty;
+    public int? OrganizationId { get; set; }
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
     public string? CorrelationId { get; set; }

@@ -1,4 +1,5 @@
 using ISOFlow.Api.Auditing;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -32,7 +33,8 @@ public class ControlsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<Control>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<Control>>>> GetPaged([FromQuery] PagedRequestDto request)
     {
-        var paged = await _controlRepository.GetPagedControlsAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _controlRepository.GetPagedControlsAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<Control>>.SuccessResponse(paged));
     }
 
@@ -43,7 +45,8 @@ public class ControlsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<Control>>), 200)]
     public async Task<ActionResult<ApiResponse<List<Control>>>> GetAll()
     {
-        var controls = await _controlRepository.GetAllControlsAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var controls = await _controlRepository.GetAllControlsAsync(organizationId);
         return Ok(ApiResponse<List<Control>>.SuccessResponse(controls));
     }
 
@@ -56,7 +59,8 @@ public class ControlsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Control>), 404)]
     public async Task<ActionResult<ApiResponse<Control>>> GetById(string id)
     {
-        var control = await _controlRepository.GetControlByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var control = await _controlRepository.GetControlByIdAsync(id, organizationId);
         if (control == null)
             return NotFound(ApiResponse<Control>.FailureResponse($"Control with ID '{id}' was not found."));
 
@@ -71,6 +75,10 @@ public class ControlsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Control>), 201)]
     public async Task<ActionResult<ApiResponse<Control>>> Create([FromBody] ControlRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Control>.FailureResponse("A specific organization context is required to create this record."));
+
         var entity = new Control
         {
             Code = dto.Code,
@@ -83,7 +91,8 @@ public class ControlsController : ControllerBase
             Owner = dto.Owner,
             CompliancePercentage = dto.CompliancePercentage,
             IsApplicable = dto.IsApplicable,
-            Justification = dto.Justification
+            Justification = dto.Justification,
+            OrganizationId = organizationId.Value
         };
 
         var created = await _controlRepository.CreateControlAsync(entity);
@@ -99,7 +108,11 @@ public class ControlsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Control>), 404)]
     public async Task<ActionResult<ApiResponse<Control>>> Update(string id, [FromBody] ControlRequestDto dto)
     {
-        var existing = await _controlRepository.GetControlByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Control>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _controlRepository.GetControlByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<Control>.FailureResponse($"Control with ID '{id}' was not found."));
 
@@ -113,7 +126,7 @@ public class ControlsController : ControllerBase
         existing.IsApplicable = dto.IsApplicable;
         existing.Justification = dto.Justification;
 
-        var updated = await _controlRepository.UpdateControlAsync(existing);
+        var updated = await _controlRepository.UpdateControlAsync(existing, organizationId.Value);
         return Ok(ApiResponse<Control>.SuccessResponse(updated!, "Control updated successfully."));
     }
 
@@ -126,7 +139,11 @@ public class ControlsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
     {
-        var deleted = await _controlRepository.DeleteControlAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var deleted = await _controlRepository.DeleteControlAsync(id, organizationId.Value);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"Control with ID '{id}' was not found."));
 
@@ -140,7 +157,8 @@ public class ControlsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<StatementOfApplicability>>), 200)]
     public async Task<ActionResult<ApiResponse<List<StatementOfApplicability>>>> GetSoa()
     {
-        var soa = await _controlRepository.GetStatementOfApplicabilityAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var soa = await _controlRepository.GetStatementOfApplicabilityAsync(organizationId);
         return Ok(ApiResponse<List<StatementOfApplicability>>.SuccessResponse(soa));
     }
 
@@ -151,7 +169,8 @@ public class ControlsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<RelatedItemsCountDto>), 200)]
     public async Task<ActionResult<ApiResponse<RelatedItemsCountDto>>> GetRelatedItems(string id)
     {
-        var counts = await _controlRepository.GetRelatedItemsCountAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var counts = await _controlRepository.GetRelatedItemsCountAsync(id, organizationId);
         return Ok(ApiResponse<RelatedItemsCountDto>.SuccessResponse(counts));
     }
 }

@@ -1,4 +1,5 @@
 using ISOFlow.Api.Auditing;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -33,7 +34,8 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<Policy>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<Policy>>>> GetPagedPolicies([FromQuery] PagedRequestDto request)
     {
-        var paged = await _documentRepository.GetPagedPoliciesAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _documentRepository.GetPagedPoliciesAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<Policy>>.SuccessResponse(paged));
     }
 
@@ -45,7 +47,8 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Policy>), 404)]
     public async Task<ActionResult<ApiResponse<Policy>>> GetPolicyById(string id)
     {
-        var policy = await _documentRepository.GetPolicyByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var policy = await _documentRepository.GetPolicyByIdAsync(id, organizationId);
         if (policy == null)
             return NotFound(ApiResponse<Policy>.FailureResponse($"Policy with ID '{id}' was not found."));
 
@@ -60,6 +63,10 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Policy>), 201)]
     public async Task<ActionResult<ApiResponse<Policy>>> CreatePolicy([FromBody] PolicyRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Policy>.FailureResponse("A specific organization context is required to create this record."));
+
         var policy = new Policy
         {
             Code = dto.Code,
@@ -71,7 +78,8 @@ public class DocumentsController : ControllerBase
             Status = dto.Status,
             FilePath = dto.FilePath,
             LinkedControlIds = dto.LinkedControlIds ?? new List<string>(),
-            LinkedProcessIds = dto.LinkedProcessIds ?? new List<string>()
+            LinkedProcessIds = dto.LinkedProcessIds ?? new List<string>(),
+            OrganizationId = organizationId.Value
         };
 
         var created = await _documentRepository.CreatePolicyAsync(policy);
@@ -87,7 +95,11 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Policy>), 404)]
     public async Task<ActionResult<ApiResponse<Policy>>> UpdatePolicy(string id, [FromBody] PolicyRequestDto dto)
     {
-        var existing = await _documentRepository.GetPolicyByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Policy>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _documentRepository.GetPolicyByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<Policy>.FailureResponse($"Policy with ID '{id}' was not found."));
 
@@ -101,7 +113,7 @@ public class DocumentsController : ControllerBase
         existing.LinkedControlIds = dto.LinkedControlIds ?? new List<string>();
         existing.LinkedProcessIds = dto.LinkedProcessIds ?? new List<string>();
 
-        var updated = await _documentRepository.UpdatePolicyAsync(existing);
+        var updated = await _documentRepository.UpdatePolicyAsync(existing, organizationId.Value);
         return Ok(ApiResponse<Policy>.SuccessResponse(updated!, "Policy updated successfully."));
     }
 
@@ -114,7 +126,11 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> DeletePolicy(string id)
     {
-        var deleted = await _documentRepository.DeletePolicyAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var deleted = await _documentRepository.DeletePolicyAsync(id, organizationId.Value);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"Policy with ID '{id}' was not found."));
 
@@ -130,7 +146,8 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<Process>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<Process>>>> GetPagedProcesses([FromQuery] PagedRequestDto request)
     {
-        var paged = await _documentRepository.GetPagedProcessesAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _documentRepository.GetPagedProcessesAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<Process>>.SuccessResponse(paged));
     }
 
@@ -142,7 +159,8 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Process>), 404)]
     public async Task<ActionResult<ApiResponse<Process>>> GetProcessById(string id)
     {
-        var process = await _documentRepository.GetProcessByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var process = await _documentRepository.GetProcessByIdAsync(id, organizationId);
         if (process == null)
             return NotFound(ApiResponse<Process>.FailureResponse($"Process with ID '{id}' was not found."));
 
@@ -157,6 +175,10 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Process>), 201)]
     public async Task<ActionResult<ApiResponse<Process>>> CreateProcess([FromBody] ProcessRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Process>.FailureResponse("A specific organization context is required to create this record."));
+
         var process = new Process
         {
             Code = dto.Code,
@@ -168,7 +190,8 @@ public class DocumentsController : ControllerBase
             Status = dto.Status,
             Steps = dto.Steps ?? new List<string>(),
             PolicyId = dto.PolicyId,
-            ControlIds = dto.ControlIds ?? new List<string>()
+            ControlIds = dto.ControlIds ?? new List<string>(),
+            OrganizationId = organizationId.Value
         };
 
         var created = await _documentRepository.CreateProcessAsync(process);
@@ -184,7 +207,11 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Process>), 404)]
     public async Task<ActionResult<ApiResponse<Process>>> UpdateProcess(string id, [FromBody] ProcessRequestDto dto)
     {
-        var existing = await _documentRepository.GetProcessByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Process>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _documentRepository.GetProcessByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<Process>.FailureResponse($"Process with ID '{id}' was not found."));
 
@@ -198,7 +225,7 @@ public class DocumentsController : ControllerBase
         existing.PolicyId = dto.PolicyId;
         existing.ControlIds = dto.ControlIds ?? new List<string>();
 
-        var updated = await _documentRepository.UpdateProcessAsync(existing);
+        var updated = await _documentRepository.UpdateProcessAsync(existing, organizationId.Value);
         return Ok(ApiResponse<Process>.SuccessResponse(updated!, "Process updated successfully."));
     }
 
@@ -211,7 +238,11 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> ArchiveProcess(string id)
     {
-        var archived = await _documentRepository.ArchiveProcessAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to archive this record."));
+
+        var archived = await _documentRepository.ArchiveProcessAsync(id, organizationId.Value);
         if (!archived)
             return NotFound(ApiResponse<bool>.FailureResponse($"Process with ID '{id}' was not found."));
 

@@ -13,49 +13,51 @@ public static class AuditSnapshotRegistrations
 {
     public static void RegisterAll(IAuditSnapshotRegistry registry)
     {
-        registry.Register("Control", async (sp, id) =>
-            (object?)await sp.GetRequiredService<IControlRepository>().GetControlByIdAsync(id));
+        registry.Register("Control", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<IControlRepository>().GetControlByIdAsync(id, organizationId));
 
-        registry.Register("Risk", async (sp, id) =>
-            (object?)await sp.GetRequiredService<IRiskRepository>().GetRiskByIdAsync(id));
+        registry.Register("Risk", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<IRiskRepository>().GetRiskByIdAsync(id, organizationId));
 
-        registry.Register("Standard", async (sp, id) =>
-            (object?)await sp.GetRequiredService<IStandardRepository>().GetStandardByIdAsync(id));
+        registry.Register("Standard", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<IStandardRepository>().GetStandardByIdAsync(id, organizationId));
 
-        registry.Register("Requirement", async (sp, id) =>
-            (object?)await sp.GetRequiredService<IStandardRepository>().GetRequirementByIdAsync(id));
+        registry.Register("Requirement", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<IStandardRepository>().GetRequirementByIdAsync(id, organizationId));
 
-        registry.Register("Policy", async (sp, id) =>
-            (object?)await sp.GetRequiredService<IDocumentRepository>().GetPolicyByIdAsync(id));
+        registry.Register("Policy", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<IDocumentRepository>().GetPolicyByIdAsync(id, organizationId));
 
-        registry.Register("Process", async (sp, id) =>
-            (object?)await sp.GetRequiredService<IDocumentRepository>().GetProcessByIdAsync(id));
+        registry.Register("Process", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<IDocumentRepository>().GetProcessByIdAsync(id, organizationId));
 
-        registry.Register("Task", async (sp, id) =>
-            (object?)await sp.GetRequiredService<ITaskRepository>().GetTaskByIdAsync(id));
+        registry.Register("Task", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<ITaskRepository>().GetTaskByIdAsync(id, organizationId));
 
-        registry.Register("Evidence", async (sp, id) =>
-            (object?)await sp.GetRequiredService<IEvidenceRepository>().GetEvidenceByIdAsync(id));
+        registry.Register("Evidence", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<IEvidenceRepository>().GetEvidenceByIdAsync(id, organizationId));
 
-        registry.Register("Audit", async (sp, id) =>
-            (object?)await sp.GetRequiredService<IAuditRepository>().GetAuditByIdAsync(id));
+        registry.Register("Audit", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<IAuditRepository>().GetAuditByIdAsync(id, organizationId));
 
-        registry.Register("Finding", async (sp, id) =>
-            (object?)await sp.GetRequiredService<IAuditRepository>().GetFindingByIdAsync(id));
+        registry.Register("Finding", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<IAuditRepository>().GetFindingByIdAsync(id, organizationId));
 
-        registry.Register("Capa", async (sp, id) =>
-            (object?)await sp.GetRequiredService<ICapaRepository>().GetCapaByIdAsync(id));
+        registry.Register("Capa", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<ICapaRepository>().GetCapaByIdAsync(id, organizationId));
 
-        registry.Register("ManagementReview", async (sp, id) =>
-            (object?)await sp.GetRequiredService<IManagementReviewRepository>().GetReviewByIdAsync(id));
+        registry.Register("ManagementReview", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<IManagementReviewRepository>().GetReviewByIdAsync(id, organizationId));
 
-        registry.Register("Improvement", async (sp, id) =>
-            (object?)await sp.GetRequiredService<IManagementReviewRepository>().GetImprovementByIdAsync(id));
+        registry.Register("Improvement", async (sp, id, organizationId) =>
+            (object?)await sp.GetRequiredService<IManagementReviewRepository>().GetImprovementByIdAsync(id, organizationId));
 
-        registry.Register("Organization", async (sp, id) =>
+        // Organization and User are not organization-scoped entities themselves — their GetById
+        // methods take no organizationId parameter, so it's simply ignored here.
+        registry.Register("Organization", async (sp, id, _) =>
             (object?)await sp.GetRequiredService<IOrganizationRepository>().GetOrganizationByIdAsync(id));
 
-        registry.Register("User", async (sp, id) =>
+        registry.Register("User", async (sp, id, _) =>
             (object?)await sp.GetRequiredService<IUserRepository>().GetUserByIdAsync(id));
     }
 }

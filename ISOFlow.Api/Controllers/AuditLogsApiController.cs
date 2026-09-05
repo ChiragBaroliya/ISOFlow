@@ -1,3 +1,4 @@
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -34,7 +35,8 @@ public class AuditLogsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), 403)]
     public async Task<ActionResult<ApiResponse<PagedResponse<AuditLogDto>>>> GetPaged([FromQuery] AuditLogFilterDto filter)
     {
-        var paged = await _auditLogRepository.GetPagedAsync(filter);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _auditLogRepository.GetPagedAsync(filter, organizationId);
         return Ok(ApiResponse<PagedResponse<AuditLogDto>>.SuccessResponse(paged));
     }
 
@@ -49,7 +51,8 @@ public class AuditLogsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<AuditLogDetailDto>), 404)]
     public async Task<ActionResult<ApiResponse<AuditLogDetailDto>>> GetById(string id)
     {
-        var detail = await _auditLogRepository.GetByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var detail = await _auditLogRepository.GetByIdAsync(id, organizationId);
         if (detail == null)
             return NotFound(ApiResponse<AuditLogDetailDto>.FailureResponse($"Audit log entry with ID '{id}' was not found."));
 
@@ -67,7 +70,8 @@ public class AuditLogsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), 401)]
     public async Task<ActionResult<ApiResponse<List<AuditLogDto>>>> GetHistory(string entityName, string entityId)
     {
-        var history = await _auditLogRepository.GetHistoryAsync(entityName, entityId);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var history = await _auditLogRepository.GetHistoryAsync(entityName, entityId, organizationId);
         return Ok(ApiResponse<List<AuditLogDto>>.SuccessResponse(history));
     }
 }

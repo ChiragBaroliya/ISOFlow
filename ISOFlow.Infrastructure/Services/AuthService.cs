@@ -174,7 +174,7 @@ public class AuthService : IAuthService
         return new UserProfileDto
         {
             Id = user.Id,
-            OrganizationId = user.OrganizationId,
+            OrganizationId = user.OrganizationId?.ToString() ?? string.Empty,
             Name = user.Name,
             Email = user.Email,
             SystemRole = user.SystemRole,

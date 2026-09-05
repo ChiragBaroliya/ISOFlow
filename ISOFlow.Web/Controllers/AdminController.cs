@@ -35,7 +35,7 @@ public class AdminController : Controller
         {
             if (user.SystemRole == SystemRole.SuperAdmin)
             {
-                user.OrganizationId = "";
+                user.OrganizationId = null;
             }
             await _usersClient.CreateUserAsync(user);
             TempData["SuccessMessage"] = $"User '{user.Name}' created successfully!";
@@ -50,7 +50,7 @@ public class AdminController : Controller
         {
             if (user.SystemRole == SystemRole.SuperAdmin)
             {
-                user.OrganizationId = "";
+                user.OrganizationId = null;
             }
             var updated = await _usersClient.UpdateUserAsync(user);
             if (updated != null)

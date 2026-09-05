@@ -29,13 +29,14 @@ public class DatabaseCrudTests
         var repo = new StandardRepository(_dbFactory);
 
         // 1. Read
-        var all = await repo.GetAllStandardsAsync();
+        var all = await repo.GetAllStandardsAsync(1);
         Assert.NotEmpty(all);
         _output.WriteLine($"Total standards in DB: {all.Count}");
 
         // 2. Create
         var newStd = new Standard
         {
+            OrganizationId = 1,
             Code = $"ISO-TEST-{Guid.NewGuid().ToString()[..6].ToUpper()}",
             Name = "Temporary Test Standard for DB CRUD",
             Revision = "2026",
@@ -48,22 +49,22 @@ public class DatabaseCrudTests
         _output.WriteLine($"Created standard in DB with ID: {created.Id}, Code: {created.Code}");
 
         // 3. Read by ID
-        var fetched = await repo.GetStandardByIdAsync(created.Id);
+        var fetched = await repo.GetStandardByIdAsync(created.Id, 1);
         Assert.NotNull(fetched);
         Assert.Equal(newStd.Code, fetched.Code);
 
         // 4. Update
         fetched.Name = "Updated Test Standard Title in DB";
-        var updated = await repo.UpdateStandardAsync(fetched);
+        var updated = await repo.UpdateStandardAsync(fetched, 1);
         Assert.NotNull(updated);
         Assert.Equal("Updated Test Standard Title in DB", updated.Name);
 
         // 5. Delete
-        var deleted = await repo.DeleteStandardAsync(created.Id);
+        var deleted = await repo.DeleteStandardAsync(created.Id, 1);
         Assert.True(deleted);
         _output.WriteLine("Deleted test standard from DB.");
 
-        var verifyDeleted = await repo.GetStandardByIdAsync(created.Id);
+        var verifyDeleted = await repo.GetStandardByIdAsync(created.Id, 1);
         Assert.Null(verifyDeleted);
     }
 
@@ -73,13 +74,14 @@ public class DatabaseCrudTests
         var repo = new ControlRepository(_dbFactory);
 
         // 1. Read
-        var all = await repo.GetAllControlsAsync();
+        var all = await repo.GetAllControlsAsync(1);
         Assert.NotEmpty(all);
         _output.WriteLine($"Total controls in DB: {all.Count}");
 
         // 2. Create
         var newCtrl = new Control
         {
+            OrganizationId = 1,
             Code = $"CTRL-T-{Guid.NewGuid().ToString()[..6].ToUpper()}",
             Title = "Database CRUD Test Control",
             Category = "Testing Controls",
@@ -95,19 +97,19 @@ public class DatabaseCrudTests
         _output.WriteLine($"Created control in DB with ID: {created.Id}, Code: {created.Code}");
 
         // 3. Read by ID
-        var fetched = await repo.GetControlByIdAsync(created.Id);
+        var fetched = await repo.GetControlByIdAsync(created.Id, 1);
         Assert.NotNull(fetched);
         Assert.Equal(newCtrl.Code, fetched.Code);
 
         // 4. Update
         fetched.Title = "Updated Control Title in DB";
         fetched.Status = ControlStatus.Implemented;
-        var updated = await repo.UpdateControlAsync(fetched);
+        var updated = await repo.UpdateControlAsync(fetched, 1);
         Assert.NotNull(updated);
         Assert.Equal("Updated Control Title in DB", updated.Title);
 
         // 5. Delete
-        var deleted = await repo.DeleteControlAsync(created.Id);
+        var deleted = await repo.DeleteControlAsync(created.Id, 1);
         Assert.True(deleted);
         _output.WriteLine("Deleted test control from DB.");
     }
@@ -118,13 +120,14 @@ public class DatabaseCrudTests
         var repo = new RiskRepository(_dbFactory);
 
         // 1. Read
-        var all = await repo.GetAllRisksAsync();
+        var all = await repo.GetAllRisksAsync(1);
         Assert.NotEmpty(all);
         _output.WriteLine($"Total risks in DB: {all.Count}");
 
         // 2. Create
         var newRisk = new Risk
         {
+            OrganizationId = 1,
             Code = $"RISK-T-{Guid.NewGuid().ToString()[..6].ToUpper()}",
             Title = "Database CRUD Test Risk",
             Description = "Risk created to test DB persistence",
@@ -140,12 +143,12 @@ public class DatabaseCrudTests
         _output.WriteLine($"Created risk in DB with ID: {created.Id}, Code: {created.Code}");
 
         // 3. Read by ID
-        var fetched = await repo.GetRiskByIdAsync(created.Id);
+        var fetched = await repo.GetRiskByIdAsync(created.Id, 1);
         Assert.NotNull(fetched);
         Assert.Equal(newRisk.Code, fetched.Code);
 
         // 4. Delete
-        var deleted = await repo.DeleteRiskAsync(created.Id);
+        var deleted = await repo.DeleteRiskAsync(created.Id, 1);
         Assert.True(deleted);
         _output.WriteLine("Deleted test risk from DB.");
     }
@@ -156,13 +159,14 @@ public class DatabaseCrudTests
         var repo = new TaskRepository(_dbFactory);
 
         // 1. Read
-        var all = await repo.GetAllTasksAsync();
+        var all = await repo.GetAllTasksAsync(1);
         Assert.NotEmpty(all);
         _output.WriteLine($"Total tasks in DB: {all.Count}");
 
         // 2. Create
         var newTask = new TaskItem
         {
+            OrganizationId = 1,
             Code = $"TASK-T-{Guid.NewGuid().ToString()[..6].ToUpper()}",
             Title = "Database CRUD Test Task",
             Owner = "Task Runner",
@@ -175,11 +179,11 @@ public class DatabaseCrudTests
         Assert.NotNull(created.Id);
 
         // 3. Update Status
-        var statusUpdated = await repo.UpdateTaskStatusAsync(created.Id, ComplianceTaskStatus.Completed);
+        var statusUpdated = await repo.UpdateTaskStatusAsync(created.Id, ComplianceTaskStatus.Completed, 1);
         Assert.True(statusUpdated);
 
         // 4. Delete
-        var deleted = await repo.DeleteTaskAsync(created.Id);
+        var deleted = await repo.DeleteTaskAsync(created.Id, 1);
         Assert.True(deleted);
         _output.WriteLine("Deleted test task from DB.");
     }
@@ -188,7 +192,7 @@ public class DatabaseCrudTests
     public async Task TraceabilityRepository_QueriesDatabaseDynamically()
     {
         var repo = new TraceabilityRepository(_dbFactory);
-        var graph = await repo.GetTraceabilityGraphAsync("CTRL-001");
+        var graph = await repo.GetTraceabilityGraphAsync("CTRL-001", 1);
 
         Assert.NotNull(graph);
         Assert.Equal(14, graph.Steps.Count);
@@ -215,7 +219,7 @@ public class DatabaseCrudTests
             controlRepo, riskRepo, auditRepo, capaRepo,
             taskRepo, evidenceRepo, traceRepo, cache);
 
-        var kpis = await service.GetDashboardKpisAsync();
+        var kpis = await service.GetDashboardKpisAsync(1);
 
         Assert.NotNull(kpis);
         Assert.True(kpis.ControlsTotalCount > 0);

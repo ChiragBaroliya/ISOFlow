@@ -1,4 +1,5 @@
 using ISOFlow.Api.Auditing;
+using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
@@ -31,7 +32,8 @@ public class ImprovementsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<Improvement>>), 200)]
     public async Task<ActionResult<ApiResponse<PagedResponse<Improvement>>>> GetPaged([FromQuery] PagedRequestDto request)
     {
-        var paged = await _reviewRepository.GetPagedImprovementsAsync(request);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var paged = await _reviewRepository.GetPagedImprovementsAsync(request, organizationId);
         return Ok(ApiResponse<PagedResponse<Improvement>>.SuccessResponse(paged));
     }
 
@@ -42,7 +44,8 @@ public class ImprovementsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<Improvement>>), 200)]
     public async Task<ActionResult<ApiResponse<List<Improvement>>>> GetAll()
     {
-        var list = await _reviewRepository.GetAllImprovementsAsync();
+        var organizationId = User.GetOrganizationIdOrNull();
+        var list = await _reviewRepository.GetAllImprovementsAsync(organizationId);
         return Ok(ApiResponse<List<Improvement>>.SuccessResponse(list));
     }
 
@@ -54,7 +57,8 @@ public class ImprovementsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Improvement>), 404)]
     public async Task<ActionResult<ApiResponse<Improvement>>> GetById(string id)
     {
-        var item = await _reviewRepository.GetImprovementByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        var item = await _reviewRepository.GetImprovementByIdAsync(id, organizationId);
         if (item == null)
             return NotFound(ApiResponse<Improvement>.FailureResponse($"Improvement with ID '{id}' was not found."));
 
@@ -69,6 +73,10 @@ public class ImprovementsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Improvement>), 201)]
     public async Task<ActionResult<ApiResponse<Improvement>>> Create([FromBody] ImprovementRequestDto dto)
     {
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Improvement>.FailureResponse("A specific organization context is required to create this record."));
+
         var item = new Improvement
         {
             Code = dto.Code,
@@ -80,7 +88,8 @@ public class ImprovementsController : ControllerBase
             Owner = dto.Owner,
             Status = dto.Status,
             RelatedReviewId = dto.RelatedReviewId ?? string.Empty,
-            RelatedFindingId = dto.RelatedFindingId ?? string.Empty
+            RelatedFindingId = dto.RelatedFindingId ?? string.Empty,
+            OrganizationId = organizationId.Value
         };
 
         var created = await _reviewRepository.CreateImprovementAsync(item);
@@ -96,7 +105,11 @@ public class ImprovementsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<Improvement>), 404)]
     public async Task<ActionResult<ApiResponse<Improvement>>> Update(string id, [FromBody] ImprovementRequestDto dto)
     {
-        var existing = await _reviewRepository.GetImprovementByIdAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<Improvement>.FailureResponse("A specific organization context is required to update this record."));
+
+        var existing = await _reviewRepository.GetImprovementByIdAsync(id, organizationId);
         if (existing == null)
             return NotFound(ApiResponse<Improvement>.FailureResponse($"Improvement with ID '{id}' was not found."));
 
@@ -110,7 +123,7 @@ public class ImprovementsController : ControllerBase
         existing.RelatedReviewId = dto.RelatedReviewId ?? string.Empty;
         existing.RelatedFindingId = dto.RelatedFindingId ?? string.Empty;
 
-        var updated = await _reviewRepository.UpdateImprovementAsync(existing);
+        var updated = await _reviewRepository.UpdateImprovementAsync(existing, organizationId.Value);
         return Ok(ApiResponse<Improvement>.SuccessResponse(updated!, "Improvement updated successfully."));
     }
 
@@ -123,7 +136,11 @@ public class ImprovementsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(string id)
     {
-        var deleted = await _reviewRepository.DeleteImprovementAsync(id);
+        var organizationId = User.GetOrganizationIdOrNull();
+        if (organizationId == null)
+            return BadRequest(ApiResponse<bool>.FailureResponse("A specific organization context is required to delete this record."));
+
+        var deleted = await _reviewRepository.DeleteImprovementAsync(id, organizationId.Value);
         if (!deleted)
             return NotFound(ApiResponse<bool>.FailureResponse($"Improvement with ID '{id}' was not found."));
 

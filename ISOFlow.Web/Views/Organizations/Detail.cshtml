@@ -78,7 +78,8 @@
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center gap-2">
-                                            <img src="@user.AvatarUrl" class="rounded-circle" width="32" height="32" alt="@user.Name" />
+                                            <img src="@user.AvatarUrl" class="rounded-circle" width="32" height="32" alt="@user.Name" style="object-fit:cover;"
+                                                 onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=@Uri.EscapeDataString(user.Name)&background=4f46e5&color=fff';" />
                                             <div>
                                                 <div class="fw-bold small">@user.Name</div>
                                                 <div class="text-muted" style="font-size: 0.75rem;">@user.Email</div>

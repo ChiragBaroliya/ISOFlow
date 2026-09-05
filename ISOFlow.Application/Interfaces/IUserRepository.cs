@@ -7,8 +7,8 @@ public interface IUserRepository
 {
     Task<List<User>> GetAllUsersAsync();
     Task<PagedResponse<User>> GetPagedUsersAsync(PagedRequestDto request);
-    Task<List<User>> GetUsersByOrganizationIdAsync(string orgId);
-    Task<PagedResponse<User>> GetPagedUsersByOrganizationIdAsync(string orgId, PagedRequestDto request);
+    Task<List<User>> GetUsersByOrganizationIdAsync(int organizationId);
+    Task<PagedResponse<User>> GetPagedUsersByOrganizationIdAsync(int organizationId, PagedRequestDto request);
     Task<User?> GetUserByIdAsync(string id);
     Task<User?> GetUserByEmailAsync(string email);
 
@@ -33,10 +33,11 @@ public interface IUserRepository
     Task<bool> ResetPasswordAsync(string token, string newPassword);
 
     /// <summary>
-    /// Updates editable profile fields (Name, Phone, Department, Bio) for the given user.
+    /// Updates editable profile fields (Name, Phone, Department, Bio, AvatarUrl) for the given user.
+    /// A null <paramref name="avatarUrl"/> leaves the existing avatar untouched.
     /// Returns true on success, false if the user was not found.
     /// </summary>
-    Task<bool> UpdateProfileAsync(string userId, string name, string phone, string department, string bio);
+    Task<bool> UpdateProfileAsync(string userId, string name, string phone, string department, string bio, string? avatarUrl = null);
 
     /// <summary>
     /// Validates the current password then sets the new password.

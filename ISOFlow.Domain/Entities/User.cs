@@ -5,8 +5,8 @@ namespace ISOFlow.Domain.Entities;
 public class User
 {
     public string Id { get; set; } = string.Empty;
-    /// <summary>Organization this user belongs to. Empty/null for SuperAdmin.</summary>
-    public string OrganizationId { get; set; } = string.Empty;
+    /// <summary>Organization this user belongs to. Null for SuperAdmin.</summary>
+    public int? OrganizationId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     /// <summary>Plain-text mock password (all users: Test@123).</summary>

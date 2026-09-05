@@ -23,7 +23,7 @@ public class ComplianceTraceabilityTests
         var service = new TraceabilityService(traceRepo, cacheService);
 
         // Act
-        var result = await service.GetTraceabilityChainAsync("CTRL-001");
+        var result = await service.GetTraceabilityChainAsync("CTRL-001", 1);
 
         // Assert
         Assert.NotNull(result);
