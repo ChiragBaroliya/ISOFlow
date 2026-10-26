@@ -12,11 +12,11 @@ namespace ISOFlow.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class LogsApiController : ControllerBase
+public class LogsController : ControllerBase
 {
     private readonly ILogService _logService;
 
-    public LogsApiController(ILogService logService)
+    public LogsController(ILogService logService)
     {
         _logService = logService;
     }

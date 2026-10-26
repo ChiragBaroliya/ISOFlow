@@ -414,7 +414,7 @@ public class JwtAuthenticationTests
     [InlineData(typeof(EvidenceController))]
     [InlineData(typeof(FindingsController))]
     [InlineData(typeof(ImprovementsController))]
-    [InlineData(typeof(LogsApiController))]
+    [InlineData(typeof(LogsController))]
     [InlineData(typeof(ManagementReviewsController))]
     [InlineData(typeof(NotificationsController))]
     [InlineData(typeof(OrganizationsController))]
@@ -432,7 +432,7 @@ public class JwtAuthenticationTests
     [Fact]
     public void LogsApiController_HasRbacAdminRoles()
     {
-        var logsAttr = typeof(LogsApiController).GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false)
+        var logsAttr = typeof(LogsController).GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false)
             .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>()
             .FirstOrDefault();
 

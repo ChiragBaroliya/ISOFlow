@@ -1,0 +1,123 @@
+@model List<ISOFlow.Application.DTOs.LogEntryDto>
+@{
+    ViewData["Title"] = "System Logs — ISOFlow";
+    var fromDate = ViewBag.FromDate as string ?? "";
+    var toDate = ViewBag.ToDate as string ?? "";
+    var selectedLevel = ViewBag.LogLevel as string ?? "All";
+    var search = ViewBag.Search as string ?? "";
+    var levels = new[] { "All", "Information", "Warning", "Error", "Fatal", "Debug", "Verbose" };
+
+    string BadgeClass(string level) => level switch
+    {
+        "Error" => "bg-danger",
+        "Fatal" => "bg-dark",
+        "Warning" => "bg-warning text-dark",
+        "Information" => "bg-primary",
+        "Debug" => "bg-secondary",
+        _ => "bg-light text-muted border"
+    };
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-file-earmark-code text-primary me-2"></i> System Logs</h4>
+        <p class="text-muted small mb-0">Serilog rolling application logs from ISOFlow.Api, filterable by date range, level, and keyword.</p>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card-enterprise p-4 mb-4">
+    <form asp-controller="Logs" asp-action="Index" method="get" class="row g-3 align-items-end">
+        <input type="hidden" name="logLevel" id="logLevelInput" value="@selectedLevel" />
+        <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold small">From Date</label>
+            <input type="date" class="form-control form-control-sm" name="fromDate" value="@fromDate" />
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold small">To Date</label>
+            <input type="date" class="form-control form-control-sm" name="toDate" value="@toDate" />
+        </div>
+        <div class="col-12 col-md-5">
+            <label class="form-label fw-semibold small">Search</label>
+            <input type="text" class="form-control form-control-sm" name="search" value="@search" placeholder="message or exception text..." />
+        </div>
+        <div class="col-12 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm flex-fill"><i class="bi bi-funnel-fill"></i> Filter</button>
+            <a asp-controller="Logs" asp-action="Index" class="btn btn-outline-secondary btn-sm" title="Reset Filters"><i class="bi bi-arrow-counterclockwise"></i></a>
+        </div>
+        <div class="col-12 d-flex flex-wrap gap-2">
+            @foreach (var level in levels)
+            {
+                <button type="submit" class="btn btn-sm rounded-pill @(level == selectedLevel ? "btn-primary" : "btn-outline-secondary")"
+                        onclick="document.getElementById('logLevelInput').value='@level'">@level</button>
+            }
+        </div>
+    </form>
+</div>
+
+<!-- Results Table -->
+<div class="card-enterprise p-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-list-columns-reverse text-primary me-2"></i> Log Entries</h6>
+        <span class="badge bg-light text-muted border">@Model.Count entries</span>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Level</th>
+                        <th>Message</th>
+                        <th class="text-end">Exception</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Count; i++)
+                    {
+                        var entry = Model[i];
+                        <tr>
+                            <td class="text-muted small text-nowrap">@entry.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td><span class="badge @BadgeClass(entry.Level)">@entry.Level</span></td>
+                            <td class="small text-break">@entry.Message</td>
+                            <td class="text-end">
+                                @if (!string.IsNullOrEmpty(entry.Exception))
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="collapse" data-bs-target="#exc-@i">
+                                        <i class="bi bi-bug"></i> Stack trace
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                        @if (!string.IsNullOrEmpty(entry.Exception))
+                        {
+                            <tr class="collapse" id="exc-@i">
+                                <td colspan="4" class="bg-light">
+                                    <pre class="small mb-0 text-danger" style="white-space:pre-wrap;">@entry.Exception</pre>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-light text-center py-5 mb-0">
+            <i class="bi bi-inbox text-muted fs-1 mb-2 d-block"></i>
+            <h6 class="fw-bold">No log entries found</h6>
+            <p class="text-muted small mb-0">No log lines matched your filter criteria.</p>
+        </div>
+    }
+</div>

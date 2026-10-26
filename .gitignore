@@ -32,6 +32,9 @@ bld/
 [Oo]ut/
 [Ll]og/
 [Ll]ogs/
+# ...but keep source folders that happen to be named "Logs" (System Logs feature)
+!ISOFlow.Web/Services/Logs/
+!ISOFlow.Web/Views/Logs/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
