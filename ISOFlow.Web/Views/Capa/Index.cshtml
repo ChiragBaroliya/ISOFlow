@@ -78,7 +78,7 @@
             <tbody id="capaTableBody">
                 @foreach (var capa in Model)
                 {
-                    <tr class="@(capa.Id == "CAPA-001" ? "table-info" : "")">
+                    <tr>
                         <td class="fw-bold text-info">@capa.Code</td>
                         <td>
                             <a asp-controller="Capa" asp-action="Detail" asp-route-id="@capa.Id" class="fw-semibold text-dark text-decoration-none">@capa.Title</a>

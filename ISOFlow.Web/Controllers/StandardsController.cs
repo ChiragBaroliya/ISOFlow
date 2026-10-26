@@ -16,7 +16,6 @@ public class StandardsController : Controller
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Standards";
-        ViewData["ActiveTraceabilityId"] = "ISO-27001-2022";
         var standards = await _standardsClient.GetAllStandardsAsync();
         return View(standards);
     }
@@ -24,23 +23,19 @@ public class StandardsController : Controller
     public async Task<IActionResult> Detail(string? id = null)
     {
         ViewData["ActiveMenu"] = "Standards";
-        var allStandards = await _standardsClient.GetAllStandardsAsync();
 
-        Standard? standard = null;
-        if (!string.IsNullOrWhiteSpace(id))
-        {
-            standard = await _standardsClient.GetStandardByIdAsync(id)
-                ?? allStandards.FirstOrDefault(s => s.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || s.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
-        }
+        if (string.IsNullOrWhiteSpace(id))
+            return RedirectToAction(nameof(Index));
 
-        standard ??= allStandards.FirstOrDefault();
-
+        var standard = await _standardsClient.GetStandardByIdAsync(id);
         if (standard == null)
         {
-            return NotFound("No standards found in database.");
+            var allStandards = await _standardsClient.GetAllStandardsAsync();
+            standard = allStandards.FirstOrDefault(s => s.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || s.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         }
+        if (standard == null)
+            return NotFound($"Standard '{id}' was not found.");
 
-        ViewData["ActiveTraceabilityId"] = standard.Code;
         var reqs = await _standardsClient.GetRequirementsByStandardIdAsync(standard.Id);
 
         ViewBag.Standard = standard;

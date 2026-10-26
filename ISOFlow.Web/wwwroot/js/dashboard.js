@@ -2,16 +2,19 @@
 
 function initComplianceChart() {
     const canvas = document.getElementById('complianceChart');
-    if (!canvas) return;
+    const dataEl = document.getElementById('complianceTrendData');
+    if (!canvas || !dataEl) return;
 
-    const ctx = canvas.getContext('2d');
-    new Chart(ctx, {
+    // Trend data is rendered server-side from the API's monthly compliance snapshots.
+    const trend = JSON.parse(dataEl.textContent);
+
+    new Chart(canvas.getContext('2d'), {
         type: 'line',
         data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+            labels: trend.labels,
             datasets: [{
                 label: 'Compliance Score %',
-                data: [72.0, 74.5, 76.0, 78.0, 79.5, 81.0, 82.5],
+                data: trend.scores,
                 borderColor: '#2563eb',
                 backgroundColor: 'rgba(37, 99, 235, 0.1)',
                 fill: true,
@@ -22,7 +25,7 @@ function initComplianceChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
-            scales: { y: { min: 60, max: 100 } }
+            scales: { y: { min: 0, max: 100 } }
         }
     });
 }

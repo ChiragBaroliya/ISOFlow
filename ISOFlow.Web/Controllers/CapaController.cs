@@ -16,7 +16,6 @@ public class CapaController : Controller
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "CAPA";
-        ViewData["ActiveTraceabilityId"] = "CAPA-001";
         var capas = await _capaClient.GetAllCapasAsync();
         return View(capas);
     }
@@ -25,21 +24,17 @@ public class CapaController : Controller
     {
         ViewData["ActiveMenu"] = "CAPA";
 
-        var allCapas = await _capaClient.GetAllCapasAsync();
-        CAPA? capa = null;
+        if (string.IsNullOrWhiteSpace(id))
+            return RedirectToAction(nameof(Index));
 
-        if (!string.IsNullOrWhiteSpace(id))
-        {
-            capa = await _capaClient.GetCapaByIdAsync(id)
-                ?? allCapas.FirstOrDefault(c => c.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || c.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
-        }
-
-        capa ??= allCapas.FirstOrDefault();
-
+        var capa = await _capaClient.GetCapaByIdAsync(id);
         if (capa == null)
         {
-            return NotFound("No CAPAs found in database.");
+            var allCapas = await _capaClient.GetAllCapasAsync();
+            capa = allCapas.FirstOrDefault(c => c.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || c.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         }
+        if (capa == null)
+            return NotFound($"CAPA '{id}' was not found.");
 
         ViewData["ActiveTraceabilityId"] = capa.Code;
         return View(capa);

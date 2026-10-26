@@ -183,7 +183,7 @@ public class AccountController : Controller
         var token = await _authClient.ForgotPasswordAsync(email.Trim());
 
         ViewBag.EmailSent = true;
-        ViewBag.MockToken = token;
+        ViewBag.DevResetToken = token; // only non-null in the Development environment
         ViewBag.Email     = email.Trim();
         return View();
     }

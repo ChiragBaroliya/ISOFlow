@@ -1,184 +1,172 @@
+using System.Data;
 using Dapper;
 using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
+using ISOFlow.Domain.Enums;
 using ISOFlow.Infrastructure.Data;
 
 namespace ISOFlow.Infrastructure.Repositories;
 
+/// <summary>
+/// Builds the end-to-end compliance chain (Standard → … → Improvement) around a control by following the
+/// real links in the database. The root may be a control code or any entity that points at a control
+/// (risk, task, evidence, finding, CAPA, or an audit via its findings). Steps with no linked record are
+/// omitted — nothing is invented.
+/// When several records are linked at one step, the root entity itself is preferred, then the lowest id.
+/// </summary>
 public class TraceabilityRepository : BaseRepository, ITraceabilityRepository
 {
     public TraceabilityRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
     public async Task<TraceabilityGraphDto> GetTraceabilityGraphAsync(string rootEntityId, int? organizationId)
     {
+        var graph = new TraceabilityGraphDto { RootId = rootEntityId };
+        if (string.IsNullOrWhiteSpace(rootEntityId)) return graph;
+
+        var root = rootEntityId.Trim();
         using var conn = await DbConnectionFactory.CreateOpenConnectionAsync();
-        var p = new { organizationId };
 
-        // 1. Fetch real entities from PostgreSQL, scoped to the caller's organization (NULL = no filter, SuperAdmin only)
-        var standard = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, name, status FROM standards WHERE (code ILIKE '%27001%' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var requirement = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, clause, title, compliance_percentage FROM requirements WHERE (clause ILIKE '%5.18%' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var control = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM controls WHERE (code = 'CTRL-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var risk = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status, likelihood, impact FROM risks WHERE (code = 'RISK-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var treatment = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, option, status, treatment_plan FROM risk_treatments WHERE (risk_id = 1 OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var policy = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, version, status FROM policies WHERE (code = 'POL-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var process = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM processes WHERE (code = 'PROC-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var task = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM task_items WHERE (code = 'TASK-2026-003' OR id = 3) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var evidence = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, name, status FROM evidence WHERE (code = 'EVI-2026-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var audit = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status, completion_percentage FROM audits WHERE (code = 'AUD-2026-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var finding = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, severity, status FROM findings WHERE (code = 'FIND-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var capa = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM capas WHERE (code = 'CAPA-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var review = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status, period FROM management_reviews WHERE (code = 'MR-Q4-2026' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
-        var improvement = await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status FROM improvements WHERE (code = 'IMP-001' OR id = 1) AND (@organizationId IS NULL OR organization_id = @organizationId) LIMIT 1;", p);
+        var controlId = await ResolveControlIdAsync(conn, root, organizationId);
+        if (controlId == null) return graph;
 
-        // 2. Build 14-Step dynamic traceability node chain
-        var steps = new List<TraceabilityNodeDto>
+        var control = await conn.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT id, code, title, status, standard_id, requirement_id FROM controls WHERE id = @controlId",
+            new { controlId });
+        if (control == null) return graph;
+
+        string controlCode = control.code;
+        // JSON link columns store codes, e.g. '["CTRL-001","CTRL-004"]'; match the quoted code exactly.
+        var codeInJson = $"%\"{controlCode}\"%";
+        var p = new { controlId, root, organizationId, codeInJson };
+
+        var requirement = control.requirement_id == null ? null : await conn.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT id, clause, title, standard_id, compliance_percentage FROM requirements WHERE id = @id",
+            new { id = (int)control.requirement_id });
+
+        int? standardId = control.standard_id != null ? (int?)control.standard_id
+            : requirement?.standard_id != null ? (int?)requirement.standard_id : null;
+        var standard = standardId == null ? null : await conn.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT id, code, name, status FROM standards WHERE id = @id", new { id = standardId });
+
+        var risk = await conn.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT id, code, title, status, likelihood, impact FROM risks WHERE control_id = @controlId AND (@organizationId IS NULL OR organization_id = @organizationId) ORDER BY (LOWER(code) = LOWER(@root)) DESC, id LIMIT 1", p);
+
+        var treatment = risk == null ? null : await conn.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT id, option, status FROM risk_treatments WHERE risk_id = @riskId ORDER BY id LIMIT 1",
+            new { riskId = (int)risk.id });
+
+        var policy = await conn.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT id, code, title, version, status FROM policies WHERE linked_control_ids_json ILIKE @codeInJson AND (@organizationId IS NULL OR organization_id = @organizationId) ORDER BY id LIMIT 1", p);
+
+        var process = await conn.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT id, code, title, status FROM processes WHERE (control_ids_json ILIKE @codeInJson OR (@policyId IS NOT NULL AND policy_id = @policyId)) AND (@organizationId IS NULL OR organization_id = @organizationId) ORDER BY id LIMIT 1",
+            new { codeInJson, organizationId, policyId = policy == null ? (int?)null : (int)policy.id });
+
+        var task = await conn.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT id, code, title, status FROM task_items WHERE control_id = @controlId AND (@organizationId IS NULL OR organization_id = @organizationId) ORDER BY (LOWER(code) = LOWER(@root)) DESC, id LIMIT 1", p);
+
+        var evidence = await conn.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT id, code, name, status, audit_id FROM evidence WHERE control_id = @controlId AND (@organizationId IS NULL OR organization_id = @organizationId) ORDER BY (LOWER(code) = LOWER(@root)) DESC, id LIMIT 1", p);
+
+        var finding = await conn.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT f.id, f.code, f.title, f.severity, f.status, f.audit_id FROM findings f WHERE f.control_id = @controlId AND (@organizationId IS NULL OR f.organization_id = @organizationId) ORDER BY (LOWER(f.code) = LOWER(@root) OR EXISTS (SELECT 1 FROM capas c WHERE c.finding_id = f.id AND LOWER(c.code) = LOWER(@root)) OR EXISTS (SELECT 1 FROM audits a WHERE a.id = f.audit_id AND LOWER(a.code) = LOWER(@root))) DESC, f.id LIMIT 1", p);
+
+        int? auditId = finding?.audit_id != null ? (int?)finding.audit_id
+            : evidence?.audit_id != null ? (int?)evidence.audit_id : null;
+        var audit = auditId != null
+            ? await conn.QueryFirstOrDefaultAsync<dynamic>("SELECT id, code, title, status, completion_percentage FROM audits WHERE id = @id", new { id = auditId })
+            : await conn.QueryFirstOrDefaultAsync<dynamic>(
+                "SELECT id, code, title, status, completion_percentage FROM audits WHERE check_list_control_ids_json ILIKE @codeInJson AND (@organizationId IS NULL OR organization_id = @organizationId) ORDER BY id LIMIT 1", p);
+
+        dynamic? capa = null, improvement = null, review = null;
+        if (finding != null)
         {
-            new TraceabilityNodeDto
+            var findingRef = new { findingId = (int)finding.id, root };
+            capa = await conn.QueryFirstOrDefaultAsync<dynamic>(
+                "SELECT id, code, title, status FROM capas WHERE finding_id = @findingId ORDER BY (LOWER(code) = LOWER(@root)) DESC, id LIMIT 1", findingRef);
+            improvement = await conn.QueryFirstOrDefaultAsync<dynamic>(
+                "SELECT id, code, title, status, related_review_id FROM improvements WHERE related_finding_id = @findingId ORDER BY id LIMIT 1", findingRef);
+            if (improvement?.related_review_id != null)
             {
-                Id = standard?.code ?? "ISO-27001-2022",
-                Code = standard?.code ?? "ISO 27001:2022",
-                Label = standard?.name ?? "ISO Standard",
-                Type = "Standard",
-                Status = standard?.status ?? "Active",
-                Url = $"/Standards/Detail?id={standard?.code ?? "ISO-27001-2022"}",
-                IsActive = rootEntityId.Contains("27001", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = $"REQ-{requirement?.clause ?? "A.5.18"}",
-                Code = requirement?.clause ?? "A.5.18",
-                Label = requirement?.title ?? "Access Rights Requirement",
-                Type = "Requirement",
-                Status = $"Compliant ({requirement?.compliance_percentage ?? 85}%)",
-                Url = $"/Standards/Detail?id={standard?.code ?? "ISO-27001-2022"}#{requirement?.clause ?? "A.5.18"}",
-                IsActive = rootEntityId.Contains("A5", StringComparison.OrdinalIgnoreCase) || rootEntityId.Contains("18")
-            },
-            new TraceabilityNodeDto
-            {
-                Id = control?.code ?? "CTRL-001",
-                Code = control?.code ?? "CTRL-001",
-                Label = control?.title ?? "User Access Management Control",
-                Type = "Control",
-                Status = "Implemented",
-                Url = $"/Controls/Detail?id={control?.code ?? "CTRL-001"}",
-                IsActive = rootEntityId.Contains(control?.code ?? "CTRL-001", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = risk?.code ?? "RISK-001",
-                Code = risk?.code ?? "RISK-001",
-                Label = risk?.title ?? "Unauthorized Access Risk",
-                Type = "Risk",
-                Status = $"Critical (Score: {(risk != null ? (int)risk.likelihood * (int)risk.impact : 16)})",
-                Url = $"/Risks/Detail?id={risk?.code ?? "RISK-001"}",
-                IsActive = rootEntityId.Contains("RISK", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = "TRT-001",
-                Code = "TRT-001",
-                Label = "Implement JML Treatment",
-                Type = "Treatment",
-                Status = treatment?.status ?? "In Progress",
-                Url = $"/Risks/Detail?id={risk?.code ?? "RISK-001"}",
-                IsActive = rootEntityId.Contains("TRT", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = policy?.code ?? "POL-001",
-                Code = policy?.code ?? "POL-001",
-                Label = policy?.title ?? "Access Control Policy",
-                Type = "Policy",
-                Status = $"Active v{policy?.version ?? "2.1"}",
-                Url = "/Documents/Policies",
-                IsActive = rootEntityId.Contains("POL", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = process?.code ?? "PROC-001",
-                Code = process?.code ?? "PROC-001",
-                Label = process?.title ?? "Joiner-Mover-Leaver Process",
-                Type = "Process",
-                Status = process?.status ?? "Active",
-                Url = "/Documents/Processes",
-                IsActive = rootEntityId.Contains("PROC", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = task?.code ?? "TASK-2026-003",
-                Code = task?.code ?? "TASK-2026-003",
-                Label = task?.title ?? "Q3 User Access Review Task",
-                Type = "Task",
-                Status = "InProgress",
-                Url = "/Tasks",
-                IsActive = rootEntityId.Contains("TASK", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = evidence?.code ?? "EVI-2026-001",
-                Code = evidence?.code ?? "EVI-2026-001",
-                Label = evidence?.name ?? "Access Review Evidence",
-                Type = "Evidence",
-                Status = evidence?.status ?? "Verified",
-                Url = "/Evidence",
-                IsActive = rootEntityId.Contains("EVI", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = audit?.code ?? "AUD-2026-001",
-                Code = audit?.code ?? "AUD-2026-001",
-                Label = audit?.title ?? "Internal Audit 2026",
-                Type = "Audit",
-                Status = $"Completed ({audit?.completion_percentage ?? 100}%)",
-                Url = $"/Audits/Detail?id={audit?.code ?? "AUD-2026-001"}",
-                IsActive = rootEntityId.Contains("AUD", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = finding?.code ?? "FIND-001",
-                Code = finding?.code ?? "FIND-001",
-                Label = finding?.title ?? "Access Not Removed Finding",
-                Type = "Finding",
-                Status = "Major NC",
-                Url = $"/Findings/Detail?id={finding?.code ?? "FIND-001"}",
-                IsActive = rootEntityId.Contains("FIND", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = capa?.code ?? "CAPA-001",
-                Code = capa?.code ?? "CAPA-001",
-                Label = capa?.title ?? "Automate Access Lifecycle CAPA",
-                Type = "CAPA",
-                Status = "InProgress",
-                Url = $"/Capa/Detail?id={capa?.code ?? "CAPA-001"}",
-                IsActive = rootEntityId.Contains("CAPA", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = review?.code ?? "REV-2026-Q4",
-                Code = review?.code ?? "MR-Q4-2026",
-                Label = review?.title ?? "Q4 Management Review",
-                Type = "Review",
-                Status = review?.status ?? "Completed",
-                Url = "/ManagementReview",
-                IsActive = rootEntityId.Contains("REV", StringComparison.OrdinalIgnoreCase) || rootEntityId.Contains("MR", StringComparison.OrdinalIgnoreCase)
-            },
-            new TraceabilityNodeDto
-            {
-                Id = improvement?.code ?? "IMP-001",
-                Code = improvement?.code ?? "IMP-001",
-                Label = improvement?.title ?? "Access Lifecycle Automation Improvement",
-                Type = "Improvement",
-                Status = "InProgress",
-                Url = "/Improvement",
-                IsActive = rootEntityId.Contains("IMP", StringComparison.OrdinalIgnoreCase)
+                review = await conn.QueryFirstOrDefaultAsync<dynamic>(
+                    "SELECT id, code, title, status FROM management_reviews WHERE id = @id", new { id = (int)improvement.related_review_id });
             }
-        };
+        }
 
-        return new TraceabilityGraphDto
-        {
-            RootId = rootEntityId,
-            Steps = steps
-        };
+        // Assemble in lifecycle order, skipping anything not linked.
+        void Add(string type, string code, string label, string status, string url) =>
+            graph.Steps.Add(new TraceabilityNodeDto
+            {
+                Id = code,
+                Code = code,
+                Label = label,
+                Type = type,
+                Status = status,
+                Url = url,
+                IsActive = string.Equals(code, root, StringComparison.OrdinalIgnoreCase)
+            });
+
+        if (standard != null)
+            Add("Standard", (string)standard.code, (string)standard.name, (string)standard.status, $"/Standards/Detail?id={Uri.EscapeDataString((string)standard.code)}");
+        if (requirement != null)
+            Add("Requirement", (string)requirement.clause, (string)requirement.title, $"{(double)requirement.compliance_percentage:0.#}% compliant",
+                standard != null ? $"/Standards/Detail?id={Uri.EscapeDataString((string)standard.code)}" : "/Standards");
+        Add("Control", controlCode, (string)control.title, ((ControlStatus)(int)control.status).ToString(), $"/Controls/Detail?id={Uri.EscapeDataString(controlCode)}");
+        if (risk != null)
+            Add("Risk", (string)risk.code, (string)risk.title, $"{(string)risk.status} (Score: {(int)risk.likelihood * (int)risk.impact})", $"/Risks/Detail?id={Uri.EscapeDataString((string)risk.code)}");
+        if (treatment != null) // only ever loaded when a risk was found
+            Add("Treatment", $"TRT-{(int)treatment!.id:D3}", $"{(string)treatment.option} treatment", (string)treatment.status, $"/Risks/Detail?id={Uri.EscapeDataString((string)risk!.code)}");
+        if (policy != null)
+            Add("Policy", (string)policy.code, (string)policy.title, $"{(string)policy.status} v{(string)policy.version}", "/Documents/Policies");
+        if (process != null)
+            Add("Process", (string)process.code, (string)process.title, (string)process.status, "/Documents/Processes");
+        if (task != null)
+            Add("Task", (string)task.code, (string)task.title, ((ComplianceTaskStatus)(int)task.status).ToString(), "/Tasks");
+        if (evidence != null)
+            Add("Evidence", (string)evidence.code, (string)evidence.name, (string)evidence.status, "/Evidence");
+        if (audit != null)
+            Add("Audit", (string)audit.code, (string)audit.title, $"{(AuditStatus)(int)audit.status} ({(int)audit.completion_percentage}%)", $"/Audits/Detail?id={Uri.EscapeDataString((string)audit.code)}");
+        if (finding != null)
+            Add("Finding", (string)finding.code, (string)finding.title, $"{(FindingSeverity)(int)finding.severity} · {(FindingStatus)(int)finding.status}", $"/Findings/Detail?id={Uri.EscapeDataString((string)finding.code)}");
+        if (capa != null)
+            Add("CAPA", (string)capa.code, (string)capa.title, ((CapaStatus)(int)capa.status).ToString(), $"/Capa/Detail?id={Uri.EscapeDataString((string)capa.code)}");
+        if (review != null)
+            Add("Review", (string)review.code, (string)review.title, (string)review.status, "/ManagementReview");
+        if (improvement != null)
+            Add("Improvement", (string)improvement.code, (string)improvement.title, ((ImprovementStatus)(int)improvement.status).ToString(), "/Improvement");
+
+        return graph;
+    }
+
+    /// <summary>Maps the root entity code (or a numeric control id) to the id of the control it belongs to.</summary>
+    private static Task<int?> ResolveControlIdAsync(IDbConnection conn, string root, int? organizationId)
+    {
+        return conn.QueryFirstOrDefaultAsync<int?>(
+            @"SELECT control_id FROM (
+                SELECT id AS control_id, 1 AS priority FROM controls
+                 WHERE (LOWER(code) = LOWER(@root) OR id::VARCHAR = @root) AND (@organizationId IS NULL OR organization_id = @organizationId)
+                UNION ALL
+                SELECT control_id, 2 FROM risks
+                 WHERE LOWER(code) = LOWER(@root) AND (@organizationId IS NULL OR organization_id = @organizationId)
+                UNION ALL
+                SELECT control_id, 3 FROM task_items
+                 WHERE LOWER(code) = LOWER(@root) AND (@organizationId IS NULL OR organization_id = @organizationId)
+                UNION ALL
+                SELECT control_id, 4 FROM evidence
+                 WHERE LOWER(code) = LOWER(@root) AND (@organizationId IS NULL OR organization_id = @organizationId)
+                UNION ALL
+                SELECT control_id, 5 FROM findings
+                 WHERE LOWER(code) = LOWER(@root) AND (@organizationId IS NULL OR organization_id = @organizationId)
+                UNION ALL
+                SELECT f.control_id, 6 FROM capas c JOIN findings f ON f.id = c.finding_id
+                 WHERE LOWER(c.code) = LOWER(@root) AND (@organizationId IS NULL OR c.organization_id = @organizationId)
+                UNION ALL
+                SELECT f.control_id, 7 FROM audits a JOIN findings f ON f.audit_id = a.id
+                 WHERE LOWER(a.code) = LOWER(@root) AND (@organizationId IS NULL OR a.organization_id = @organizationId)
+              ) candidates
+              WHERE control_id IS NOT NULL
+              ORDER BY priority
+              LIMIT 1",
+            new { root, organizationId });
     }
 }

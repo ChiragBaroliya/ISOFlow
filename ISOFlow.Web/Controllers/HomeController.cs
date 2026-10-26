@@ -16,7 +16,6 @@ public class HomeController : Controller
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Dashboard";
-        ViewData["ActiveTraceabilityId"] = "CTRL-001";
 
         var kpis = await _dashboardClient.GetDashboardKpisAsync();
         var trends = await _dashboardClient.GetComplianceTrendsAsync();

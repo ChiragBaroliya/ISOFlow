@@ -47,27 +47,31 @@ is still hardcoded in the places below.
 
 ### 1.2 Web — Views with hardcoded entities and numbers
 
-- [ ] `Views/Home/Index.cshtml` — static KPI values (`82.5%`, `5`, `12`, `3`, `88%`) and text (`FIND-001 Major NC active`, `CAPA-001 In Progress`, line 155 `controlId = "CTRL-001"`). Bind them to `DashboardViewModel.Kpis`.
-- [ ] `wwwroot/js/dashboard.js:11-14` — hardcoded chart labels (`Jan…Jul`) and data (`72.0 … 82.5`). Read them from `Model.Trends`.
-- [ ] `Views/Shared/_Layout.cshtml:229-233` — static notifications dropdown ("5 compliance tasks overdue", "Major NC FIND-001", "Access Control Policy due…"). Wire it to `NotificationsApiController` (see §2).
-- [ ] `Views/Shared/_TraceabilityBar.cshtml` — every node is a hardcoded `CTRL-001 / RISK-001 / TRT-001 / AUD-2026-001 / FIND-001 / CAPA-001` link. Build the chain dynamically from `GET /api/traceability/{id}`.
-- [ ] `Views/Shared/Components/RelatedComplianceItems/Default.cshtml:21` — hardcoded `RISK-001` link
-- [ ] `Components/RelatedComplianceItemsViewComponent.cs` — default `controlId = "CTRL-001"`
-- [ ] `Views/Controls/Detail.cshtml` — risks, findings, CAPA, and audit sections (lines ~75-245) are static `RISK-001/002`, `FIND-001`, `CAPA-001`, `AUD-2026-001`. Bind them to the related-items API.
-- [ ] `Views/Risks/Detail.cshtml:38-41` — hardcoded `CTRL-001` link
-- [ ] `Views/Audits/Detail.cshtml` — fully static (checklist `CTRL-001/002/006`, `FIND-001`, fallback `"AUD-2026-001"`). Bind it to the audit model.
-- [ ] `Views/Findings/Detail.cshtml` — fully static (control, audit, `CAPA-001`, fallback `"FIND-001"`)
-- [ ] `Views/Capa/Detail.cshtml` — fallbacks `"CAPA-001"` (lines 3, 17, 84)
-- [ ] `Views/Findings/Index.cshtml:173` — create form pre-filled with `value="AUD-2026-001"`
-- [ ] Index views that highlight a fixed demo row: `Audits/Index:90`, `Capa/Index:81`, `Controls/Index:92`, `Findings/Index:92`, `Risks/Index:93`. Remove the hardcoded ids.
-- [ ] `Views/Risks/Matrix.cshtml` — static matrix. Bind it to `GET /api/dashboard/risk-matrix`.
-- [ ] `Views/Tasks/Calendar.cshtml` — static placeholder. Build a real calendar from the tasks API.
-- [ ] `Views/Reports/Index.cshtml` — `alert('Downloading…')` stubs and the hardcoded `AUD-2026-001` text (see §3)
-- [x] `Views/Admin/Users.cshtml:190` — "All users share the mock password `Test@123`" removed (done with §1.1)
-- [ ] `Views/Account/Profile.cshtml:225` — "Mock mode: current password is `Test@123`…". Remove it.
-- [ ] `Views/Account/ForgotPassword.cshtml:5,133-141` and `Controllers/AccountController.cs:186` — the reset token is shown on screen as "Mock Token (Dev Mode)". Send it by email instead and stop returning it from the API.
-- [ ] Controllers that set `ViewData["ActiveTraceabilityId"] = "CTRL-001"` (`HomeController`, `ReportsController`, …). Derive it from the current entity.
-- [ ] `Views/Workflow/Index.cshtml` (959 lines, static). Decide whether to keep it as documentation or remove it.
+- [x] Home dashboard — all KPI cards bound to live KPIs. "vs last month" delta comes from real snapshots, the org name from the session, and the made-up "Audit Readiness 88%" card is removed. The golden-scenario component and button are removed.
+- [x] `dashboard.js` — chart reads the server-rendered monthly snapshots (empty state when there's no history)
+- [x] Layout — fake notifications replaced by an empty state; the hardcoded sidebar badges ("5", "3") and the dead `/#notifications` link are removed. *Live notifications are still pending, see §2.*
+- [x] Traceability bar — the static partial is replaced by a `TraceabilityBar` view component that calls `GET /api/traceability/{code}` via a new `TraceabilityApiClient`. It renders only on detail pages with a linked chain.
+- [x] **API `TraceabilityRepository` was itself mock data:** it ignored the requested entity and always returned the CTRL-001 chain, with invented fallback nodes. Rewritten to resolve the root (control/risk/task/evidence/finding/CAPA/audit) to its control and follow real FK and JSON links; missing steps are omitted.
+- [x] `RelatedComplianceItems` component removed (hardcoded `RISK-001`, default `CTRL-001`, and it relied on a buggy count procedure); Control detail now computes counts from real lists
+- [x] Control detail — every tab (requirement, risks, treatments, policies, processes, tasks, evidence, audits, findings, CAPA) built from real related records, with empty states
+- [x] Risk detail — score, level, mapped control, treatment code and residual scores were hardcoded; now all live
+- [x] Audit detail — checklist resolved from the audit's control list, with evaluation derived from the audit's findings and the evidence linked to it
+- [x] Finding detail — requirement, control, audit and CAPAs resolved from the finding's links
+- [x] CAPA detail — demo fallbacks and the "Q4 Management Review" / "IMP-001" buttons removed
+- [x] Detail actions (Controls, Risks, Audits, Findings, CAPA, Standards) no longer silently show the *first* record for a missing or unknown id; they redirect to the list or return 404
+- [x] Findings create form no longer pre-filled with `AUD-2026-001`
+- [x] Demo-row highlights removed (Audits, CAPA, Controls, Findings, Risks, Policies, Standards requirements)
+- [x] Risk Matrix — legend counts computed from the matrix data (grid was already live)
+- [x] Tasks Calendar — real 6-month calendar from task due dates, audit start dates and CAPA due dates, plus an overdue list
+- [x] Reports — `alert()` stubs replaced with links to the live pages plus disabled "export coming soon" buttons. *Real exports are pending, see §3.*
+- [x] Profile "Mock mode: password is Test@123" note removed
+- [x] **Forgot password (security fix):** the anonymous API returned the reset token to any caller (anyone could reset any password) and returned 404 for unknown emails (account enumeration). The token is now returned only in the Development environment, and the response is identical for all emails. *Email delivery is still pending, see §2.*
+- [x] Hardcoded `ActiveTraceabilityId` demo values removed from all controllers; only detail pages set it, from the real entity
+- [x] Login page "Quick Fill Demo Accounts" buttons (with `Test@123`) removed
+- [x] Global search — replaced the hardcoded redirect to the demo records with code-prefix routing (`CTRL-`, `RISK-`, `FIND-`, `CAPA-`, `AUD-`, `ISO-`)
+- [x] SuperAdmin tenant switcher — hardcoded Acme/CyberShield/Nexus entries (with ids `ORG-001`… that didn't match real ids) replaced by a component listing real organizations
+- [x] Workflow page — **kept** as the product guide; its codes are labelled examples, not live data
+- [ ] Follow-up: `sp_controls_get_related_items_count` matches JSON code lists against the numeric id with `ILIKE '%1%'` (false matches). Fix or remove it, since the Web no longer uses it.
 
 ### 1.3 Tests
 
@@ -90,7 +94,7 @@ is still hardcoded in the places below.
   - [ ] Broadcast on task status changes, CAPA/finding changes, and KPI recalculation
   - [ ] Scope broadcasts per organization (SignalR groups), not `Clients.All`
   - [ ] Verify `wwwroot/js/signalr-client.js` connects using the JWT
-- [ ] **Traceability API client**: Web has no `TraceabilityApiClient`, which is needed for the dynamic traceability bar (§1.2)
+- [x] **Traceability API client**: added `TraceabilityApiClient` (done with §1.2)
 - [ ] **Dashboard**: the `GET /api/dashboard/traceability` endpoint isn't consumed by Web
 - [ ] **Evidence file upload**: the form takes a free-text `FileUrl`. Implement real upload/download storage (local disk or blob) with size and type validation.
 - [ ] **Policies file path**: same as Evidence. `FilePath` is free text.

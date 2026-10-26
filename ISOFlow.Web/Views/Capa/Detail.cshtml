@@ -1,6 +1,6 @@
 @model ISOFlow.Domain.Entities.CAPA
 @{
-    ViewData["Title"] = $"{Model?.Code ?? "CAPA-001"} - {Model?.Title ?? "Remediation"}";
+    ViewData["Title"] = $"{Model.Code} - {Model.Title}";
 }
 
 @if (TempData["SuccessMessage"] != null)
@@ -14,10 +14,10 @@
 <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
     <div>
         <div class="d-flex align-items-center gap-2 mb-1">
-            <span class="badge bg-info text-white fs-6">@(Model?.Code ?? "CAPA-001")</span>
-            <span class="badge bg-warning text-dark">Status: @(Model?.Status.ToString() ?? "InProgress")</span>
+            <span class="badge bg-info text-white fs-6">@Model.Code</span>
+            <span class="badge bg-warning text-dark">Status: @Model.Status</span>
         </div>
-        <h3 class="fw-bold text-dark mb-0">@(Model?.Title ?? "CAPA Remediation Plan")</h3>
+        <h3 class="fw-bold text-dark mb-0">@Model.Title</h3>
     </div>
     <div class="d-flex gap-2">
         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addActionItemModal">
@@ -32,7 +32,7 @@
         <div class="card-enterprise p-4 h-100">
             <h6 class="fw-bold mb-3"><i class="bi bi-list-task text-primary me-2"></i> CAPA Action Items Plan</h6>
             <div class="list-group mb-3">
-                @if (Model?.ActionItems != null && Model.ActionItems.Any())
+                @if (Model.ActionItems.Any())
                 {
                     @foreach (var act in Model.ActionItems)
                     {
@@ -56,7 +56,7 @@
             </div>
 
             <div class="p-3 bg-light rounded border small">
-                <strong>Effectiveness Verification Plan:</strong> @(Model?.EffectivenessVerification ?? "Verification scheduled post-implementation")
+                <strong>Effectiveness Verification Plan:</strong> @(string.IsNullOrWhiteSpace(Model.EffectivenessVerification) ? "Not yet defined." : Model.EffectivenessVerification)
             </div>
         </div>
     </div>
@@ -66,8 +66,8 @@
             <h6 class="fw-bold text-primary mb-3"><i class="bi bi-briefcase me-2"></i> Executive Escalation & Management Review</h6>
             <p class="small text-muted mb-3">CAPA progress and remediation milestones are reviewed periodically by executive leadership.</p>
             
-            <a asp-controller="ManagementReview" asp-action="Index" class="btn btn-primary w-100 fw-semibold mb-2"><i class="bi bi-briefcase me-1"></i> Open Q4 Management Review <i class="bi bi-arrow-right"></i></a>
-            <a asp-controller="Improvement" asp-action="Index" class="btn btn-outline-success w-100 fw-semibold"><i class="bi bi-graph-up-arrow me-1"></i> View IMP-001 Continual Improvement</a>
+            <a asp-controller="ManagementReview" asp-action="Index" class="btn btn-primary w-100 fw-semibold mb-2"><i class="bi bi-briefcase me-1"></i> Management Reviews <i class="bi bi-arrow-right"></i></a>
+            <a asp-controller="Improvement" asp-action="Index" class="btn btn-outline-success w-100 fw-semibold"><i class="bi bi-graph-up-arrow me-1"></i> Continual Improvements</a>
         </div>
     </div>
 </div>
@@ -81,7 +81,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form asp-controller="Capa" asp-action="AddActionItem" method="post">
-                <input type="hidden" name="capaId" value="@(Model?.Id ?? "CAPA-001")" />
+                <input type="hidden" name="capaId" value="@Model.Id" />
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Action Item Title <span class="text-danger">*</span></label>

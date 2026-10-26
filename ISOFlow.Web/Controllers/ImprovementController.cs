@@ -16,7 +16,6 @@ public class ImprovementController : Controller
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Improvement";
-        ViewData["ActiveTraceabilityId"] = "IMP-001";
         var improvements = await _improvementsClient.GetAllImprovementsAsync();
         return View(improvements);
     }

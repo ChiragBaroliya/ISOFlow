@@ -33,7 +33,6 @@ public class OrganizationsController : Controller
         if (!IsSuperAdmin()) return RedirectToAction("AccessDenied", "Account");
 
         ViewData["ActiveMenu"] = "Organizations";
-        ViewData["ActiveTraceabilityId"] = "ORG-001";
 
         var orgs = await _orgsClient.GetAllOrganizationsAsync();
         var standards = await _standardsClient.GetAllStandardsAsync();
@@ -47,7 +46,6 @@ public class OrganizationsController : Controller
         if (!IsSuperAdmin()) return RedirectToAction("AccessDenied", "Account");
 
         ViewData["ActiveMenu"] = "Organizations";
-        ViewData["ActiveTraceabilityId"] = id;
 
         var org = await _orgsClient.GetOrganizationByIdAsync(id);
         if (org == null)

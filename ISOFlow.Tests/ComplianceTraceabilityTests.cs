@@ -45,6 +45,28 @@ public class ComplianceTraceabilityTests
     }
 
     [Fact]
+    public async Task TraceabilityRepository_UnknownEntity_ReturnsEmptyChainNotDemoData()
+    {
+        var traceRepo = new TraceabilityRepository(_dbFactory);
+
+        var result = await traceRepo.GetTraceabilityGraphAsync("DOES-NOT-EXIST-999", 1);
+
+        Assert.Empty(result.Steps);
+    }
+
+    [Fact]
+    public async Task TraceabilityRepository_FindingRoot_ResolvesItsControlAndMarksFindingActive()
+    {
+        var traceRepo = new TraceabilityRepository(_dbFactory);
+
+        var result = await traceRepo.GetTraceabilityGraphAsync("FIND-001", 1);
+
+        Assert.Contains(result.Steps, s => s.Code == "CTRL-001" && !s.IsActive);
+        Assert.Single(result.Steps, s => s.IsActive);
+        Assert.Equal("FIND-001", result.Steps.Single(s => s.IsActive).Code);
+    }
+
+    [Fact]
     public void StandardEntity_Initialization_Tests()
     {
         var standard = new Standard

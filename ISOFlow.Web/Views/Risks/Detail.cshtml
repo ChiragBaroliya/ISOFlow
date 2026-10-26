@@ -1,13 +1,23 @@
+@using ISOFlow.Domain.Enums
 @model ISOFlow.Web.Models.RiskDetailViewModel
 @{
     ViewData["Title"] = $"{Model.Risk.Code} - {Model.Risk.Title}";
+
+    string LevelBadge(RiskLevel level) => level switch
+    {
+        RiskLevel.Critical => "bg-danger",
+        RiskLevel.High => "bg-warning text-dark",
+        RiskLevel.Medium => "bg-primary",
+        _ => "bg-success"
+    };
 }
 
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
         <div class="d-flex align-items-center gap-2 mb-1">
             <span class="badge bg-danger fs-6">@Model.Risk.Code</span>
-            <span class="badge bg-danger">Critical Risk (Score: @Model.Risk.Score)</span>
+            <span class="badge @LevelBadge(Model.Risk.Level)">@Model.Risk.Level Risk (Score: @Model.Risk.Score)</span>
+            <span class="badge bg-light text-dark border">@Model.Risk.Status</span>
         </div>
         <h3 class="fw-bold text-dark mb-0">@Model.Risk.Title</h3>
     </div>
@@ -26,20 +36,27 @@
                     <div class="col-6"><strong>Department:</strong> @Model.Risk.Department</div>
                     <div class="col-6"><strong>Likelihood:</strong> @Model.Risk.Likelihood (Score: @((int)Model.Risk.Likelihood))</div>
                     <div class="col-6"><strong>Impact:</strong> @Model.Risk.Impact (Score: @((int)Model.Risk.Impact))</div>
-                    <div class="col-6"><strong>Risk Score:</strong> <span class="fw-bold text-danger">16 / 25</span></div>
-                    <div class="col-6"><strong>Risk Level:</strong> <span class="badge bg-danger">Critical</span></div>
+                    <div class="col-6"><strong>Risk Score:</strong> <span class="fw-bold">@Model.Risk.Score / 25</span></div>
+                    <div class="col-6"><strong>Risk Level:</strong> <span class="badge @LevelBadge(Model.Risk.Level)">@Model.Risk.Level</span></div>
                 </div>
             </div>
 
             <div class="mt-4 pt-3 border-top">
                 <h6 class="fw-bold mb-2">Mapped Mitigation Control</h6>
-                <div class="p-3 border rounded bg-white d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="badge bg-primary me-2">CTRL-001</span>
-                        <strong class="small">User Access Management</strong>
+                @if (Model.Control != null)
+                {
+                    <div class="p-3 border rounded bg-white d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="badge bg-primary me-2">@Model.Control.Code</span>
+                            <strong class="small">@Model.Control.Title</strong>
+                        </div>
+                        <a asp-controller="Controls" asp-action="Detail" asp-route-id="@Model.Control.Code" class="btn btn-sm btn-primary">Trace Control <i class="bi bi-arrow-right"></i></a>
                     </div>
-                    <a asp-controller="Controls" asp-action="Detail" asp-route-id="CTRL-001" class="btn btn-sm btn-primary">Trace Control <i class="bi bi-arrow-right"></i></a>
-                </div>
+                }
+                else
+                {
+                    <div class="text-muted small p-3 border rounded bg-light"><i class="bi bi-inbox me-1"></i> No control is mapped to this risk.</div>
+                }
             </div>
         </div>
     </div>
@@ -47,7 +64,7 @@
     <!-- Treatment Section -->
     <div class="col-md-6" id="treatment">
         <div class="card-enterprise p-4 h-100 border-start border-success border-4">
-            <h6 class="fw-bold mb-3 text-success"><i class="bi bi-bandaid me-2"></i> Risk Treatment Plan (TRT-001)</h6>
+            <h6 class="fw-bold mb-3 text-success"><i class="bi bi-bandaid me-2"></i> Risk Treatment Plan</h6>
             @if (Model.Treatment != null)
             {
                 <div class="p-3 bg-success-subtle rounded border border-success mb-3">
@@ -62,17 +79,16 @@
                 <h6 class="fw-bold mb-2">Residual Risk Evaluation</h6>
                 <div class="p-3 bg-light rounded border">
                     <div class="row g-2 small">
-                        <div class="col-6"><strong>Residual Likelihood:</strong> @Model.Treatment.ResidualLikelihood (Score: 1)</div>
-                        <div class="col-6"><strong>Residual Impact:</strong> @Model.Treatment.ResidualImpact (Score: 2)</div>
-                        <div class="col-6"><strong>Residual Score:</strong> <span class="fw-bold text-success">2 / 25</span></div>
-                        <div class="col-6"><strong>Residual Level:</strong> <span class="badge bg-success">Low</span></div>
+                        <div class="col-6"><strong>Residual Likelihood:</strong> @Model.Treatment.ResidualLikelihood (Score: @((int)Model.Treatment.ResidualLikelihood))</div>
+                        <div class="col-6"><strong>Residual Impact:</strong> @Model.Treatment.ResidualImpact (Score: @((int)Model.Treatment.ResidualImpact))</div>
+                        <div class="col-6"><strong>Residual Score:</strong> <span class="fw-bold">@Model.Treatment.ResidualScore / 25</span></div>
+                        <div class="col-6"><strong>Residual Level:</strong> <span class="badge @LevelBadge(Model.Treatment.ResidualLevel)">@Model.Treatment.ResidualLevel</span></div>
                     </div>
                 </div>
-
-                <div class="mt-4 pt-3 border-top">
-                    <h6 class="fw-bold mb-2">Next Traceability Step</h6>
-                    <a asp-controller="Documents" asp-action="Policies" class="btn btn-outline-primary w-100 fw-semibold"><i class="bi bi-file-earmark-text me-1"></i> Proceed to Access Control Policy <i class="bi bi-arrow-right"></i></a>
-                </div>
+            }
+            else
+            {
+                <div class="text-muted small p-3 border rounded bg-light"><i class="bi bi-inbox me-1"></i> No treatment plan has been recorded for this risk.</div>
             }
         </div>
     </div>

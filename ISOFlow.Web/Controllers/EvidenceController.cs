@@ -16,7 +16,6 @@ public class EvidenceController : Controller
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Evidence";
-        ViewData["ActiveTraceabilityId"] = "EVI-2026-001";
         var evidence = await _evidenceClient.GetAllEvidenceAsync();
         return View(evidence);
     }

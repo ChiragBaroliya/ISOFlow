@@ -89,7 +89,7 @@
             <tbody id="controlsTableBody">
                 @foreach (var ctrl in Model)
                 {
-                    <tr class="@(ctrl.Id == "CTRL-001" ? "table-primary" : "")">
+                    <tr>
                         <td class="fw-bold text-primary">@ctrl.Code</td>
                         <td>
                             <a asp-controller="Controls" asp-action="Detail" asp-route-id="@ctrl.Id" class="fw-semibold text-dark text-decoration-none">@ctrl.Title</a>

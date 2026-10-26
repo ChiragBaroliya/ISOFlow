@@ -90,7 +90,7 @@
             <tbody id="risksTableBody">
                 @foreach (var risk in Model)
                 {
-                    <tr class="@(risk.Id == "RISK-001" ? "table-danger" : "")">
+                    <tr>
                         <td class="fw-bold text-danger">@risk.Code</td>
                         <td>
                             <a asp-controller="Risks" asp-action="Detail" asp-route-id="@risk.Id" class="fw-semibold text-dark text-decoration-none">@risk.Title</a>

@@ -89,7 +89,7 @@
             <tbody id="findingsTableBody">
                 @foreach (var find in Model)
                 {
-                    <tr class="@(find.Id == "FIND-001" ? "table-danger" : "")">
+                    <tr>
                         <td class="fw-bold text-danger">@find.Code</td>
                         <td>
                             <a asp-controller="Findings" asp-action="Detail" asp-route-id="@find.Id" class="fw-semibold text-dark text-decoration-none">@find.Title</a>
@@ -170,7 +170,7 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Associated Audit ID</label>
-                            <input type="text" name="AuditId" class="form-control form-control-sm" value="AUD-2026-001" />
+                            <input type="text" name="AuditId" class="form-control form-control-sm" placeholder="e.g. AUD-2026-001" />
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">Clause / Requirement ID</label>

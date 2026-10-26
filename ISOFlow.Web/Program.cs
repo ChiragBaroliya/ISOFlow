@@ -15,6 +15,7 @@ using ISOFlow.Web.Services.Organizations;
 using ISOFlow.Web.Services.Risks;
 using ISOFlow.Web.Services.Standards;
 using ISOFlow.Web.Services.Tasks;
+using ISOFlow.Web.Services.Traceability;
 using ISOFlow.Web.Services.Users;
 using Serilog;
 
@@ -72,6 +73,7 @@ try
     builder.Services.AddScoped<IAuthApiClient, AuthApiClient>();
     builder.Services.AddScoped<ILogsApiClient, LogsApiClient>();
     builder.Services.AddScoped<IAuditLogsApiClient, AuditLogsApiClient>();
+    builder.Services.AddScoped<ITraceabilityApiClient, TraceabilityApiClient>();
 
     // Session Support for Multi-Tenant Org Switcher and JWT Token Storage
     builder.Services.AddSession(options =>

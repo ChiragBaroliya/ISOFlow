@@ -1,5 +1,6 @@
 using ISOFlow.Domain.Entities;
 using ISOFlow.Web.Models;
+using ISOFlow.Web.Services.Controls;
 using ISOFlow.Web.Services.Risks;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,16 +9,17 @@ namespace ISOFlow.Web.Controllers;
 public class RisksController : Controller
 {
     private readonly IRisksApiClient _risksClient;
+    private readonly IControlsApiClient _controlsClient;
 
-    public RisksController(IRisksApiClient risksClient)
+    public RisksController(IRisksApiClient risksClient, IControlsApiClient controlsClient)
     {
         _risksClient = risksClient;
+        _controlsClient = controlsClient;
     }
 
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "Risks";
-        ViewData["ActiveTraceabilityId"] = "RISK-001";
         var risks = await _risksClient.GetAllRisksAsync();
         return View(risks);
     }
@@ -26,28 +28,26 @@ public class RisksController : Controller
     {
         ViewData["ActiveMenu"] = "Risks";
 
-        var allRisks = await _risksClient.GetAllRisksAsync();
-        Risk? risk = null;
+        if (string.IsNullOrWhiteSpace(id))
+            return RedirectToAction(nameof(Index));
 
-        if (!string.IsNullOrWhiteSpace(id))
-        {
-            risk = await _risksClient.GetRiskByIdAsync(id)
-                ?? allRisks.FirstOrDefault(r => r.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || r.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
-        }
-
-        risk ??= allRisks.FirstOrDefault();
-
+        var risk = await _risksClient.GetRiskByIdAsync(id);
         if (risk == null)
         {
-            return NotFound("No risks found in database.");
+            var allRisks = await _risksClient.GetAllRisksAsync();
+            risk = allRisks.FirstOrDefault(r => r.Code.Equals(id, StringComparison.OrdinalIgnoreCase) || r.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         }
+        if (risk == null)
+            return NotFound($"Risk '{id}' was not found.");
 
         ViewData["ActiveTraceabilityId"] = risk.Code;
         var treatment = await _risksClient.GetRiskTreatmentByRiskIdAsync(risk.Id);
+        var control = string.IsNullOrEmpty(risk.ControlId) ? null : await _controlsClient.GetControlByIdAsync(risk.ControlId);
 
         var vm = new RiskDetailViewModel
         {
             Risk = risk,
+            Control = control,
             Treatment = treatment
         };
 
@@ -57,7 +57,6 @@ public class RisksController : Controller
     public async Task<IActionResult> Matrix()
     {
         ViewData["ActiveMenu"] = "RiskMatrix";
-        ViewData["ActiveTraceabilityId"] = "RISK-001";
         var matrix = await _risksClient.GetRiskMatrixDataAsync();
         return View(matrix);
     }

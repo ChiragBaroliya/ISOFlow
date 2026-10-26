@@ -16,7 +16,6 @@ public class ManagementReviewController : Controller
     public async Task<IActionResult> Index()
     {
         ViewData["ActiveMenu"] = "ManagementReview";
-        ViewData["ActiveTraceabilityId"] = "MR-Q4-2026";
         var reviews = await _reviewsClient.GetAllReviewsAsync();
         return View(reviews);
     }

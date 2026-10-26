@@ -88,8 +88,8 @@
             <tbody id="requirementsTableBody">
                 @foreach (var req in Model)
                 {
-                    var primaryCtrlId = req.RelatedControlIds.FirstOrDefault() ?? "CTRL-001";
-                    <tr id="@req.Clause.Replace(".", "-")" class="@(req.Clause == "A.5.18" ? "table-primary" : "")">
+                    var primaryCtrlId = req.RelatedControlIds.FirstOrDefault();
+                    <tr id="@req.Clause.Replace(".", "-")">
                         <td class="fw-bold text-primary">@req.Clause</td>
                         <td>
                             <div class="fw-semibold">@req.Title</div>
@@ -110,9 +110,12 @@
                         </td>
                         <td class="text-end">
                             <div class="btn-group btn-group-sm">
-                                <a asp-controller="Controls" asp-action="Detail" asp-route-id="@primaryCtrlId" class="btn btn-outline-primary" title="Trace Control">
-                                    <i class="bi bi-arrow-right"></i>
-                                </a>
+                                @if (!string.IsNullOrEmpty(primaryCtrlId))
+                                {
+                                    <a asp-controller="Controls" asp-action="Detail" asp-route-id="@primaryCtrlId" class="btn btn-outline-primary" title="Trace Control">
+                                        <i class="bi bi-arrow-right"></i>
+                                    </a>
+                                }
                                 <button type="button" class="btn btn-outline-secondary" title="Edit Requirement"
                                         onclick="openEditRequirementModal('@req.Id', '@req.StandardId', '@Html.Raw(Html.Encode(req.Clause))', '@Html.Raw(Html.Encode(req.Title))', '@Html.Raw(Html.Encode(req.Category))', '@req.CompliancePercentage', '@string.Join(", ", req.RelatedControlIds)', '@Html.Raw(Html.Encode(req.Description))')">
                                     <i class="bi bi-pencil"></i>

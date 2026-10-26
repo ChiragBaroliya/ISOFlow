@@ -67,7 +67,7 @@
             </div>
             <div class="text-md-end">
                 <div class="small text-muted"><i class="bi bi-person-badge text-primary me-1"></i> Owner: <strong>@Model.Owner</strong></div>
-                <div class="small text-muted mt-1"><i class="bi bi-file-earmark-text me-1"></i> Linked Policy: <strong>@(string.IsNullOrEmpty(Model.PolicyId) ? "POL-001 Access Control Policy" : Model.PolicyId)</strong></div>
+                <div class="small text-muted mt-1"><i class="bi bi-file-earmark-text me-1"></i> Linked Policy: <strong>@(string.IsNullOrEmpty(Model.PolicyId) ? "—" : Model.PolicyId)</strong></div>
             </div>
         </div>
 

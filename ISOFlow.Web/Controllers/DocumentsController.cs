@@ -16,7 +16,6 @@ public class DocumentsController : Controller
     public async Task<IActionResult> Policies()
     {
         ViewData["ActiveMenu"] = "Policies";
-        ViewData["ActiveTraceabilityId"] = "POL-001";
         var policies = await _documentsClient.GetAllPoliciesAsync();
         return View(policies);
     }
@@ -91,7 +90,6 @@ public class DocumentsController : Controller
 
         process ??= allProcesses.FirstOrDefault();
 
-        ViewData["ActiveTraceabilityId"] = process?.Code ?? "PROC-001";
         ViewBag.AllProcesses = allProcesses;
         ViewBag.Policies = await _documentsClient.GetAllPoliciesAsync();
 

@@ -22,7 +22,6 @@ public class AdminController : Controller
     public async Task<IActionResult> Users()
     {
         ViewData["ActiveMenu"] = "Users";
-        ViewData["ActiveTraceabilityId"] = "CTRL-001";
         var users = await _usersClient.GetAllUsersAsync();
         ViewBag.Organizations = await _orgsClient.GetAllOrganizationsAsync();
         return View(users);

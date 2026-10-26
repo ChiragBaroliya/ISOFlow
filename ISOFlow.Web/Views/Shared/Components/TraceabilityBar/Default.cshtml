@@ -1,0 +1,40 @@
+@model ISOFlow.Application.DTOs.TraceabilityGraphDto
+@{
+    string IconFor(string type) => type switch
+    {
+        "Standard" => "bi-journal-bookmark",
+        "Requirement" => "bi-list-check",
+        "Control" => "bi-shield-lock",
+        "Risk" => "bi-exclamation-triangle",
+        "Treatment" => "bi-bandaid",
+        "Policy" => "bi-file-earmark-text",
+        "Process" => "bi-diagram-3",
+        "Task" => "bi-check2-square",
+        "Evidence" => "bi-paperclip",
+        "Audit" => "bi-clipboard-check",
+        "Finding" => "bi-bug",
+        "CAPA" => "bi-tools",
+        "Review" => "bi-briefcase",
+        "Improvement" => "bi-graph-up-arrow",
+        _ => "bi-circle"
+    };
+}
+
+<div class="traceability-bar-container">
+    <div class="traceability-bar-title">
+        <i class="bi bi-diagram-2 text-primary"></i> End-to-End Compliance Traceability Chain
+    </div>
+    <div class="traceability-chain">
+        @for (var i = 0; i < Model.Steps.Count; i++)
+        {
+            var step = Model.Steps[i];
+            if (i > 0)
+            {
+                <i class="bi bi-chevron-right traceability-arrow"></i>
+            }
+            <a href="@step.Url" class="traceability-node @(step.IsActive ? "active" : "")" title="@step.Type · @step.Status">
+                <i class="bi @IconFor(step.Type)"></i> @step.Code @step.Label
+            </a>
+        }
+    </div>
+</div>

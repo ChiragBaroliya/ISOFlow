@@ -87,7 +87,7 @@
             <tbody id="auditsTableBody">
                 @foreach (var aud in Model)
                 {
-                    <tr class="@(aud.Id == "AUD-2026-001" ? "table-primary" : "")">
+                    <tr>
                         <td class="fw-bold text-primary">@aud.Code</td>
                         <td>
                             <a asp-controller="Audits" asp-action="Detail" asp-route-id="@aud.Id" class="fw-semibold text-dark text-decoration-none">@aud.Title</a>

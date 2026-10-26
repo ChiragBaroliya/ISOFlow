@@ -11,25 +11,28 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Global Search Redirect Engine
+    // Global Search: jump straight to an entity by its code prefix (e.g. CTRL-007, RISK-012, AUD-2026-002).
+    // Unknown codes land on the detail page's "not found" response.
+    const globalSearchRoutes = [
+        { prefix: 'CTRL-', path: '/Controls/Detail' },
+        { prefix: 'RISK-', path: '/Risks/Detail' },
+        { prefix: 'FIND-', path: '/Findings/Detail' },
+        { prefix: 'CAPA-', path: '/Capa/Detail' },
+        { prefix: 'AUD-', path: '/Audits/Detail' },
+        { prefix: 'ISO-', path: '/Standards/Detail' }
+    ];
     const globalSearchInput = document.getElementById('globalSearchInput');
     if (globalSearchInput) {
         globalSearchInput.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                const query = this.value.trim().toUpperCase();
-                if (query.includes('CTRL-') || query.includes('001')) {
-                    window.location.href = '/Controls/Detail?id=CTRL-001';
-                } else if (query.includes('RISK-')) {
-                    window.location.href = '/Risks/Detail?id=RISK-001';
-                } else if (query.includes('AUD-') || query.includes('FIND-')) {
-                    window.location.href = '/Findings/Detail?id=FIND-001';
-                } else if (query.includes('CAPA-')) {
-                    window.location.href = '/Capa/Detail?id=CAPA-001';
-                } else if (query.includes('27001') || query.includes('A.5')) {
-                    window.location.href = '/Standards/Detail?id=ISO-27001-2022';
-                } else {
-                    alert('Global Search indexed entities: CTRL-001, RISK-001, FIND-001, CAPA-001, ISO 27001, A.5.18, POL-001');
-                }
+            if (e.key !== 'Enter') return;
+            const query = this.value.trim().toUpperCase();
+            if (!query) return;
+
+            const route = globalSearchRoutes.find(r => query.startsWith(r.prefix));
+            if (route) {
+                window.location.href = route.path + '?id=' + encodeURIComponent(query);
+            } else if (typeof showToast === 'function') {
+                showToast('Search', 'Enter an entity code starting with ' + globalSearchRoutes.map(r => r.prefix).join(', '));
             }
         });
     }

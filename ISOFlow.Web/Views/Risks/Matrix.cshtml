@@ -1,6 +1,10 @@
 @model List<ISOFlow.Application.DTOs.RiskMatrixCellDto>
 @{
     ViewData["Title"] = "Risk Matrix (5 x 5)";
+
+    int CountInBand(int minScore, int maxScore) =>
+        Model.Where(c => c.Likelihood * c.Impact >= minScore && c.Likelihood * c.Impact <= maxScore).Sum(c => c.Count);
+    string RiskLabel(int count) => count == 1 ? "1 Risk" : $"{count} Risks";
 }
 
 <div class="d-flex align-items-center justify-content-between mb-4">
@@ -50,19 +54,19 @@
             <div class="list-group list-group-flush small">
                 <div class="list-group-item d-flex justify-content-between align-items-center">
                     <div><span class="badge bg-danger p-2 me-2"></span> Critical (Score 15-25)</div>
-                    <span class="fw-bold text-danger">1 Risk</span>
+                    <span class="fw-bold text-danger">@RiskLabel(CountInBand(15, 25))</span>
                 </div>
                 <div class="list-group-item d-flex justify-content-between align-items-center">
                     <div><span class="badge bg-warning p-2 me-2"></span> High (Score 10-14)</div>
-                    <span class="fw-bold text-warning">2 Risks</span>
+                    <span class="fw-bold text-warning">@RiskLabel(CountInBand(10, 14))</span>
                 </div>
                 <div class="list-group-item d-flex justify-content-between align-items-center">
                     <div><span class="badge bg-primary p-2 me-2"></span> Medium (Score 5-9)</div>
-                    <span class="fw-bold">1 Risk</span>
+                    <span class="fw-bold">@RiskLabel(CountInBand(5, 9))</span>
                 </div>
                 <div class="list-group-item d-flex justify-content-between align-items-center">
                     <div><span class="badge bg-success p-2 me-2"></span> Low (Score 1-4)</div>
-                    <span class="fw-bold text-success">1 Risk</span>
+                    <span class="fw-bold text-success">@RiskLabel(CountInBand(1, 4))</span>
                 </div>
             </div>
         </div>

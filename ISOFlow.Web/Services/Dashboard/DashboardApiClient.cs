@@ -8,7 +8,6 @@ public interface IDashboardApiClient
     Task<DashboardKpiDto> GetDashboardKpisAsync();
     Task<List<ComplianceTrendDto>> GetComplianceTrendsAsync();
     Task<List<RiskMatrixCellDto>> GetRiskMatrixAsync();
-    Task<TraceabilityGraphDto?> GetTraceabilityGraphAsync();
 }
 
 public class DashboardApiClient : IDashboardApiClient
@@ -28,7 +27,4 @@ public class DashboardApiClient : IDashboardApiClient
 
     public async Task<List<RiskMatrixCellDto>> GetRiskMatrixAsync() =>
         await _api.GetAsync<List<RiskMatrixCellDto>>("api/dashboard/risk-matrix") ?? new();
-
-    public async Task<TraceabilityGraphDto?> GetTraceabilityGraphAsync() =>
-        await _api.GetAsync<TraceabilityGraphDto>("api/dashboard/traceability");
 }

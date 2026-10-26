@@ -272,19 +272,23 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Request password reset token
+    /// Request a password reset token. The response is the same whether or not the email is registered
+    /// (no account enumeration). The token itself is only returned in the Development environment;
+    /// elsewhere it must be delivered out-of-band (email delivery is pending).
     /// </summary>
     [HttpPost("forgot-password")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<string>), 200)]
-    [ProducesResponseType(typeof(ApiResponse<string>), 404)]
     public async Task<ActionResult<ApiResponse<string>>> ForgotPassword([FromBody] ForgotPasswordDto dto)
     {
         var token = await _userRepository.GenerateResetTokenAsync(dto.Email);
-        if (token == null)
-            return NotFound(ApiResponse<string>.FailureResponse($"No account found with email '{dto.Email}'."));
 
-        return Ok(ApiResponse<string>.SuccessResponse(token, "Reset token generated successfully."));
+        var environment = HttpContext?.RequestServices?.GetService(typeof(IWebHostEnvironment)) as IWebHostEnvironment;
+        var exposeToken = environment?.IsDevelopment() == true;
+
+        return Ok(ApiResponse<string>.SuccessResponse(
+            exposeToken ? token! : null!,
+            "If the email is registered, a password reset token has been issued."));
     }
 
     /// <summary>

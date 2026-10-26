@@ -17,7 +17,6 @@ public class LogsController : Controller
     public async Task<IActionResult> Index(DateTime? fromDate, DateTime? toDate, string? logLevel, string? search)
     {
         ViewData["ActiveMenu"] = "Logs";
-        ViewData["ActiveTraceabilityId"] = "LOG-HUB";
 
         var defaultFrom = fromDate ?? DateTime.Today.AddDays(-7);
         var defaultTo = toDate ?? DateTime.Today;

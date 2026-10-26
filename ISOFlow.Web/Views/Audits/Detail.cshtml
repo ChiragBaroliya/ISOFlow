@@ -1,15 +1,19 @@
-@model ISOFlow.Domain.Entities.Audit
+@using ISOFlow.Domain.Enums
+@model ISOFlow.Web.Models.AuditDetailViewModel
 @{
-    ViewData["Title"] = $"{Model?.Code ?? "AUD-2026-001"} - {Model?.Title ?? "ISO 27001 Internal Audit"}";
+    var audit = Model.Audit;
+    ViewData["Title"] = $"{audit.Code} - {audit.Title}";
+
+    static bool IsOpen(ISOFlow.Domain.Entities.Finding f) => f.Status != FindingStatus.Closed && f.Status != FindingStatus.Resolved;
 }
 
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
         <div class="d-flex align-items-center gap-2 mb-1">
-            <span class="badge bg-primary fs-6">@(Model?.Code ?? "AUD-2026-001")</span>
-            <span class="badge bg-warning text-dark">Status: @(Model?.Status.ToString() ?? "InProgress")</span>
+            <span class="badge bg-primary fs-6">@audit.Code</span>
+            <span class="badge bg-warning text-dark">Status: @audit.Status</span>
         </div>
-        <h3 class="fw-bold text-dark mb-0">@(Model?.Title ?? "ISO 27001 Internal Audit 2026")</h3>
+        <h3 class="fw-bold text-dark mb-0">@audit.Title</h3>
     </div>
     <a asp-controller="Audits" asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Audits</a>
 </div>
@@ -18,39 +22,79 @@
     <div class="col-md-8">
         <div class="card-enterprise p-4">
             <h6 class="fw-bold mb-3"><i class="bi bi-list-check text-primary me-2"></i> Audit Control Checklist Evaluation</h6>
-            <table class="table table-sm table-hover align-middle">
-                <thead><tr><th>Control</th><th>Requirement</th><th>Evaluation</th><th>Evidence</th></tr></thead>
-                <tbody>
-                    <tr class="table-danger">
-                        <td class="fw-bold">CTRL-001 User Access Management</td>
-                        <td>A.5.18 Access Rights</td>
-                        <td><span class="badge bg-danger">Non-Compliant</span></td>
-                        <td><a asp-controller="Evidence" asp-action="Index" class="badge bg-light text-dark border">EVI-2026-001</a></td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold">CTRL-002 Password Management</td>
-                        <td>A.5.15 Access Control</td>
-                        <td><span class="badge bg-success">Compliant</span></td>
-                        <td><span class="badge bg-light text-dark border">EVI-2026-003</span></td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold">CTRL-006 Backup Management</td>
-                        <td>A.8.13 Information Backup</td>
-                        <td><span class="badge bg-success">Compliant</span></td>
-                        <td><span class="badge bg-light text-dark border">EVI-2026-004</span></td>
-                    </tr>
-                </tbody>
-            </table>
+            @if (Model.Checklist.Any())
+            {
+                <table class="table table-sm table-hover align-middle">
+                    <thead><tr><th>Control</th><th>Evaluation</th><th>Evidence</th></tr></thead>
+                    <tbody>
+                        @foreach (var item in Model.Checklist)
+                        {
+                            var openFindings = item.Findings.Where(IsOpen).ToList();
+                            <tr class="@(openFindings.Any() ? "table-danger" : "")">
+                                <td class="fw-bold">
+                                    @if (item.Control != null)
+                                    {
+                                        <a asp-controller="Controls" asp-action="Detail" asp-route-id="@item.Control.Code" class="text-decoration-none">@item.Control.Code @item.Control.Title</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">@item.Reference (control not found)</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (openFindings.Any())
+                                    {
+                                        <span class="badge bg-danger">@openFindings.Count open finding(s)</span>
+                                    }
+                                    else if (item.Findings.Any())
+                                    {
+                                        <span class="badge bg-success">Findings resolved</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-dark border">No findings</span>
+                                    }
+                                </td>
+                                <td>
+                                    @foreach (var ev in item.Evidence)
+                                    {
+                                        <a asp-controller="Evidence" asp-action="Index" class="badge bg-light text-dark border me-1">@ev.Code</a>
+                                    }
+                                    @if (!item.Evidence.Any())
+                                    {
+                                        <span class="text-muted small">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <div class="text-muted small p-3 border rounded bg-light"><i class="bi bi-inbox me-1"></i> No controls are on this audit's checklist.</div>
+            }
 
             <div class="mt-4 pt-3 border-top">
-                <h6 class="fw-bold text-danger mb-2">Audit Findings Identified</h6>
-                <div class="p-3 bg-danger-subtle rounded border border-danger d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="badge bg-danger me-2">FIND-001</span>
-                        <strong class="text-danger">Access not removed promptly for terminated employees</strong>
-                    </div>
-                    <a asp-controller="Findings" asp-action="Detail" asp-route-id="FIND-001" class="btn btn-sm btn-danger">Trace Finding FIND-001 <i class="bi bi-arrow-right"></i></a>
-                </div>
+                <h6 class="fw-bold text-danger mb-2">Audit Findings Identified (@Model.Findings.Count)</h6>
+                @if (Model.Findings.Any())
+                {
+                    @foreach (var finding in Model.Findings)
+                    {
+                        <div class="p-3 bg-danger-subtle rounded border border-danger mb-2 d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="badge bg-danger me-2">@finding.Code</span>
+                                <strong class="text-danger">@finding.Title</strong>
+                                <span class="text-muted small ms-2">@finding.Severity · @finding.Status</span>
+                            </div>
+                            <a asp-controller="Findings" asp-action="Detail" asp-route-id="@finding.Code" class="btn btn-sm btn-danger">Trace Finding <i class="bi bi-arrow-right"></i></a>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-muted small">No findings have been raised in this audit.</div>
+                }
             </div>
         </div>
     </div>
@@ -59,10 +103,10 @@
         <div class="card-enterprise p-4">
             <h6 class="fw-bold mb-3">Audit Details</h6>
             <div class="small">
-                <div class="mb-2"><strong>Lead Auditor:</strong> @(Model?.LeadAuditor ?? "Sarah Wilson")</div>
-                <div class="mb-2"><strong>Dates:</strong> 20-Aug to 25-Aug-2026</div>
-                <div class="mb-2"><strong>Completion:</strong> @(Model?.CompletionPercentage ?? 68)%</div>
-                <div class="mb-2"><strong>Scope:</strong> @(Model?.Scope ?? "Annex A Organizational Controls")</div>
+                <div class="mb-2"><strong>Lead Auditor:</strong> @audit.LeadAuditor</div>
+                <div class="mb-2"><strong>Dates:</strong> @audit.StartDate.ToString("dd-MMM-yyyy") to @audit.EndDate.ToString("dd-MMM-yyyy")</div>
+                <div class="mb-2"><strong>Completion:</strong> @audit.CompletionPercentage%</div>
+                <div class="mb-2"><strong>Scope:</strong> @audit.Scope</div>
             </div>
         </div>
     </div>
