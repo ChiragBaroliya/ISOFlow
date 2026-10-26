@@ -213,17 +213,24 @@ public class DatabaseCrudTests
         var taskRepo = new TaskRepository(_dbFactory);
         var evidenceRepo = new EvidenceRepository(_dbFactory);
         var traceRepo = new TraceabilityRepository(_dbFactory);
+        var snapshotRepo = new ComplianceSnapshotRepository(_dbFactory);
         var cache = new MemoryCacheService(new MemoryCache(new MemoryCacheOptions()));
 
         var service = new DashboardService(
             controlRepo, riskRepo, auditRepo, capaRepo,
-            taskRepo, evidenceRepo, traceRepo, cache);
+            taskRepo, evidenceRepo, traceRepo, snapshotRepo, cache);
 
         var kpis = await service.GetDashboardKpisAsync(1);
 
         Assert.NotNull(kpis);
         Assert.True(kpis.ControlsTotalCount > 0);
         Assert.True(kpis.OverallCompliancePercentage > 0);
+
+        // Trends come from stored snapshots; the current month is always recorded from live data.
+        var trends = await service.GetComplianceTrendsAsync(1);
+        Assert.NotEmpty(trends);
+        Assert.Equal(DateTime.UtcNow.ToString("MMM yyyy"), trends[^1].Month);
+        Assert.Equal(kpis.OverallCompliancePercentage, trends[^1].ComplianceScore);
         _output.WriteLine($"Dashboard dynamically computed from DB: {kpis.ControlsTotalCount} Controls, {kpis.OverallCompliancePercentage}% Average Compliance, {kpis.OpenRisksCount} Open Risks.");
     }
 }

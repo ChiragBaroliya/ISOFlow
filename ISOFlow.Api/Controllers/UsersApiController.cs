@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ISOFlow.Api.Auditing;
 using ISOFlow.Api.Extensions;
 using ISOFlow.Application.DTOs;
+using ISOFlow.Application.Helpers;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
 using ISOFlow.Domain.Enums;
@@ -153,12 +154,15 @@ public class UsersController : ControllerBase
             dto.OrganizationId = User.GetOrganizationId() ?? string.Empty;
         }
 
+        if (string.IsNullOrWhiteSpace(dto.Password))
+            return BadRequest(ApiResponse<User>.FailureResponse("Password is required when creating a user."));
+
         var user = new User
         {
             OrganizationId = string.IsNullOrWhiteSpace(dto.OrganizationId) ? null : int.Parse(dto.OrganizationId),
             Name = dto.Name,
             Email = dto.Email,
-            Password = dto.Password,
+            PasswordHash = PasswordSecurityHelper.HashPassword(dto.Password),
             SystemRole = dto.SystemRole,
             Role = dto.Role,
             Department = dto.Department,
@@ -202,7 +206,7 @@ public class UsersController : ControllerBase
         existing.Email = dto.Email;
         if (!string.IsNullOrWhiteSpace(dto.Password))
         {
-            existing.Password = dto.Password;
+            existing.PasswordHash = PasswordSecurityHelper.HashPassword(dto.Password);
         }
         existing.SystemRole = dto.SystemRole;
         existing.Role = dto.Role;

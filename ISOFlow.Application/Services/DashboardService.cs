@@ -12,7 +12,11 @@ public class DashboardService : IDashboardService
     private readonly ITaskRepository _taskRepository;
     private readonly IEvidenceRepository _evidenceRepository;
     private readonly ITraceabilityRepository _traceabilityRepository;
+    private readonly IComplianceSnapshotRepository _snapshotRepository;
     private readonly ICacheService _cacheService;
+
+    /// <summary>How many months of history the trend chart shows.</summary>
+    private const int TrendMonths = 12;
 
     public DashboardService(
         IControlRepository controlRepository,
@@ -22,6 +26,7 @@ public class DashboardService : IDashboardService
         ITaskRepository taskRepository,
         IEvidenceRepository evidenceRepository,
         ITraceabilityRepository traceabilityRepository,
+        IComplianceSnapshotRepository snapshotRepository,
         ICacheService cacheService)
     {
         _controlRepository = controlRepository;
@@ -31,6 +36,7 @@ public class DashboardService : IDashboardService
         _taskRepository = taskRepository;
         _evidenceRepository = evidenceRepository;
         _traceabilityRepository = traceabilityRepository;
+        _snapshotRepository = snapshotRepository;
         _cacheService = cacheService;
     }
 
@@ -68,31 +74,21 @@ public class DashboardService : IDashboardService
         return kpi;
     }
 
+    /// <summary>
+    /// Records the current month's live compliance score / open-risk count as a snapshot, then returns
+    /// the stored monthly history. History therefore starts on the first month the dashboard is used;
+    /// earlier months are never fabricated.
+    /// </summary>
     public async Task<List<ComplianceTrendDto>> GetComplianceTrendsAsync(int? organizationId)
     {
         var controls = await _controlRepository.GetAllControlsAsync(organizationId);
         var risks = await _riskRepository.GetAllRisksAsync(organizationId);
 
-        var currentScore = controls.Count > 0 ? Math.Round(controls.Average(c => c.CompliancePercentage), 1) : 85.0;
-        var openRisks = risks.Count(r => r.Status != "Closed");
+        var currentScore = controls.Count > 0 ? Math.Round(controls.Average(c => c.CompliancePercentage), 1) : 0.0;
+        var openRisks = risks.Count(r => r.Status != "Closed" && r.Status != "Mitigated");
 
-        var months = new[] { "Jan 2026", "Feb 2026", "Mar 2026", "Apr 2026", "May 2026", "Jun 2026", "Jul 2026", "Aug 2026" };
-        var trends = new List<ComplianceTrendDto>();
-
-        for (int i = 0; i < months.Length; i++)
-        {
-            var offset = (months.Length - 1 - i) * 1.8;
-            var comp = Math.Max(50.0, Math.Round(currentScore - offset, 1));
-            var riskVal = Math.Max(5, openRisks + (months.Length - 1 - i));
-            trends.Add(new ComplianceTrendDto
-            {
-                Month = months[i],
-                ComplianceScore = comp,
-                RiskScore = riskVal
-            });
-        }
-
-        return trends;
+        await _snapshotRepository.UpsertMonthlySnapshotAsync(organizationId, DateTime.UtcNow, currentScore, openRisks);
+        return await _snapshotRepository.GetRecentSnapshotsAsync(organizationId, TrendMonths);
     }
 
     public async Task<List<RiskMatrixCellDto>> GetRiskMatrixAsync(int? organizationId)
@@ -100,8 +96,8 @@ public class DashboardService : IDashboardService
         return await _riskRepository.GetRiskMatrixDataAsync(organizationId);
     }
 
-    public async Task<TraceabilityGraphDto> GetGoldenScenarioTraceabilityAsync(int? organizationId)
+    public async Task<TraceabilityGraphDto> GetControlTraceabilityAsync(string controlId, int? organizationId)
     {
-        return await _traceabilityRepository.GetTraceabilityGraphAsync("CTRL-001", organizationId);
+        return await _traceabilityRepository.GetTraceabilityGraphAsync(controlId, organizationId);
     }
 }

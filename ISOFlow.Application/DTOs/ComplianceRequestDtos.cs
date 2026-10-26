@@ -431,8 +431,9 @@ public class UserRequestDto
     [EmailAddress(ErrorMessage = "Invalid email format.")]
     public string Email { get; set; } = string.Empty;
 
+    /// <summary>Required when creating a user; optional on update (blank = keep current password).</summary>
     [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be between 6 and 100 characters.")]
-    public string Password { get; set; } = "Test@123";
+    public string? Password { get; set; }
 
     public SystemRole SystemRole { get; set; } = SystemRole.User;
 

@@ -7,6 +7,7 @@
 -- ============================================================================
 -- Drop Existing Tables (in reverse dependency order)
 -- ============================================================================
+DROP TABLE IF EXISTS compliance_snapshots CASCADE;
 DROP TABLE IF EXISTS refresh_tokens CASCADE;
 DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
@@ -57,7 +58,7 @@ CREATE TABLE users (
     organization_id INT NULL REFERENCES organizations(id) ON DELETE SET NULL,
     name VARCHAR(150) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL DEFAULT 'Test@123',
+    password_hash VARCHAR(255) NOT NULL, -- PBKDF2: $pbkdf2-sha256$i=...$salt$hash (never plain text)
     system_role INT NOT NULL DEFAULT 2, -- 0=SuperAdmin, 1=Admin, 2=User
     role VARCHAR(100) NOT NULL,
     department VARCHAR(100) NOT NULL,
@@ -65,7 +66,8 @@ CREATE TABLE users (
     avatar_url TEXT NULL,
     phone VARCHAR(50) NULL,
     bio TEXT NULL,
-    reset_token VARCHAR(50) NULL,
+    reset_token VARCHAR(128) NULL, -- SHA-256 hex digest of the reset token (never the token itself)
+    reset_token_expires_at TIMESTAMP WITH TIME ZONE NULL,
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata'),
     updated_at TIMESTAMP WITHOUT TIME ZONE NULL
 );
@@ -441,6 +443,17 @@ CREATE TABLE refresh_tokens (
     replaced_by_token_hash VARCHAR(256) NULL
 );
 
+-- 24. Compliance Snapshots Table (one row per organization per month; feeds dashboard trends)
+--     organization_id NULL = platform-wide snapshot (SuperAdmin view across all tenants).
+CREATE TABLE compliance_snapshots (
+    id SERIAL PRIMARY KEY,
+    organization_id INT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    snapshot_month DATE NOT NULL, -- first day of the month
+    compliance_score DOUBLE PRECISION NOT NULL,
+    open_risks_count INT NOT NULL,
+    captured_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ============================================================================
 -- Performance Indexes
 -- ============================================================================
@@ -488,3 +501,4 @@ CREATE INDEX IF NOT EXISTS ix_audit_logs_new_values_gin ON audit_logs USING GIN 
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens (user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens (token_hash);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_active ON refresh_tokens (user_id, expires_at) WHERE revoked_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_compliance_snapshots_org_month ON compliance_snapshots ((COALESCE(organization_id, 0)), snapshot_month);

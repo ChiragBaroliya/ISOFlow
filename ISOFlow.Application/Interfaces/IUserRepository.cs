@@ -12,23 +12,25 @@ public interface IUserRepository
     Task<User?> GetUserByIdAsync(string id);
     Task<User?> GetUserByEmailAsync(string email);
 
+    /// <summary>Inserts the user. <see cref="User.PasswordHash"/> must already be a PBKDF2 hash.</summary>
     Task<User> CreateUserAsync(User user);
+    /// <summary>Updates the user, including <see cref="User.PasswordHash"/> (which must already be hashed).</summary>
     Task<User?> UpdateUserAsync(User user);
     Task<bool> DeleteUserAsync(string id);
 
-    /// <summary>Validates email + password. Returns the matching user or null.</summary>
+    /// <summary>Validates email + plain-text password against the stored hash. Returns the matching user or null.</summary>
     Task<User?> ValidateLoginAsync(string email, string password);
 
     /// <summary>
-    /// Generates an 8-char mock reset token for the given email and stores it on the user.
-    /// Returns the token, or null if the email was not found.
+    /// Generates a random reset token for the given email, stores only its SHA-256 hash and an
+    /// expiry on the user, and returns the plain token (or null if the email was not found).
     /// </summary>
     Task<string?> GenerateResetTokenAsync(string email);
 
     /// <summary>
-    /// Finds the user whose ResetToken matches <paramref name="token"/>,
-    /// sets their password to <paramref name="newPassword"/>, and clears the token.
-    /// Returns true on success, false if the token was invalid.
+    /// Finds the user whose unexpired reset token matches <paramref name="token"/>,
+    /// sets their password hash from <paramref name="newPassword"/>, and clears the token.
+    /// Returns true on success, false if the token was invalid or expired.
     /// </summary>
     Task<bool> ResetPasswordAsync(string token, string newPassword);
 

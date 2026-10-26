@@ -29,30 +29,49 @@ public class AdminController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateUser(User user)
+    public async Task<IActionResult> CreateUser(User user, string password)
     {
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 6)
+        {
+            TempData["ErrorMessage"] = "An initial password of at least 6 characters is required.";
+            return RedirectToAction(nameof(Users));
+        }
+
         if (ModelState.IsValid)
         {
             if (user.SystemRole == SystemRole.SuperAdmin)
             {
                 user.OrganizationId = null;
             }
-            await _usersClient.CreateUserAsync(user);
-            TempData["SuccessMessage"] = $"User '{user.Name}' created successfully!";
+            var created = await _usersClient.CreateUserAsync(user, password);
+            if (created != null)
+            {
+                TempData["SuccessMessage"] = $"User '{user.Name}' created successfully!";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = $"Unable to create user '{user.Name}'.";
+            }
         }
         return RedirectToAction(nameof(Users));
     }
 
     [HttpPost]
-    public async Task<IActionResult> EditUser(User user)
+    public async Task<IActionResult> EditUser(User user, string? newPassword)
     {
+        if (!string.IsNullOrWhiteSpace(newPassword) && newPassword.Length < 6)
+        {
+            TempData["ErrorMessage"] = "A new password must be at least 6 characters.";
+            return RedirectToAction(nameof(Users));
+        }
+
         if (ModelState.IsValid)
         {
             if (user.SystemRole == SystemRole.SuperAdmin)
             {
                 user.OrganizationId = null;
             }
-            var updated = await _usersClient.UpdateUserAsync(user);
+            var updated = await _usersClient.UpdateUserAsync(user, newPassword);
             if (updated != null)
             {
                 TempData["SuccessMessage"] = $"User account '{updated.Name}' updated successfully.";

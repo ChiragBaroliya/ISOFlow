@@ -1554,20 +1554,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION sp_user_validate_login(p_email VARCHAR(150), p_password_hash VARCHAR(255))
-RETURNS TABLE (
-    id INT, organization_id INT, name VARCHAR(150), email VARCHAR(150),
-    system_role INT, role VARCHAR(100), department VARCHAR(100), location VARCHAR(100),
-    avatar_url VARCHAR(500), phone VARCHAR(50), bio TEXT
-) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT u.id, u.organization_id, u.name, u.email, u.system_role, u.role, u.department,
-           u.location, u.avatar_url, u.phone, u.bio
-    FROM users u
-    WHERE LOWER(u.email) = LOWER(p_email) AND u.password_hash = p_password_hash;
-END;
-$$ LANGUAGE plpgsql;
+-- Login validation is done in the application (PBKDF2 verify against users.password_hash);
+-- the old sp_user_validate_login compared plain-text passwords and has been removed.
+DROP FUNCTION IF EXISTS sp_user_validate_login(VARCHAR, VARCHAR);
 
 -- ============================================================================
 -- 10. NOTIFICATIONS & AUDIT LOGS

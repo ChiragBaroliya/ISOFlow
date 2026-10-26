@@ -77,6 +77,7 @@ try
     builder.Services.AddSingleton<INotificationRepository, NotificationRepository>();
     builder.Services.AddSingleton<ITraceabilityRepository, TraceabilityRepository>();
     builder.Services.AddSingleton<IAuditLogRepository, AuditLogRepository>();
+    builder.Services.AddSingleton<IComplianceSnapshotRepository, ComplianceSnapshotRepository>();
 
     // Register Application Services
     builder.Services.AddSingleton<ICacheService, MemoryCacheService>();
@@ -212,6 +213,10 @@ try
     builder.Services.AddEndpointsApiExplorer();
 
     // Configure Swagger OpenAPI Specification with Bearer Token Authorization Support
+    // Optional API contact shown in Swagger, from "Swagger:Contact:Name" / "Swagger:Contact:Email".
+    var swaggerContactName = builder.Configuration["Swagger:Contact:Name"];
+    var swaggerContactEmail = builder.Configuration["Swagger:Contact:Email"];
+
     builder.Services.AddSwaggerGen(c =>
     {
         c.SwaggerDoc("v1", new OpenApiInfo
@@ -219,11 +224,13 @@ try
             Title = "ISOFlow Compliance Management Platform API",
             Version = "v1",
             Description = "Enterprise RESTful Web APIs for ISO 27001 / ISO 9001 / ISO 14001 compliance management, Statement of Applicability (SoA), risk assessment, CAPA workflows, audit programs, and date-wise Serilog inspection with JWT Authentication.",
-            Contact = new OpenApiContact
-            {
-                Name = "Acme InfoSec Compliance Engineering",
-                Email = "compliance@acme.com"
-            }
+            Contact = string.IsNullOrWhiteSpace(swaggerContactName) && string.IsNullOrWhiteSpace(swaggerContactEmail)
+                ? null
+                : new OpenApiContact
+                {
+                    Name = swaggerContactName,
+                    Email = swaggerContactEmail
+                }
         });
 
         // Add Bearer JWT Authentication definition to Swagger

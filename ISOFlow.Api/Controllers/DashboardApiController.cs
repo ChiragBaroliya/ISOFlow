@@ -56,13 +56,18 @@ public class DashboardController : ControllerBase
     }
 
     /// <summary>
-    /// Get golden scenario traceability chain
+    /// Get the end-to-end traceability chain for a control
     /// </summary>
+    /// <param name="controlId">Control code to trace (e.g. CTRL-001)</param>
     [HttpGet("traceability")]
     [ProducesResponseType(typeof(ApiResponse<TraceabilityGraphDto>), 200)]
-    public async Task<ActionResult<ApiResponse<TraceabilityGraphDto>>> GetTraceability()
+    [ProducesResponseType(typeof(ApiResponse<TraceabilityGraphDto>), 400)]
+    public async Task<ActionResult<ApiResponse<TraceabilityGraphDto>>> GetTraceability([FromQuery] string? controlId)
     {
-        var graph = await _dashboardService.GetGoldenScenarioTraceabilityAsync(User.GetOrganizationIdOrNull());
+        if (string.IsNullOrWhiteSpace(controlId))
+            return BadRequest(ApiResponse<TraceabilityGraphDto>.FailureResponse("The 'controlId' query parameter is required."));
+
+        var graph = await _dashboardService.GetControlTraceabilityAsync(controlId.Trim(), User.GetOrganizationIdOrNull());
         return Ok(new ApiResponse<TraceabilityGraphDto> { Data = graph });
     }
 }

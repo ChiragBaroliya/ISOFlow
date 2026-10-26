@@ -28,12 +28,14 @@ ON CONFLICT (id) DO UPDATE SET
     compliance_percentage = EXCLUDED.compliance_percentage, contact_email = EXCLUDED.contact_email;
 
 -- 2. Users
+-- DEV ONLY: password_hash is the PBKDF2 hash of the development password "Test@123".
+-- Never run this seed against a production database.
 INSERT INTO users (id, organization_id, name, email, password_hash, system_role, role, department, location, bio)
 OVERRIDING SYSTEM VALUE
 VALUES
-(1, NULL, 'Global Platform Admin', 'superadmin@isoflow.com', 'Test@123', 0, 'Super Administrator', 'Platform Engineering', 'Austin HQ', 'Global multi-tenant system administrator'),
-(2, 1, 'Alex Morgan', 'alex.morgan@acme.com', 'Test@123', 1, 'Chief Information Security Officer (CISO)', 'Information Security', 'Austin HQ', 'Certified CISM/CISSP leading ISO 27001 and SOC 2 certification programs.'),
-(3, 1, 'Sarah Chen', 'sarah.chen@acme.com', 'Test@123', 2, 'Lead Compliance Manager', 'Governance & Risk', 'Austin HQ', 'ISO 27001 Lead Auditor managing control operations.')
+(1, NULL, 'Global Platform Admin', 'superadmin@isoflow.com', '$pbkdf2-sha256$i=100000$1o9Ffz/fyVm/MoK43T/Dhw==$DtlEkeJ+6+uIZT9bhNBdccstXbsQamEPeyhap2pbr5I=', 0, 'Super Administrator', 'Platform Engineering', 'Austin HQ', 'Global multi-tenant system administrator'),
+(2, 1, 'Alex Morgan', 'alex.morgan@acme.com', '$pbkdf2-sha256$i=100000$1o9Ffz/fyVm/MoK43T/Dhw==$DtlEkeJ+6+uIZT9bhNBdccstXbsQamEPeyhap2pbr5I=', 1, 'Chief Information Security Officer (CISO)', 'Information Security', 'Austin HQ', 'Certified CISM/CISSP leading ISO 27001 and SOC 2 certification programs.'),
+(3, 1, 'Sarah Chen', 'sarah.chen@acme.com', '$pbkdf2-sha256$i=100000$1o9Ffz/fyVm/MoK43T/Dhw==$DtlEkeJ+6+uIZT9bhNBdccstXbsQamEPeyhap2pbr5I=', 2, 'Lead Compliance Manager', 'Governance & Risk', 'Austin HQ', 'ISO 27001 Lead Auditor managing control operations.')
 ON CONFLICT (id) DO UPDATE SET
     organization_id = EXCLUDED.organization_id, name = EXCLUDED.name, email = EXCLUDED.email,
     password_hash = EXCLUDED.password_hash, system_role = EXCLUDED.system_role, role = EXCLUDED.role,

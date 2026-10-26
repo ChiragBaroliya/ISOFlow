@@ -57,11 +57,13 @@ public class JwtAuthenticationTests
     }
 
     [Fact]
-    public void PasswordSecurityHelper_VerifyLegacyPlainTextPassword_Success()
+    public void PasswordSecurityHelper_PlainTextStoredValue_NeverVerifies()
     {
-        var legacyPassword = "Test@123";
-        Assert.True(PasswordSecurityHelper.VerifyPassword("Test@123", legacyPassword));
-        Assert.False(PasswordSecurityHelper.VerifyPassword("WrongPass", legacyPassword));
+        // The legacy plain-text fallback is gone: a stored value that isn't a PBKDF2 hash must never match.
+        var legacyPlainText = "Test@123";
+        Assert.False(PasswordSecurityHelper.VerifyPassword("Test@123", legacyPlainText));
+        Assert.False(PasswordSecurityHelper.IsPasswordHash(legacyPlainText));
+        Assert.True(PasswordSecurityHelper.IsPasswordHash(PasswordSecurityHelper.HashPassword("Test@123")));
     }
 
     [Fact]
@@ -70,6 +72,21 @@ public class JwtAuthenticationTests
         var token = PasswordSecurityHelper.GenerateResetToken(10);
         Assert.Equal(10, token.Length);
         Assert.Matches("^[A-Z0-9]{10}$", token);
+
+        Assert.Equal(32, PasswordSecurityHelper.GenerateResetToken().Length);
+    }
+
+    [Fact]
+    public void PasswordSecurityHelper_HashResetToken_IsDeterministicAndNotThePlainToken()
+    {
+        var token = PasswordSecurityHelper.GenerateResetToken();
+        var hash = PasswordSecurityHelper.HashResetToken(token);
+
+        Assert.Equal(64, hash.Length); // SHA-256 hex
+        Assert.NotEqual(token, hash);
+        Assert.Equal(hash, PasswordSecurityHelper.HashResetToken(token));
+        Assert.Equal(hash, PasswordSecurityHelper.HashResetToken($"  {token.ToLowerInvariant()} ")); // user-typed variations
+        Assert.NotEqual(hash, PasswordSecurityHelper.HashResetToken(PasswordSecurityHelper.GenerateResetToken()));
     }
 
     #endregion
@@ -447,6 +464,8 @@ public class JwtAuthenticationTests
 
     private class MockUserRepository : IUserRepository
     {
+        private static readonly string SeedPasswordHash = PasswordSecurityHelper.HashPassword("Test@123");
+
         private readonly List<User> _users = new()
         {
             new User
@@ -454,7 +473,7 @@ public class JwtAuthenticationTests
                 Id = "1",
                 Name = "System SuperAdmin",
                 Email = "admin@isoflow.io",
-                Password = "Test@123",
+                PasswordHash = SeedPasswordHash,
                 SystemRole = SystemRole.SuperAdmin,
                 Role = "Super Administrator",
                 Department = "Engineering",
@@ -465,7 +484,7 @@ public class JwtAuthenticationTests
                 Id = "2",
                 Name = "Compliance Officer",
                 Email = "user@isoflow.io",
-                Password = "Test@123",
+                PasswordHash = SeedPasswordHash,
                 SystemRole = SystemRole.User,
                 Role = "Compliance Manager",
                 Department = "Compliance",
@@ -482,7 +501,7 @@ public class JwtAuthenticationTests
         public Task<User> CreateUserAsync(User user) { user.Id = (_users.Count + 1).ToString(); _users.Add(user); return Task.FromResult(user); }
         public Task<User?> UpdateUserAsync(User user) { var idx = _users.FindIndex(u => u.Id == user.Id); if (idx >= 0) _users[idx] = user; return Task.FromResult<User?>(user); }
         public Task<bool> DeleteUserAsync(string id) { return Task.FromResult(_users.RemoveAll(u => u.Id == id) > 0); }
-        public Task<User?> ValidateLoginAsync(string email, string password) { var u = _users.FirstOrDefault(x => x.Email.Equals(email, StringComparison.OrdinalIgnoreCase)); return Task.FromResult(u != null && PasswordSecurityHelper.VerifyPassword(password, u.Password) ? u : null); }
+        public Task<User?> ValidateLoginAsync(string email, string password) { var u = _users.FirstOrDefault(x => x.Email.Equals(email, StringComparison.OrdinalIgnoreCase)); return Task.FromResult(u != null && PasswordSecurityHelper.VerifyPassword(password, u.PasswordHash) ? u : null); }
         public Task<string?> GenerateResetTokenAsync(string email) => Task.FromResult<string?>("RESET123");
         public Task<bool> ResetPasswordAsync(string token, string newPassword) => Task.FromResult(true);
         public Task<bool> UpdateProfileAsync(string id, string name, string phone, string department, string bio, string? avatarUrl = null) => Task.FromResult(true);

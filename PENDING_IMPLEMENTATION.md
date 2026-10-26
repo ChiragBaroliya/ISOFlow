@@ -29,14 +29,21 @@ is still hardcoded in the places below.
 
 ### 1.1 Domain / Application / API
 
-- [ ] `ISOFlow.Domain/Entities/User.cs:12-13` — remove the default `Password = "Test@123"` and the "mock password" comment. Rename the property to `PasswordHash`.
-- [ ] `ISOFlow.Domain/Entities/User.cs:25` — reset token comment says "mock". Replace it with a real, hashed, expiring reset token.
-- [ ] `ISOFlow.Application/DTOs/ComplianceRequestDtos.cs:435` — remove the default `Password = "Test@123"` from the user request DTO (make it required, with validation)
-- [ ] `ISOFlow.Application/Helpers/PasswordSecurityHelper.cs:71` — remove the plain-text "backwards compatibility" password fallback. Hash all seed passwords with PBKDF2 in `04_Seed_Data.sql`.
-- [ ] `ISOFlow.Application/Interfaces/IUserRepository.cs:23` — update the "mock reset token" contract and docs
-- [ ] `ISOFlow.Application/Services/DashboardService.cs` — `GetComplianceTrendsAsync` **fabricates** trends from hardcoded months (`"Jan 2026"…"Aug 2026"`) and a synthetic offset, and falls back to `85.0`. Replace it with real historical data, e.g. a `compliance_snapshots` table populated by a scheduled job.
-- [ ] `ISOFlow.Application/Services/DashboardService.cs` — `GetGoldenScenarioTraceabilityAsync` is hardwired to `"CTRL-001"`. Take the control id as a parameter.
-- [ ] `ISOFlow.Api/Program.cs:224-225` — Swagger contact `"Acme InfoSec Compliance Engineering"` / `compliance@acme.com`. Move it to configuration.
+- [x] `User.cs` — `Password = "Test@123"` replaced by `PasswordHash` (no default, `[JsonIgnore]`)
+- [x] `User.cs` — mock reset token replaced by `ResetTokenHash` (SHA-256) and `ResetTokenExpiresAt` (30 min), both `[JsonIgnore]`
+- [x] `UserRequestDto.Password` — no default. It's required on create (API returns 400 without it) and optional on update (blank keeps the current password).
+- [x] `PasswordSecurityHelper` — plain-text fallback removed. Added `IsPasswordHash` and `HashResetToken`, and reset tokens are now 32 chars and unbiased. Seed passwords in `04_Seed_Data.sql` are PBKDF2 hashes.
+- [x] `IUserRepository` — contract and docs updated (hash-only storage, expiring hashed reset tokens)
+- [x] `DashboardService.GetComplianceTrendsAsync` — fabricated months removed. It now records the live score monthly in the new `compliance_snapshots` table and returns the stored history (up to 12 months). History starts empty and grows each month.
+- [x] `GetGoldenScenarioTraceabilityAsync("CTRL-001")` renamed to `GetControlTraceabilityAsync(controlId, …)`. `GET /api/dashboard/traceability?controlId=…` is now required (400 if missing).
+- [x] Swagger contact moved to `Swagger:Contact:Name/Email` config (empty by default, so no contact is shown)
+- **Security fixes found while doing this:**
+  - [x] `CreateUserAsync`, `ResetPasswordAsync` and `ChangePasswordAsync` stored **plain-text** passwords. All writes now hash with PBKDF2, and change-password verifies against the hash.
+  - [x] API user endpoints returned the full `User` entity, **including the password and reset token**. They're now hidden via `[JsonIgnore]`.
+  - [x] Admin-created users silently got `Test@123` (the form had no password field). The Admin form now has *Initial Password* (create) and *New Password* (edit) fields.
+  - [x] Setting a password through `PUT /api/users/{id}` was silently ignored. `UpdateUserAsync` now persists it.
+  - [x] Removed `sp_user_validate_login` (it compared plain-text passwords)
+- **DB action required for existing databases:** run `ISOFlow.Domain/DatabaseSchema/05_Migration_Security_And_Snapshots.sql` once. It converts `Test@123` rows to the hash, adds `reset_token_expires_at`, invalidates old reset tokens, and creates `compliance_snapshots`. Any user with another plain-text password must use *Forgot password*; the script lists them.
 
 ### 1.2 Web — Views with hardcoded entities and numbers
 
@@ -56,7 +63,7 @@ is still hardcoded in the places below.
 - [ ] `Views/Risks/Matrix.cshtml` — static matrix. Bind it to `GET /api/dashboard/risk-matrix`.
 - [ ] `Views/Tasks/Calendar.cshtml` — static placeholder. Build a real calendar from the tasks API.
 - [ ] `Views/Reports/Index.cshtml` — `alert('Downloading…')` stubs and the hardcoded `AUD-2026-001` text (see §3)
-- [ ] `Views/Admin/Users.cshtml:190` — "All users share the mock password `Test@123`". Remove it.
+- [x] `Views/Admin/Users.cshtml:190` — "All users share the mock password `Test@123`" removed (done with §1.1)
 - [ ] `Views/Account/Profile.cshtml:225` — "Mock mode: current password is `Test@123`…". Remove it.
 - [ ] `Views/Account/ForgotPassword.cshtml:5,133-141` and `Controllers/AccountController.cs:186` — the reset token is shown on screen as "Mock Token (Dev Mode)". Send it by email instead and stop returning it from the API.
 - [ ] Controllers that set `ViewData["ActiveTraceabilityId"] = "CTRL-001"` (`HomeController`, `ReportsController`, …). Derive it from the current entity.
@@ -119,7 +126,7 @@ is still hardcoded in the places below.
 
 - [ ] Add a migration strategy (versioned scripts with DbUp/Flyway, or EF migrations) instead of manual `01_…04_*.sql` execution
 - [ ] Make `04_Seed_Data.sql` optional (dev only), and keep it out of production deployment
-- [ ] Add a `compliance_snapshots` (or similar) table for historical trend data (needed by §1.1)
+- [x] Add a `compliance_snapshots` table for historical trend data (done with §1.1)
 
 ---
 

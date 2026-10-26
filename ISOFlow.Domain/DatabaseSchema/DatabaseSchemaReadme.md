@@ -11,7 +11,8 @@ ISOFlow.Domain/DatabaseSchema/
 ├── 01_Tables_And_Constraints.sql   # DDL: 22 Tables, Primary Keys, Foreign Keys, Indexes, Check Constraints
 ├── 02_Stored_Procedures.sql        # Full CRUD, Paged Lists (OFFSET/FETCH), SoA, HeatMap, Traceability
 ├── 03_Functions.sql                # Scalar & Table-Valued Functions (Risk Score, Level, Summary)
-├── 04_Seed_Data.sql                # Pre-seeded ISO Standards, Baseline Controls, SuperAdmin & Users
+├── 04_Seed_Data.sql                # DEV ONLY: Pre-seeded ISO Standards, Baseline Controls, SuperAdmin & Users (password "Test@123", stored hashed)
+├── 05_Migration_Security_And_Snapshots.sql # One-time upgrade for databases created before password hashing / compliance_snapshots
 └── DatabaseSchemaReadme.md         # Schema architecture, ERD overview, and usage instructions
 ```
 

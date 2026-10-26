@@ -31,66 +31,57 @@ public static class PasswordSecurityHelper
     }
 
     /// <summary>
-    /// Verifies an input password against stored hash or fallback plain-text for seed data.
+    /// Verifies an input password against a stored PBKDF2 hash. Anything not in the
+    /// PBKDF2 format (e.g. a legacy plain-text value) never verifies.
     /// </summary>
-    public static bool VerifyPassword(string inputPassword, string storedHashOrPassword)
+    public static bool VerifyPassword(string inputPassword, string storedHash)
     {
-        if (string.IsNullOrEmpty(inputPassword) || string.IsNullOrEmpty(storedHashOrPassword))
+        if (string.IsNullOrEmpty(inputPassword) || !IsPasswordHash(storedHash))
             return false;
 
-        // Check if stored string is in PBKDF2 format
-        if (storedHashOrPassword.StartsWith("$pbkdf2-sha256$"))
+        try
         {
-            try
-            {
-                var parts = storedHashOrPassword.Split('$');
-                // parts: ["", "pbkdf2-sha256", "i=100000", "[salt]", "[hash]"]
-                if (parts.Length == 5)
-                {
-                    var iterationPart = parts[2];
-                    var iterations = int.Parse(iterationPart.Replace("i=", ""));
-                    var salt = Convert.FromBase64String(parts[3]);
-                    var expectedHash = Convert.FromBase64String(parts[4]);
-
-                    var actualHash = Rfc2898DeriveBytes.Pbkdf2(
-                        Encoding.UTF8.GetBytes(inputPassword),
-                        salt,
-                        iterations,
-                        Algorithm,
-                        expectedHash.Length);
-
-                    return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
-                }
-            }
-            catch
-            {
+            var parts = storedHash.Split('$');
+            // parts: ["", "pbkdf2-sha256", "i=100000", "[salt]", "[hash]"]
+            if (parts.Length != 5)
                 return false;
-            }
-        }
 
-        // Backwards compatibility for plain-text seed passwords (e.g. "Test@123")
-        return CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(inputPassword),
-            Encoding.UTF8.GetBytes(storedHashOrPassword));
+            var iterations = int.Parse(parts[2].Replace("i=", ""));
+            var salt = Convert.FromBase64String(parts[3]);
+            var expectedHash = Convert.FromBase64String(parts[4]);
+
+            var actualHash = Rfc2898DeriveBytes.Pbkdf2(
+                Encoding.UTF8.GetBytes(inputPassword),
+                salt,
+                iterations,
+                Algorithm,
+                expectedHash.Length);
+
+            return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>True when the stored value is a PBKDF2 hash produced by <see cref="HashPassword"/>.</summary>
+    public static bool IsPasswordHash(string? storedValue) =>
+        !string.IsNullOrEmpty(storedValue) && storedValue.StartsWith("$pbkdf2-sha256$", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Generates a cryptographically random, unbiased reset token string.
+    /// </summary>
+    public static string GenerateResetToken(int length = 32)
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        return RandomNumberGenerator.GetString(chars, length);
     }
 
     /// <summary>
-    /// Generates a cryptographically random reset token string.
+    /// SHA-256 hex digest of a reset token. Only this digest is persisted, never the token itself.
     /// </summary>
-    public static string GenerateResetToken(int length = 8)
-    {
-        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        var bytes = new byte[length];
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(bytes);
-        }
-        var result = new StringBuilder(length);
-        foreach (var b in bytes)
-        {
-            result.Append(chars[b % chars.Length]);
-        }
-        return result.ToString();
-    }
+    public static string HashResetToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token.Trim().ToUpperInvariant())));
 }
 

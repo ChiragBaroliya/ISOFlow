@@ -10,26 +10,43 @@ namespace ISOFlow.Infrastructure.Repositories;
 
 public class UserRepository : BaseRepository, IUserRepository
 {
+    /// <summary>How long a password-reset token stays valid after it is issued.</summary>
+    private static readonly TimeSpan ResetTokenLifetime = TimeSpan.FromMinutes(30);
+
+    private const string UserColumns =
+        "id, organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio, reset_token, reset_token_expires_at";
+
     public UserRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
+
+    /// <summary>Maps the columns common to every user query (stored procedures included).</summary>
+    private static User MapUser(dynamic r) => new()
+    {
+        Id = r.id.ToString(),
+        OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
+        Name = (string)r.name,
+        Email = (string)r.email,
+        PasswordHash = (string)r.password_hash,
+        SystemRole = (SystemRole)(int)r.system_role,
+        Role = (string)r.role,
+        Department = (string)r.department,
+        Location = (string)r.location,
+        AvatarUrl = (string)r.avatar_url ?? string.Empty,
+        Phone = (string)r.phone ?? string.Empty,
+        Bio = (string)r.bio ?? string.Empty
+    };
+
+    /// <summary>Maps a full <see cref="UserColumns"/> row, including the pending reset-token state.</summary>
+    private static User MapUserWithResetState(dynamic r)
+    {
+        User user = MapUser(r);
+        user.ResetTokenHash = (string?)r.reset_token;
+        user.ResetTokenExpiresAt = (DateTime?)r.reset_token_expires_at;
+        return user;
+    }
 
     public Task<List<User>> GetAllUsersAsync()
     {
-        return QueryMappedListAsync("SELECT * FROM sp_users_get_all()", r => new User
-        {
-            Id = r.id.ToString(),
-            OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
-            Name = (string)r.name,
-            Email = (string)r.email,
-            Password = (string)r.password_hash,
-            SystemRole = (SystemRole)(int)r.system_role,
-            Role = (string)r.role,
-            Department = (string)r.department,
-            Location = (string)r.location,
-            AvatarUrl = (string)r.avatar_url ?? string.Empty,
-            Phone = (string)r.phone ?? string.Empty,
-            Bio = (string)r.bio ?? string.Empty,
-            ResetToken = (string?)r.reset_token
-        });
+        return QueryMappedListAsync("SELECT * FROM sp_users_get_all()", MapUser);
     }
 
     public Task<PagedResponse<User>> GetPagedUsersAsync(PagedRequestDto request)
@@ -43,22 +60,7 @@ public class UserRepository : BaseRepository, IUserRepository
 
         return QueryPagedAsync(
             "SELECT * FROM sp_users_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_department, @p_organization_id)",
-            r => new User
-            {
-                Id = r.id.ToString(),
-                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
-                Name = (string)r.name,
-                Email = (string)r.email,
-                Password = (string)r.password_hash,
-                SystemRole = (SystemRole)(int)r.system_role,
-                Role = (string)r.role,
-                Department = (string)r.department,
-                Location = (string)r.location,
-                AvatarUrl = (string)r.avatar_url ?? string.Empty,
-                Phone = (string)r.phone ?? string.Empty,
-                Bio = (string)r.bio ?? string.Empty,
-                ResetToken = (string?)r.reset_token
-            },
+            MapUser,
             parameters,
             request.PageNumber,
             request.PageSize);
@@ -67,23 +69,8 @@ public class UserRepository : BaseRepository, IUserRepository
     public Task<List<User>> GetUsersByOrganizationIdAsync(int organizationId)
     {
         return QueryMappedListAsync(
-            "SELECT id, organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio, reset_token FROM users WHERE organization_id = @organizationId ORDER BY id ASC",
-            r => new User
-            {
-                Id = r.id.ToString(),
-                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
-                Name = (string)r.name,
-                Email = (string)r.email,
-                Password = (string)r.password_hash,
-                SystemRole = (SystemRole)(int)r.system_role,
-                Role = (string)r.role,
-                Department = (string)r.department,
-                Location = (string)r.location,
-                AvatarUrl = (string)r.avatar_url ?? string.Empty,
-                Phone = (string)r.phone ?? string.Empty,
-                Bio = (string)r.bio ?? string.Empty,
-                ResetToken = (string?)r.reset_token
-            },
+            $"SELECT {UserColumns} FROM users WHERE organization_id = @organizationId ORDER BY id ASC",
+            MapUser,
             new { organizationId });
     }
 
@@ -98,22 +85,7 @@ public class UserRepository : BaseRepository, IUserRepository
 
         return QueryPagedAsync(
             "SELECT * FROM sp_users_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_department, @p_organization_id)",
-            r => new User
-            {
-                Id = r.id.ToString(),
-                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
-                Name = (string)r.name,
-                Email = (string)r.email,
-                Password = (string)r.password_hash,
-                SystemRole = (SystemRole)(int)r.system_role,
-                Role = (string)r.role,
-                Department = (string)r.department,
-                Location = (string)r.location,
-                AvatarUrl = (string)r.avatar_url ?? string.Empty,
-                Phone = (string)r.phone ?? string.Empty,
-                Bio = (string)r.bio ?? string.Empty,
-                ResetToken = (string?)r.reset_token
-            },
+            MapUser,
             parameters,
             request.PageNumber,
             request.PageSize);
@@ -122,56 +94,29 @@ public class UserRepository : BaseRepository, IUserRepository
     public Task<User?> GetUserByIdAsync(string id)
     {
         return QueryMappedFirstOrDefaultAsync(
-            "SELECT id, organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio, reset_token FROM users WHERE id::VARCHAR = @id",
-            r => new User
-            {
-                Id = r.id.ToString(),
-                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
-                Name = (string)r.name,
-                Email = (string)r.email,
-                Password = (string)r.password_hash,
-                SystemRole = (SystemRole)(int)r.system_role,
-                Role = (string)r.role,
-                Department = (string)r.department,
-                Location = (string)r.location,
-                AvatarUrl = (string)r.avatar_url ?? string.Empty,
-                Phone = (string)r.phone ?? string.Empty,
-                Bio = (string)r.bio ?? string.Empty,
-                ResetToken = (string?)r.reset_token
-            },
+            $"SELECT {UserColumns} FROM users WHERE id::VARCHAR = @id",
+            MapUserWithResetState,
             new { id });
     }
 
     public Task<User?> GetUserByEmailAsync(string email)
     {
         return QueryMappedFirstOrDefaultAsync(
-            "SELECT id, organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio, reset_token FROM users WHERE LOWER(email) = LOWER(@email)",
-            r => new User
-            {
-                Id = r.id.ToString(),
-                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
-                Name = (string)r.name,
-                Email = (string)r.email,
-                Password = (string)r.password_hash,
-                SystemRole = (SystemRole)(int)r.system_role,
-                Role = (string)r.role,
-                Department = (string)r.department,
-                Location = (string)r.location,
-                AvatarUrl = (string)r.avatar_url ?? string.Empty,
-                Phone = (string)r.phone ?? string.Empty,
-                Bio = (string)r.bio ?? string.Empty,
-                ResetToken = (string?)r.reset_token
-            },
+            $"SELECT {UserColumns} FROM users WHERE LOWER(email) = LOWER(@email)",
+            MapUserWithResetState,
             new { email });
     }
 
     public async Task<User> CreateUserAsync(User user)
     {
+        if (!PasswordSecurityHelper.IsPasswordHash(user.PasswordHash))
+            throw new ArgumentException("User.PasswordHash must be a PBKDF2 hash, never a plain-text password.", nameof(user));
+
         var parameters = new DynamicParameters();
         parameters.Add("p_org_id", user.OrganizationId);
         parameters.Add("p_name", user.Name);
         parameters.Add("p_email", user.Email);
-        parameters.Add("p_password", user.Password);
+        parameters.Add("p_password_hash", user.PasswordHash);
         parameters.Add("p_system_role", (int)user.SystemRole);
         parameters.Add("p_role", user.Role);
         parameters.Add("p_department", user.Department);
@@ -180,18 +125,22 @@ public class UserRepository : BaseRepository, IUserRepository
         parameters.Add("p_phone", user.Phone);
         parameters.Add("p_bio", user.Bio);
 
-        var insertedId = await QuerySingleAsync<int>("INSERT INTO users (organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio) VALUES (@p_org_id, @p_name, @p_email, @p_password, @p_system_role, @p_role, @p_department, @p_location, @p_avatar_url, @p_phone, @p_bio) RETURNING id", parameters);
+        var insertedId = await QuerySingleAsync<int>("INSERT INTO users (organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio) VALUES (@p_org_id, @p_name, @p_email, @p_password_hash, @p_system_role, @p_role, @p_department, @p_location, @p_avatar_url, @p_phone, @p_bio) RETURNING id", parameters);
         user.Id = insertedId.ToString();
         return user;
     }
 
     public async Task<User?> UpdateUserAsync(User user)
     {
+        if (!PasswordSecurityHelper.IsPasswordHash(user.PasswordHash))
+            throw new ArgumentException("User.PasswordHash must be a PBKDF2 hash, never a plain-text password.", nameof(user));
+
         var parameters = new DynamicParameters();
         parameters.Add("p_id", user.Id);
         parameters.Add("p_org_id", user.OrganizationId);
         parameters.Add("p_name", user.Name);
         parameters.Add("p_email", user.Email);
+        parameters.Add("p_password_hash", user.PasswordHash);
         parameters.Add("p_system_role", (int)user.SystemRole);
         parameters.Add("p_role", user.Role);
         parameters.Add("p_department", user.Department);
@@ -200,7 +149,7 @@ public class UserRepository : BaseRepository, IUserRepository
         parameters.Add("p_phone", user.Phone);
         parameters.Add("p_bio", user.Bio);
 
-        var rows = await ExecuteAsync("UPDATE users SET organization_id = @p_org_id, name = @p_name, email = @p_email, system_role = @p_system_role, role = @p_role, department = @p_department, location = @p_location, avatar_url = @p_avatar_url, phone = @p_phone, bio = @p_bio, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @p_id", parameters);
+        var rows = await ExecuteAsync("UPDATE users SET organization_id = @p_org_id, name = @p_name, email = @p_email, password_hash = @p_password_hash, system_role = @p_system_role, role = @p_role, department = @p_department, location = @p_location, avatar_url = @p_avatar_url, phone = @p_phone, bio = @p_bio, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @p_id", parameters);
         return rows > 0 ? user : null;
     }
 
@@ -210,26 +159,10 @@ public class UserRepository : BaseRepository, IUserRepository
         return rows > 0;
     }
 
-    public Task<User?> ValidateLoginAsync(string email, string password)
+    public async Task<User?> ValidateLoginAsync(string email, string password)
     {
-        return QueryMappedFirstOrDefaultAsync(
-            "SELECT * FROM sp_user_validate_login(@email, @password)",
-            r => new User
-            {
-                Id = r.id.ToString(),
-                OrganizationId = r.organization_id == null ? (int?)null : (int)r.organization_id,
-                Name = (string)r.name,
-                Email = (string)r.email,
-                Password = password,
-                SystemRole = (SystemRole)(int)r.system_role,
-                Role = (string)r.role,
-                Department = (string)r.department,
-                Location = (string)r.location,
-                AvatarUrl = (string)r.avatar_url ?? string.Empty,
-                Phone = (string)r.phone ?? string.Empty,
-                Bio = (string)r.bio ?? string.Empty
-            },
-            new { email, password });
+        var user = await GetUserByEmailAsync(email);
+        return user != null && PasswordSecurityHelper.VerifyPassword(password, user.PasswordHash) ? user : null;
     }
 
     public async Task<string?> GenerateResetTokenAsync(string email)
@@ -238,13 +171,25 @@ public class UserRepository : BaseRepository, IUserRepository
         if (user == null) return null;
 
         var token = PasswordSecurityHelper.GenerateResetToken();
-        await ExecuteAsync("UPDATE users SET reset_token = @token, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE LOWER(email) = LOWER(@email)", new { token, email });
+        var tokenHash = PasswordSecurityHelper.HashResetToken(token);
+        var expiresAt = DateTime.UtcNow.Add(ResetTokenLifetime);
+
+        await ExecuteAsync(
+            "UPDATE users SET reset_token = @tokenHash, reset_token_expires_at = @expiresAt, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = @id",
+            new { tokenHash, expiresAt, id = int.Parse(user.Id) });
         return token;
     }
 
     public async Task<bool> ResetPasswordAsync(string token, string newPassword)
     {
-        var rows = await ExecuteAsync("UPDATE users SET password_hash = @newPassword, reset_token = NULL, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE reset_token = @token", new { newPassword, token });
+        if (string.IsNullOrWhiteSpace(token)) return false;
+
+        var tokenHash = PasswordSecurityHelper.HashResetToken(token);
+        var newPasswordHash = PasswordSecurityHelper.HashPassword(newPassword);
+
+        var rows = await ExecuteAsync(
+            "UPDATE users SET password_hash = @newPasswordHash, reset_token = NULL, reset_token_expires_at = NULL, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE reset_token = @tokenHash AND reset_token_expires_at > @now",
+            new { newPasswordHash, tokenHash, now = DateTime.UtcNow });
         return rows > 0;
     }
 
@@ -259,7 +204,16 @@ public class UserRepository : BaseRepository, IUserRepository
 
     public async Task<bool> ChangePasswordAsync(string id, string currentPassword, string newPassword)
     {
-        var rows = await ExecuteAsync("UPDATE users SET password_hash = @newPassword, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @id AND password_hash = @currentPassword", new { id, currentPassword, newPassword });
+        var user = await GetUserByIdAsync(id);
+        if (user == null || !PasswordSecurityHelper.VerifyPassword(currentPassword, user.PasswordHash))
+            return false;
+
+        var newPasswordHash = PasswordSecurityHelper.HashPassword(newPassword);
+
+        // Guard on the hash we verified against so a concurrent change can't be silently overwritten.
+        var rows = await ExecuteAsync(
+            "UPDATE users SET password_hash = @newPasswordHash, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @id AND password_hash = @currentHash",
+            new { id, newPasswordHash, currentHash = user.PasswordHash });
         return rows > 0;
     }
 }

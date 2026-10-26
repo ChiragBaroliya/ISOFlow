@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using ISOFlow.Api.Controllers;
 using ISOFlow.Application.DTOs;
+using ISOFlow.Application.Helpers;
 using ISOFlow.Application.Interfaces;
 using ISOFlow.Domain.Entities;
 using ISOFlow.Domain.Enums;
@@ -98,7 +99,7 @@ public class UserAuthorizationTests
         });
 
         Assert.IsType<ForbidResult>(result.Result);
-        Assert.Equal("Test@123", _userRepository.Get("sarah-id")!.Password); // untouched
+        Assert.True(PasswordSecurityHelper.VerifyPassword("Test@123", _userRepository.Get("sarah-id")!.PasswordHash)); // untouched
     }
 
     [Fact]
@@ -240,16 +241,90 @@ public class UserAuthorizationTests
         Assert.NotNull(_userRepository.Get("sarah-id")); // untouched
     }
 
+    // ── Password storage: hashed on every write, required on create ─────────────────────────────
+
+    [Fact]
+    public async Task Create_WithoutPassword_IsRejected()
+    {
+        ActAs(_controller, "alex-id", SystemRole.Admin, AcmeOrg);
+
+        var result = await _controller.Create(new UserRequestDto
+        {
+            Name = "No Password",
+            Email = "nopass@acme.com",
+            SystemRole = SystemRole.User,
+            Role = "Analyst"
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Null(await _userRepository.GetUserByEmailAsync("nopass@acme.com"));
+    }
+
+    [Fact]
+    public async Task Create_StoresPbkdf2HashNotPlainText()
+    {
+        ActAs(_controller, "alex-id", SystemRole.Admin, AcmeOrg);
+
+        await _controller.Create(new UserRequestDto
+        {
+            Name = "New Analyst",
+            Email = "new.analyst@acme.com",
+            Password = "Initial#Pass1",
+            SystemRole = SystemRole.User,
+            Role = "Analyst"
+        });
+
+        var stored = await _userRepository.GetUserByEmailAsync("new.analyst@acme.com");
+        Assert.NotNull(stored);
+        Assert.NotEqual("Initial#Pass1", stored.PasswordHash);
+        Assert.True(PasswordSecurityHelper.IsPasswordHash(stored.PasswordHash));
+        Assert.True(PasswordSecurityHelper.VerifyPassword("Initial#Pass1", stored.PasswordHash));
+    }
+
+    [Fact]
+    public async Task Update_WithNewPassword_ReplacesHash_BlankKeepsCurrent()
+    {
+        ActAs(_controller, "alex-id", SystemRole.Admin, AcmeOrg);
+        var request = new UserRequestDto
+        {
+            Name = "Sarah Chen",
+            Email = "sarah.chen@acme.com",
+            SystemRole = SystemRole.User,
+            Role = "Compliance Manager"
+        };
+
+        await _controller.Update("sarah-id", request); // no password => unchanged
+        Assert.True(PasswordSecurityHelper.VerifyPassword("Test@123", _userRepository.Get("sarah-id")!.PasswordHash));
+
+        request.Password = "Rotated#Pass2";
+        await _controller.Update("sarah-id", request);
+        var hash = _userRepository.Get("sarah-id")!.PasswordHash;
+        Assert.True(PasswordSecurityHelper.VerifyPassword("Rotated#Pass2", hash));
+        Assert.False(PasswordSecurityHelper.VerifyPassword("Test@123", hash));
+    }
+
+    [Fact]
+    public void User_SerializedToJson_NeverIncludesPasswordHashOrResetToken()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(_userRepository.Get("sarah-id"));
+
+        Assert.DoesNotContain("PasswordHash", json);
+        Assert.DoesNotContain("pbkdf2", json);
+        Assert.DoesNotContain("ResetToken", json);
+    }
+
     // ── Minimal in-memory repository double, seeded with the reported scenario's users ─────────
 
     private sealed class MockUserRepository : IUserRepository
     {
+        private static readonly string SeedPasswordHash = PasswordSecurityHelper.HashPassword("Test@123");
+
         private readonly List<User> _users = new()
         {
-            new User { Id = "alex-id", Name = "Alex Morgan", Email = "alex.morgan@acme.com", Password = "Test@123", SystemRole = SystemRole.Admin, Role = "Compliance Lead", Department = "Compliance", OrganizationId = int.Parse(AcmeOrg) },
-            new User { Id = "sarah-id", Name = "Sarah Chen", Email = "sarah.chen@acme.com", Password = "Test@123", SystemRole = SystemRole.User, Role = "Compliance Manager", Department = "Compliance", OrganizationId = int.Parse(AcmeOrg) },
-            new User { Id = "dana-id", Name = "Dana Cross", Email = "dana@globex.com", Password = "Test@123", SystemRole = SystemRole.Admin, Role = "IT Lead", Department = "IT", OrganizationId = int.Parse(OtherOrg) },
-            new User { Id = "root-id", Name = "Root SuperAdmin", Email = "root@isoflow.io", Password = "Test@123", SystemRole = SystemRole.SuperAdmin, Role = "Platform Admin", Department = "Platform", OrganizationId = null }
+            new User { Id = "alex-id", Name = "Alex Morgan", Email = "alex.morgan@acme.com", PasswordHash = SeedPasswordHash, SystemRole = SystemRole.Admin, Role = "Compliance Lead", Department = "Compliance", OrganizationId = int.Parse(AcmeOrg) },
+            new User { Id = "sarah-id", Name = "Sarah Chen", Email = "sarah.chen@acme.com", PasswordHash = SeedPasswordHash, SystemRole = SystemRole.User, Role = "Compliance Manager", Department = "Compliance", OrganizationId = int.Parse(AcmeOrg) },
+            new User { Id = "dana-id", Name = "Dana Cross", Email = "dana@globex.com", PasswordHash = SeedPasswordHash, SystemRole = SystemRole.Admin, Role = "IT Lead", Department = "IT", OrganizationId = int.Parse(OtherOrg) },
+            new User { Id = "root-id", Name = "Root SuperAdmin", Email = "root@isoflow.io", PasswordHash = SeedPasswordHash, SystemRole = SystemRole.SuperAdmin, Role = "Platform Admin", Department = "Platform", OrganizationId = null }
         };
 
         public User? Get(string id) => _users.FirstOrDefault(u => u.Id == id);
@@ -270,7 +345,7 @@ public class UserAuthorizationTests
         public Task<User?> ValidateLoginAsync(string email, string password)
         {
             var u = _users.FirstOrDefault(x => x.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
-            return Task.FromResult(u != null && u.Password == password ? u : null);
+            return Task.FromResult(u != null && PasswordSecurityHelper.VerifyPassword(password, u.PasswordHash) ? u : null);
         }
         public Task<string?> GenerateResetTokenAsync(string email) => Task.FromResult<string?>("RESET123");
         public Task<bool> ResetPasswordAsync(string token, string newPassword) => Task.FromResult(true);
@@ -289,8 +364,8 @@ public class UserAuthorizationTests
         public Task<bool> ChangePasswordAsync(string id, string currentPassword, string newPassword)
         {
             var user = Get(id);
-            if (user == null || user.Password != currentPassword) return Task.FromResult(false);
-            user.Password = newPassword;
+            if (user == null || !PasswordSecurityHelper.VerifyPassword(currentPassword, user.PasswordHash)) return Task.FromResult(false);
+            user.PasswordHash = PasswordSecurityHelper.HashPassword(newPassword);
             return Task.FromResult(true);
         }
     }

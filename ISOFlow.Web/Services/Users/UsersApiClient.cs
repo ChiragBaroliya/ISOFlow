@@ -8,8 +8,9 @@ public interface IUsersApiClient
 {
     Task<List<User>> GetAllUsersAsync();
     Task<User?> GetUserByIdAsync(string id);
-    Task<User?> CreateUserAsync(User user);
-    Task<User?> UpdateUserAsync(User user);
+    Task<User?> CreateUserAsync(User user, string password);
+    /// <summary>Updates the user. A null/blank <paramref name="newPassword"/> keeps the current password.</summary>
+    Task<User?> UpdateUserAsync(User user, string? newPassword = null);
     Task<bool> DeleteUserAsync(string id);
     Task<List<User>> GetUsersByOrganizationIdAsync(string orgId);
     Task<bool> UpdateProfileAsync(string userId, string name, string phone, string department, string bio, string? avatarUrl = null);
@@ -31,18 +32,19 @@ public class UsersApiClient : IUsersApiClient
     public async Task<User?> GetUserByIdAsync(string id) =>
         await _api.GetAsync<User>($"api/users/{Uri.EscapeDataString(id)}");
 
-    public async Task<User?> CreateUserAsync(User user) =>
+    public async Task<User?> CreateUserAsync(User user, string password) =>
         await _api.PostAsync<User>("api/users", new
         {
-            user.OrganizationId, user.Name, user.Email, user.Password,
+            user.OrganizationId, user.Name, user.Email, Password = password,
             user.SystemRole, user.Role, user.Department, user.Location,
             user.Phone, user.Bio
         });
 
-    public async Task<User?> UpdateUserAsync(User user) =>
+    public async Task<User?> UpdateUserAsync(User user, string? newPassword = null) =>
         await _api.PutAsync<User>($"api/users/{Uri.EscapeDataString(user.Id)}", new
         {
-            user.OrganizationId, user.Name, user.Email, user.Password,
+            user.OrganizationId, user.Name, user.Email,
+            Password = string.IsNullOrWhiteSpace(newPassword) ? null : newPassword,
             user.SystemRole, user.Role, user.Department, user.Location,
             user.Phone, user.Bio
         });

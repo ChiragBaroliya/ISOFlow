@@ -40,7 +40,7 @@ public class AuthService : IAuthService
             return null;
         }
 
-        var isPasswordValid = PasswordSecurityHelper.VerifyPassword(request.Password, user.Password);
+        var isPasswordValid = PasswordSecurityHelper.VerifyPassword(request.Password, user.PasswordHash);
         if (!isPasswordValid)
         {
             _logger?.LogWarning("Authentication failed: Invalid credentials provided for '{Email}'.", request.Email);
