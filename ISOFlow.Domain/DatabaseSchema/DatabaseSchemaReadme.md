@@ -1,6 +1,6 @@
 # ISOFlow Database Schema Documentation
 
-This directory contains the complete T-SQL relational database schema, stored procedures, database functions, and seed data for the **ISOFlow ISO Compliance Management Platform**.
+This directory contains the PostgreSQL schema, stored procedures/functions, seed data and migrations for the **ISOFlow ISO Compliance Management Platform**. `ISOFlow.Api` accesses it through Dapper repositories in `ISOFlow.Infrastructure/Repositories`.
 
 ---
 
@@ -8,78 +8,84 @@ This directory contains the complete T-SQL relational database schema, stored pr
 
 ```
 ISOFlow.Domain/DatabaseSchema/
-├── 01_Tables_And_Constraints.sql   # DDL: 22 Tables, Primary Keys, Foreign Keys, Indexes, Check Constraints
-├── 02_Stored_Procedures.sql        # Full CRUD, Paged Lists (OFFSET/FETCH), SoA, HeatMap, Traceability
-├── 03_Functions.sql                # Scalar & Table-Valued Functions (Risk Score, Level, Summary)
-├── 04_Seed_Data.sql                # DEV ONLY: Pre-seeded ISO Standards, Baseline Controls, SuperAdmin & Users (password "Test@123", stored hashed)
-├── 05_Migration_Security_And_Snapshots.sql # One-time upgrade for databases created before password hashing / compliance_snapshots
-└── DatabaseSchemaReadme.md         # Schema architecture, ERD overview, and usage instructions
+├── 01_Tables_And_Constraints.sql            # DROPs and recreates all 24 tables, keys, constraints and indexes
+├── 02_Stored_Procedures.sql                 # sp_* functions: CRUD, paged lists, SoA, risk heat map, related counts
+├── 03_Functions.sql                         # fn_* helpers: risk score/level, overdue tasks, standard compliance summary
+├── 04_Seed_Data.sql                         # DEV ONLY: demo organizations, users, standards and the golden-scenario chain
+├── 05_Migration_Security_And_Snapshots.sql  # One-time upgrade for databases created before password hashing / compliance_snapshots
+└── DatabaseSchemaReadme.md
 ```
 
 ---
 
-## 🏛️ Schema Architecture & Key Rules
+## 🏛️ Schema Rules
 
-1. **Zero Inline Queries**:
-   - All data operations are executed strictly via Stored Procedures (`sp_*`) or Functions (`fn_*`).
-2. **Database-Side Pagination & Filtering**:
-   - Every list procedure takes `@PageNumber`, `@PageSize`, `@SearchTerm`, filters, and dynamic sorting, returning rows with windowed `COUNT(*) OVER() AS TotalCount`.
-3. **Annex A Pre-seeded Protection**:
-   - Official standards (`ISO 27001:2022`, `ISO 9001:2015`, `ISO 14001:2015`) have `IsPreseeded = 1`. Deletion is prohibited by stored procedure logic.
-4. **Traceability Cross-Linking**:
-   - Requirements, Controls, Risks, Policies, Processes, Tasks, Evidence, Audits, Findings, and CAPAs are linked via indexed relational foreign keys and cross-reference keys.
+1. **Multi-tenant**: every tenant-owned table has `organization_id`. Read procedures take `p_organization_id DEFAULT NULL` (NULL = all tenants, SuperAdmin only); write procedures require it and only touch rows of that organization.
+2. **Database-side pagination & filtering**: `*_get_paged` procedures take page number/size plus search and filter parameters, and return `COUNT(*) OVER() AS total_count` on every row.
+3. **Pre-seeded standard protection**: official standards are flagged `is_preseeded = TRUE`; the delete procedure refuses to remove them.
+4. **Traceability links** are stored two ways:
+   - Foreign-key columns (e.g. `risks.control_id`, `findings.audit_id`, `capas.finding_id`).
+   - JSON text arrays of **codes** (e.g. `policies.linked_control_ids_json = '["CTRL-001"]'`, `audits.check_list_control_ids_json`). The CRUD procedures don't carry these columns; repositories save and load them through `BaseRepository.SaveJsonListsAsync` / `LoadJsonListsAsync`.
+5. **Credentials are never stored in plain text**: `users.password_hash` holds a PBKDF2 hash, `users.reset_token` holds a SHA-256 digest with an expiry in `reset_token_expires_at`, and `refresh_tokens.token_hash` holds a hash.
+6. **Append-only audit log**: triggers on `audit_logs` reject UPDATE and DELETE.
 
----
-
-## 🚀 Execution & Deployment Order
-
-To set up the database in SQL Server or Azure SQL Database:
-
-```sql
--- 1. Execute Tables and Constraints
-:r 01_Tables_And_Constraints.sql
-
--- 2. Execute Stored Procedures
-:r 02_Stored_Procedures.sql
-
--- 3. Execute Functions
-:r 03_Functions.sql
-
--- 4. Execute Seed Data
-:r 04_Seed_Data.sql
-```
+Not every query goes through a procedure: some repositories use parameterized inline SQL (e.g. users, processes, traceability, compliance snapshots).
 
 ---
 
-## 📊 Stored Procedure Usage Examples
+## 🚀 Setting Up a Database (PostgreSQL 12+)
 
-### 1. Paged Standards Query
-```sql
-EXEC [dbo].[sp_Standard_GetPagedList]
-    @PageNumber = 1,
-    @PageSize = 10,
-    @SearchTerm = 'ISO',
-    @StatusFilter = 'Active',
-    @SortColumn = 'Code',
-    @SortDirection = 'ASC';
+Run the scripts in order with `psql`. `01` **drops all existing tables**, so only run it against a database you intend to reset.
+
+```bash
+psql -h localhost -U postgres -c "CREATE DATABASE isoflow;"
+
+psql -h localhost -U postgres -d isoflow -v ON_ERROR_STOP=1 -f 01_Tables_And_Constraints.sql
+psql -h localhost -U postgres -d isoflow -v ON_ERROR_STOP=1 -f 02_Stored_Procedures.sql
+psql -h localhost -U postgres -d isoflow -v ON_ERROR_STOP=1 -f 03_Functions.sql
+psql -h localhost -U postgres -d isoflow -v ON_ERROR_STOP=1 -f 04_Seed_Data.sql   # development only
 ```
 
-### 2. Paged Controls Query with Category Filter
-```sql
-EXEC [dbo].[sp_Control_GetPagedList]
-    @PageNumber = 1,
-    @PageSize = 20,
-    @SearchTerm = 'Access',
-    @CategoryFilter = 'Organizational Controls',
-    @StatusFilter = NULL;
+Then point `ConnectionStrings:DefaultConnection` in `ISOFlow.Api` at it (use User Secrets or an environment variable for the password).
+
+**Seed accounts (development only):** `superadmin@isoflow.com`, `alex.morgan@acme.com`, `sarah.chen@acme.com`, all with password `Test@123` (stored hashed). Never run `04_Seed_Data.sql` against production.
+
+### Upgrading an existing database
+
+A database created from an older version of `01_Tables_And_Constraints.sql` needs `05_Migration_Security_And_Snapshots.sql` once (it is idempotent):
+
+```bash
+psql -h localhost -U postgres -d isoflow -v ON_ERROR_STOP=1 -f 05_Migration_Security_And_Snapshots.sql
 ```
 
-### 3. Generate Statement of Applicability (SoA)
-```sql
-EXEC [dbo].[sp_GenerateStatementOfApplicability];
+It converts plain-text `Test@123` passwords to their hash, adds `reset_token_expires_at`, invalidates old reset tokens, removes `sp_user_validate_login`, and creates `compliance_snapshots`. It lists any user whose password is still not hashed; those users must use *Forgot password*.
+
+### Integration-test database
+
+The test suite rebuilds its own database from scripts `01`–`04` on every run. Create a dedicated database whose name contains `test` and set `ISOFLOW_TEST_DB`:
+
+```bash
+psql -h localhost -U postgres -c "CREATE DATABASE isoflow_test;"
+export ISOFLOW_TEST_DB="Host=localhost;Port=5432;Database=isoflow_test;Username=postgres;Password=<password>"
+dotnet test ISOFlow.slnx
 ```
 
-### 4. 5x5 Risk Heat Map Matrix
+Without `ISOFLOW_TEST_DB` the database tests are skipped, not failed.
+
+---
+
+## 📊 Procedure Usage Examples
+
 ```sql
-EXEC [dbo].[sp_GetRiskHeatMapMatrix];
+-- Page 1 of standards for organization 1, searching "ISO"
+SELECT * FROM sp_standards_get_paged(1, 10, 1, 'ISO', NULL);
+
+-- Statement of Applicability for organization 1
+SELECT * FROM sp_controls_get_soa(1);
+
+-- 5 × 5 risk heat map for organization 1
+SELECT * FROM sp_get_risk_heatmap_matrix(1);
+
+-- Risk score helper
+SELECT fn_calculate_risk_score(4, 5);
 ```

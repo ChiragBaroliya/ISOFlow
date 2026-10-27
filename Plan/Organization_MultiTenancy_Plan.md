@@ -1,5 +1,13 @@
 # Implementation Plan — Organization-Wise CRUD & Tenant Login Architecture
 
+> [!NOTE]
+> **Historical plan — implemented, data layer superseded.** This plan was written against the original in-memory mock store (`AcmeMockDataSeed.cs`, `MockRepositories.cs`), which has been removed. Organizations and tenant scoping are now persisted in PostgreSQL:
+> - Repository: `ISOFlow.Infrastructure/Repositories/OrganizationRepository.cs` (Dapper); every tenant-owned table carries `organization_id`
+> - Tenant enforcement: API controllers derive the organization from the JWT (`ClaimsPrincipalExtensions`), never from the request body
+> - Tenant switcher (SuperAdmin): `ISOFlow.Web/Components/TenantSwitcherViewComponent.cs`
+>
+> File references below point to the old mock implementation and are kept for history only.
+
 Implement multi-tenant organization support in **ISOFlow**, including **Organization CRUD management** (List, Create, Edit, Tenant Overview), **Org-Wise Login & Tenant Switching**, and **Data Segregation** per Organization.
 
 ---

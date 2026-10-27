@@ -115,7 +115,7 @@ ISOFlow.sln
 │
 ├── ISOFlow.Domain          (Class Library - Domain Entities, Enums, Value Objects)
 ├── ISOFlow.Application     (Class Library - DTOs, Repository Interfaces, Application Services)
-├── ISOFlow.Infrastructure  (Class Library - Relational Mock Repository Store, IMemoryCache Service)
+├── ISOFlow.Infrastructure  (Class Library - PostgreSQL + Dapper Repositories, IMemoryCache Service)
 ├── ISOFlow.Api             (ASP.NET Core Web API - REST Controllers, ComplianceHub SignalR, Swagger)
 │
 ├── ISOFlow.Web             (ASP.NET Core MVC Project)

@@ -88,8 +88,11 @@ is still hardcoded in the places below.
 
 ### 1.4 Documentation
 
-- [ ] `implementation_plan.md:143` and `Plan/Master_ISOFlow_Architecture_Plan.md:118` still describe Infrastructure as a "Relational Mock Repository Store". Update them to "PostgreSQL + Dapper repositories".
-- [ ] `Plan/ISO_Standards_and_Processes_CRUD_Plan.md` and `Plan/Organization_MultiTenancy_Plan.md` reference the deleted `AcmeMockDataSeed.cs` / `MockRepositories.cs`. Mark them as superseded or update them.
+- [x] `implementation_plan.md` and `Plan/Master_ISOFlow_Architecture_Plan.md` now describe Infrastructure as "PostgreSQL + Dapper Repositories"
+- [x] `Plan/ISO_Standards_and_Processes_CRUD_Plan.md` and `Plan/Organization_MultiTenancy_Plan.md` are marked as historical. Each has a banner saying the mock store was removed and pointing to the current repositories, schema and tests.
+- [x] `DatabaseSchemaReadme.md` rewritten. It described SQL Server/T-SQL (`EXEC [dbo]…`, `:r`) and claimed "zero inline queries". It now has PostgreSQL `psql` setup, the 05 upgrade, test-database setup, dev seed accounts, tenant/JSON-link/credential rules, and examples verified against the database.
+
+**Section 1 (mock data removal) is complete.**
 
 ---
 
