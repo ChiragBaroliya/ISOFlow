@@ -1,0 +1,73 @@
+@model List<ISOFlow.Domain.Entities.Notification>
+@{
+    ViewData["Title"] = "Notifications — ISOFlow";
+    var unreadOnly = ViewBag.UnreadOnly as bool? ?? false;
+    var unreadCount = Model.Count(n => !n.IsRead);
+
+    string IconFor(string category) => category switch
+    {
+        "Warning" => "bi-exclamation-circle text-danger",
+        "Task" => "bi-check2-square text-primary",
+        "Policy" => "bi-file-earmark-text text-info",
+        "Audit" => "bi-clipboard-check text-warning",
+        _ => "bi-bell text-secondary"
+    };
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-bell text-primary me-2"></i> Notifications</h4>
+        <p class="text-muted small mb-0">Alerts for your organization. Read state is personal to you.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" asp-route-unreadOnly="false" class="btn btn-sm @(unreadOnly ? "btn-outline-secondary" : "btn-primary")">All</a>
+        <a asp-action="Index" asp-route-unreadOnly="true" class="btn btn-sm @(unreadOnly ? "btn-primary" : "btn-outline-secondary")">Unread</a>
+        @if (unreadCount > 0)
+        {
+            <form asp-action="MarkAllRead" method="post" class="mb-0">
+                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-check2-all me-1"></i> Mark all read</button>
+            </form>
+        }
+    </div>
+</div>
+
+<div class="card-enterprise p-4">
+    @if (Model.Any())
+    {
+        <div class="list-group list-group-flush">
+            @foreach (var n in Model)
+            {
+                <a asp-action="Open" asp-route-id="@n.Id" class="list-group-item list-group-item-action d-flex gap-3 py-3 @(n.IsRead ? "" : "bg-light")">
+                    <i class="bi @IconFor(n.Category) fs-5"></i>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between">
+                            <span class="@(n.IsRead ? "text-muted" : "fw-semibold")">@n.Title</span>
+                            <span class="text-muted small text-nowrap ms-2">@n.CreatedAt.ToString("dd MMM yyyy HH:mm")</span>
+                        </div>
+                        <div class="small text-muted">@n.Message</div>
+                    </div>
+                    @if (!n.IsRead)
+                    {
+                        <span class="badge bg-primary align-self-start">New</span>
+                    }
+                </a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-light text-center py-5 mb-0">
+            <i class="bi bi-inbox text-muted fs-1 mb-2 d-block"></i>
+            <h6 class="fw-bold">@(unreadOnly ? "You're all caught up" : "No notifications yet")</h6>
+            <p class="text-muted small mb-0">Notifications about overdue tasks, expiring evidence and other events will appear here.</p>
+        </div>
+    }
+</div>

@@ -384,6 +384,40 @@ public class RepositoryIntegrationTests
         Assert.True(all.Count >= org1.Count);
     }
 
+    [DatabaseFact]
+    public async Task NotificationRepository_ReadStateIsPerUser_AndSourceKeysPreventDuplicates()
+    {
+        var repo = new NotificationRepository(Db);
+        const int alex = 2, sarah = 3; // seeded users of organization 1
+        var sourceKey = Unique("test-source");
+
+        var created = await repo.CreateAsync(new Notification
+        {
+            OrganizationId = Org, Title = "Integration notification", Message = "m", Category = "Task", LinkUrl = "/Tasks"
+        }, sourceKey);
+        Assert.NotNull(created);
+        Assert.Null(await repo.CreateAsync(new Notification { OrganizationId = Org, Title = "dup", Message = "m" }, sourceKey));
+        var id = int.Parse(created.Id);
+
+        var alexUnreadBefore = await repo.GetUnreadCountAsync(Org, alex);
+        var sarahUnreadBefore = await repo.GetUnreadCountAsync(Org, sarah);
+
+        // Alex reading it doesn't mark it read for Sarah.
+        Assert.True(await repo.MarkReadAsync(id, Org, alex));
+        Assert.Equal(alexUnreadBefore - 1, await repo.GetUnreadCountAsync(Org, alex));
+        Assert.Equal(sarahUnreadBefore, await repo.GetUnreadCountAsync(Org, sarah));
+        Assert.True((await repo.GetForUserAsync(Org, alex, false, 100)).Single(n => n.Id == created.Id).IsRead);
+        Assert.False((await repo.GetForUserAsync(Org, sarah, false, 100)).Single(n => n.Id == created.Id).IsRead);
+        Assert.DoesNotContain(await repo.GetForUserAsync(Org, alex, unreadOnly: true, 100), n => n.Id == created.Id);
+
+        // Another tenant can't see or mark it.
+        Assert.False(await repo.MarkReadAsync(id, OtherOrg, alex));
+        Assert.DoesNotContain(await repo.GetForUserAsync(OtherOrg, alex, false, 100), n => n.Id == created.Id);
+
+        Assert.True(await repo.MarkAllReadAsync(Org, sarah) >= 1);
+        Assert.Equal(0, await repo.GetUnreadCountAsync(Org, sarah));
+    }
+
     // ── Audit log (append-only) ─────────────────────────────────────────────────────────────────
 
     [DatabaseFact]

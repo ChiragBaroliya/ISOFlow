@@ -18,6 +18,7 @@ public class DatabaseMigratorTests
         {
             "ISOFlow.Schema.Migrations.0001_Initial_Schema.sql",
             "ISOFlow.Schema.Migrations.0002_Security_And_Snapshots.sql",
+            "ISOFlow.Schema.Migrations.0003_Notification_Reads_And_Source_Keys.sql",
             "ISOFlow.Schema.Programmability.0001_Stored_Procedures.sql",
             "ISOFlow.Schema.Programmability.0002_Functions.sql",
             "ISOFlow.Schema.Seed.0001_Demo_Data.sql"

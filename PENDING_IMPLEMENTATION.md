@@ -98,9 +98,12 @@ is still hardcoded in the places below.
 
 ## 2. Missing features / wiring
 
-- [ ] **Notifications**: `NotificationsApiController` exists, but Web has no `NotificationsApiClient`.
-  - [ ] Add `Services/Notifications/INotificationsApiClient.cs` + `NotificationsApiClient.cs` and register them in `ISOFlow.Web/Program.cs`
-  - [ ] Add a notifications ViewComponent for the layout bell (unread count + list + mark-as-read)
+- [x] **Notifications (§2b)**
+  - [x] Migration `0003`: per-user read state (`notification_reads`). The old `notifications.is_read` flag was shared by the whole organization. Also adds `notifications.source_key`, a unique per-org key so jobs never create a notification twice.
+  - [x] API: `GET mine?unreadOnly&limit`, `GET mine/unread-count`, `POST {id}/read`, `POST read-all`, all tenant-scoped, plus `INotificationRepository.CreateAsync` for internal use by jobs
+  - [x] Web: `NotificationsApiClient`, a `NotificationBell` component (unread badge, latest 5, "mark all read"), a Notifications page (all/unread filter), `Open/{id}` (marks read and follows the link, local URLs only), and the sidebar link restored
+  - [x] Tested: integration test (per-user read, tenant isolation, duplicate prevention), and verified live against the API
+  - Nothing creates notifications yet. The overdue and expiry jobs in §2e will.
 - [ ] **SignalR real-time updates**: `ComplianceHub` defines `ReceiveNotification`, `KpiUpdated`, and `TaskUpdated`, but no API controller injects `IHubContext<ComplianceHub>`, so nothing is ever broadcast.
   - [ ] Broadcast on task status changes, CAPA/finding changes, and KPI recalculation
   - [ ] Scope broadcasts per organization (SignalR groups), not `Clients.All`
@@ -151,6 +154,7 @@ is still hardcoded in the places below.
 - [x] Swagger — was on in every environment. Now only when `Swagger:Enabled` is true (set in `appsettings.Development.json`); the root redirect follows the same setting. Verified off in Production.
 - [x] Rate limiting — built-in limiter, fixed window per client IP (`RateLimiting:Auth`, default 10 requests per 60 s), shared across `auth/login`, `auth/refresh`, `users/login`, `users/forgot-password` and `users/reset-password`. Returns 429 with `Retry-After` and an `ApiResponse` body. Verified on the running API.
   - [ ] Follow-up: behind a reverse proxy, enable forwarded headers so the limiter sees the real client IP
+- [ ] **CSRF (found in §2b):** ISOFlow.Web POST actions don't validate antiforgery tokens, so a malicious site could submit forms as a logged-in user. Register `AutoValidateAntiforgeryTokenAttribute` globally. Tag-helper forms already include the token; check JS `fetch`/AJAX POSTs (e.g. `kanban.js`) and send the token header there. The new Notifications action already validates.
 - [x] Repository lifetimes reviewed: singletons are **safe**. They hold no per-request state, each call opens and disposes its own connection, and `AmbientDbContext` uses `AsyncLocal` (per request flow). Documented in `Program.cs`.
 
 ---

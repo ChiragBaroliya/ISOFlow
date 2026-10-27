@@ -32,6 +32,9 @@
                 <li class="sidebar-nav-item @(ViewData["ActiveMenu"]?.ToString() == "Tasks" ? "active" : "")">
                     <a asp-controller="Tasks" asp-action="Index"><i class="bi bi-check2-square"></i> My Tasks</a>
                 </li>
+                <li class="sidebar-nav-item @(ViewData["ActiveMenu"]?.ToString() == "Notifications" ? "active" : "")">
+                    <a asp-controller="Notifications" asp-action="Index"><i class="bi bi-bell"></i> Notifications</a>
+                </li>
             </ul>
 
             <!-- ORGANIZATION — SuperAdmin only -->
@@ -189,16 +192,7 @@
                         </span>
                     </div>
 
-                    <div class="dropdown">
-                        <button class="btn btn-light position-relative rounded-circle" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-bell fs-5"></i>
-                        </button>
-                        @* Live notifications are wired up in PENDING_IMPLEMENTATION.md §2 (Notifications API client). *@
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="width: 300px;">
-                            <li class="dropdown-header fw-bold border-bottom pb-2">Notifications</li>
-                            <li><span class="dropdown-item-text py-3 small text-muted text-center d-block"><i class="bi bi-inbox me-1"></i> No notifications</span></li>
-                        </ul>
-                    </div>
+                    @await Component.InvokeAsync("NotificationBell")
 
                     <div class="dropdown border-start ps-3">
                         <button class="btn p-0 border-0 bg-transparent d-flex align-items-center gap-2"

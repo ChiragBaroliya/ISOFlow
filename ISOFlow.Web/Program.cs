@@ -10,6 +10,7 @@ using ISOFlow.Web.Services.Evidence;
 using ISOFlow.Web.Services.Findings;
 using ISOFlow.Web.Services.Improvements;
 using ISOFlow.Web.Services.Logs;
+using ISOFlow.Web.Services.Notifications;
 using ISOFlow.Web.Services.ManagementReviews;
 using ISOFlow.Web.Services.Organizations;
 using ISOFlow.Web.Services.Risks;
@@ -74,6 +75,7 @@ try
     builder.Services.AddScoped<ILogsApiClient, LogsApiClient>();
     builder.Services.AddScoped<IAuditLogsApiClient, AuditLogsApiClient>();
     builder.Services.AddScoped<ITraceabilityApiClient, TraceabilityApiClient>();
+    builder.Services.AddScoped<INotificationsApiClient, NotificationsApiClient>();
 
     // Session Support for Multi-Tenant Org Switcher and JWT Token Storage
     builder.Services.AddSession(options =>
