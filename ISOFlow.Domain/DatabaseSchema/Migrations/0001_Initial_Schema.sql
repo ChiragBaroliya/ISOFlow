@@ -1,36 +1,12 @@
 -- ============================================================================
--- ISOFlow Platform - Database Schema: Tables, Primary Keys, Foreign Keys, Indexes
+-- ISOFlow Platform - Migration 0001: initial schema (tables, keys, constraints, indexes)
 -- Compatible with: PostgreSQL 12+ / Azure PostgreSQL / Supabase
--- Schema Version: 3.0.0 (Multi-Tenant: organization_id on every tenant-owned table)
+-- Multi-tenant: organization_id on every tenant-owned table.
+--
+-- Applied once by DatabaseMigrator (DbUp); never edit after release -- add a new
+-- numbered migration instead. Contains no DROP statements.
 -- ============================================================================
 
--- ============================================================================
--- Drop Existing Tables (in reverse dependency order)
--- ============================================================================
-DROP TABLE IF EXISTS compliance_snapshots CASCADE;
-DROP TABLE IF EXISTS refresh_tokens CASCADE;
-DROP TABLE IF EXISTS audit_logs CASCADE;
-DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS improvements CASCADE;
-DROP TABLE IF EXISTS management_decisions CASCADE;
-DROP TABLE IF EXISTS management_reviews CASCADE;
-DROP TABLE IF EXISTS capa_action_items CASCADE;
-DROP TABLE IF EXISTS capas CASCADE;
-DROP TABLE IF EXISTS findings CASCADE;
-DROP TABLE IF EXISTS audits CASCADE;
-DROP TABLE IF EXISTS audit_programs CASCADE;
-DROP TABLE IF EXISTS evidence CASCADE;
-DROP TABLE IF EXISTS task_items CASCADE;
-DROP TABLE IF EXISTS task_templates CASCADE;
-DROP TABLE IF EXISTS processes CASCADE;
-DROP TABLE IF EXISTS policies CASCADE;
-DROP TABLE IF EXISTS risk_treatments CASCADE;
-DROP TABLE IF EXISTS risks CASCADE;
-DROP TABLE IF EXISTS controls CASCADE;
-DROP TABLE IF EXISTS requirements CASCADE;
-DROP TABLE IF EXISTS standards CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS organizations CASCADE;
 
 -- ============================================================================
 -- Create Tables & Constraints

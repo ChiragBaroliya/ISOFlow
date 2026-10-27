@@ -1,10 +1,9 @@
 -- ============================================================================
--- ISOFlow Platform - Migration: password hashing, reset-token expiry, compliance snapshots
+-- ISOFlow Platform - Migration 0002: password hashing, reset-token expiry, compliance snapshots
 -- Compatible with: PostgreSQL 12+ / Azure PostgreSQL / Supabase
 --
--- Run this ONCE against an existing database created from an older 01_Tables_And_Constraints.sql.
--- A fresh database built from the current 01-04 scripts already has these changes.
--- Safe to re-run (idempotent).
+-- Upgrades databases created before these changes (pre-DbUp databases are baselined at 0001 and
+-- then receive this script). On a fresh database every statement is a no-op. Idempotent.
 -- ============================================================================
 
 -- 1. users.password_hash: no plain-text default.

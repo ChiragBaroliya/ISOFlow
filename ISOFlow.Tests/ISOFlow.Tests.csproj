@@ -18,11 +18,6 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <!-- Schema scripts used by DatabaseFixture to rebuild the integration-test database. -->
-  <ItemGroup>
-    <None Include="..\ISOFlow.Domain\DatabaseSchema\*.sql" LinkBase="DatabaseSchema" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\ISOFlow.Domain\ISOFlow.Domain.csproj" />
     <ProjectReference Include="..\ISOFlow.Application\ISOFlow.Application.csproj" />

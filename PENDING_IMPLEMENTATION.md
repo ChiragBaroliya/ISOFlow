@@ -4,7 +4,7 @@ _Last reviewed: 2026-10-26 (against `master` @ `3158cd0`)_
 
 **Rule: no mock or hardcoded data.** Every value shown in the UI must come from PostgreSQL through
 `ISOFlow.Api`. The only place sample records may exist is the opt-in seed script
-`ISOFlow.Domain/DatabaseSchema/04_Seed_Data.sql`.
+`ISOFlow.Domain/DatabaseSchema/Seed/0001_Demo_Data.sql` (applied only in Development).
 
 ---
 
@@ -32,7 +32,7 @@ is still hardcoded in the places below.
 - [x] `User.cs` — `Password = "Test@123"` replaced by `PasswordHash` (no default, `[JsonIgnore]`)
 - [x] `User.cs` — mock reset token replaced by `ResetTokenHash` (SHA-256) and `ResetTokenExpiresAt` (30 min), both `[JsonIgnore]`
 - [x] `UserRequestDto.Password` — no default. It's required on create (API returns 400 without it) and optional on update (blank keeps the current password).
-- [x] `PasswordSecurityHelper` — plain-text fallback removed. Added `IsPasswordHash` and `HashResetToken`, and reset tokens are now 32 chars and unbiased. Seed passwords in `04_Seed_Data.sql` are PBKDF2 hashes.
+- [x] `PasswordSecurityHelper` — plain-text fallback removed. Added `IsPasswordHash` and `HashResetToken`, and reset tokens are now 32 chars and unbiased. Seed passwords in the dev seed script are PBKDF2 hashes.
 - [x] `IUserRepository` — contract and docs updated (hash-only storage, expiring hashed reset tokens)
 - [x] `DashboardService.GetComplianceTrendsAsync` — fabricated months removed. It now records the live score monthly in the new `compliance_snapshots` table and returns the stored history (up to 12 months). History starts empty and grows each month.
 - [x] `GetGoldenScenarioTraceabilityAsync("CTRL-001")` renamed to `GetControlTraceabilityAsync(controlId, …)`. `GET /api/dashboard/traceability?controlId=…` is now required (400 if missing).
@@ -43,7 +43,7 @@ is still hardcoded in the places below.
   - [x] Admin-created users silently got `Test@123` (the form had no password field). The Admin form now has *Initial Password* (create) and *New Password* (edit) fields.
   - [x] Setting a password through `PUT /api/users/{id}` was silently ignored. `UpdateUserAsync` now persists it.
   - [x] Removed `sp_user_validate_login` (it compared plain-text passwords)
-- **DB action required for existing databases:** run `ISOFlow.Domain/DatabaseSchema/05_Migration_Security_And_Snapshots.sql` once. It converts `Test@123` rows to the hash, adds `reset_token_expires_at`, invalidates old reset tokens, and creates `compliance_snapshots`. Any user with another plain-text password must use *Forgot password*; the script lists them.
+- **Existing databases:** now handled automatically by migration `0002_Security_And_Snapshots.sql` (see §5); originally a hand-run `05_*.sql`. It converts `Test@123` rows to the hash, adds `reset_token_expires_at`, invalidates old reset tokens, and creates `compliance_snapshots`. Any user with another plain-text password must use *Forgot password*; the script lists them.
 
 ### 1.2 Web — Views with hardcoded entities and numbers
 
@@ -150,8 +150,14 @@ is still hardcoded in the places below.
 
 ## 5. Database
 
-- [ ] Add a migration strategy (versioned scripts with DbUp/Flyway, or EF migrations) instead of manual `01_…04_*.sql` execution
-- [ ] Make `04_Seed_Data.sql` optional (dev only), and keep it out of production deployment
+- [x] Migration strategy: **DbUp** (`dbup-postgresql` 5.0.40, which works with the existing Npgsql 8; DbUp 6/7 would force Npgsql 9/10). See `ISOFlow.Infrastructure/Data/DatabaseMigrator.cs`.
+  - Scripts reorganized into `DatabaseSchema/Migrations` (run once, journaled in `schemaversions`), `Programmability` (procedures and functions re-applied every run) and `Seed` (dev only), embedded in Infrastructure
+  - `0001_Initial_Schema.sql` no longer contains `DROP TABLE` statements; the old hand-run `05` upgrade is now migration `0002`
+  - Pre-DbUp databases are **baselined** automatically (0001 recorded as applied, not run) and then upgraded by 0002, without data loss
+  - API: `Database:ApplyMigrationsOnStartup` / `CreateIfMissing` / `SeedDemoData` (all on in Development, off by default); `dotnet ISOFlow.Api.dll --migrate` applies migrations and exits, for deploys, and needs no JWT secret
+  - The test fixture builds `isoflow_test` with the same migrator; 4 new migrator tests (order, idempotent re-run, legacy baseline, seed only on request)
+  - Verified end to end on a brand-new database: `--migrate` in Production (no seed), a second run re-applied only procedures, and Development startup seeded once and accepted a login
+- [x] Seed data is dev-only: applied only when `Database:SeedDemoData` is true **and** the environment is Development (ignored with a warning otherwise)
 - [x] Add a `compliance_snapshots` table for historical trend data (done with §1.1)
 
 ---

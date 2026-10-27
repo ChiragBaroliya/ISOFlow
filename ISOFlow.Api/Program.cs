@@ -53,10 +53,13 @@ try
     // Use Serilog
     builder.Host.UseSerilog();
 
+    // "--migrate": apply database migrations and exit without starting the web host (see below).
+    var migrateOnly = args.Contains("--migrate");
+
     // Bind JWT Configuration Settings. Secrets are never committed: they come from User Secrets in
     // development and from environment variables elsewhere. Fail fast rather than run with a weak or missing key.
     var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
-    if (string.IsNullOrWhiteSpace(jwtSettings.Secret) || jwtSettings.Secret.Length < JwtSettings.MinimumSecretLength)
+    if (!migrateOnly && (string.IsNullOrWhiteSpace(jwtSettings.Secret) || jwtSettings.Secret.Length < JwtSettings.MinimumSecretLength))
     {
         throw new InvalidOperationException(
             $"JwtSettings:Secret must be configured and at least {JwtSettings.MinimumSecretLength} characters. " +
@@ -69,6 +72,31 @@ try
             "ConnectionStrings:DefaultConnection must be configured via User Secrets (development) " +
             "or the ConnectionStrings__DefaultConnection environment variable.");
     }
+
+    // Database migrations (DbUp, see DatabaseMigrator). "--migrate" applies them and exits (use it as a deploy
+    // step); otherwise they run at startup only when Database:ApplyMigrationsOnStartup is set (on in Development).
+    // Demo seed data is never applied outside Development, whatever the configuration says.
+    if (migrateOnly || builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
+    {
+        var seedRequested = builder.Configuration.GetValue<bool>("Database:SeedDemoData");
+        if (seedRequested && !builder.Environment.IsDevelopment())
+            Log.Warning("Database:SeedDemoData is ignored outside the Development environment.");
+
+        var migration = DatabaseMigrator.Run(builder.Configuration.GetConnectionString("DefaultConnection")!, new DatabaseMigrationOptions
+        {
+            CreateDatabaseIfMissing = builder.Configuration.GetValue<bool>("Database:CreateIfMissing"),
+            SeedDemoData = seedRequested && builder.Environment.IsDevelopment()
+        });
+        if (!migration.Successful)
+            throw new InvalidOperationException("Database migration failed.", migration.Error);
+
+        foreach (var script in migration.AppliedScripts)
+            Log.Information("Applied database script {Script}", script);
+        Log.Information("Database is up to date ({Count} script(s) applied this run).", migration.AppliedScripts.Count);
+
+        if (migrateOnly) return;
+    }
+
     builder.Services.AddSingleton(jwtSettings);
 
     // Add MemoryCache & SignalR

@@ -3,7 +3,7 @@
 > [!NOTE]
 > **Historical plan — implemented, data layer superseded.** This plan was written against the original in-memory mock store (`AcmeMockDataSeed.cs`, `MockRepositories.cs`), which has been removed. Standards and processes are now persisted in PostgreSQL:
 > - Repositories: `ISOFlow.Infrastructure/Repositories/StandardRepository.cs` and `DocumentRepository.cs` (Dapper)
-> - Schema and seed data: `ISOFlow.Domain/DatabaseSchema/` (`01`–`04`; dev-only seed in `04_Seed_Data.sql`)
+> - Schema and seed data: `ISOFlow.Domain/DatabaseSchema/` (`Migrations/`, `Programmability/`, dev-only `Seed/`; applied by `DatabaseMigrator`)
 > - Integration tests: `ISOFlow.Tests/UnitTest1.cs` and `RepositoryIntegrationTests.cs`
 >
 > File references below point to the old mock implementation and are kept for history only.

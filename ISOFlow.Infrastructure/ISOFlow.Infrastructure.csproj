@@ -6,11 +6,20 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="dbup-postgresql" Version="5.0.40" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.11" />
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="Npgsql" Version="8.0.5" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
+  </ItemGroup>
+
+  <!-- Database scripts (authored in ISOFlow.Domain/DatabaseSchema) embedded for DatabaseMigrator.
+       Resource names: ISOFlow.Schema.{Migrations|Programmability|Seed}.<file>.sql; DbUp orders by name. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\ISOFlow.Domain\DatabaseSchema\Migrations\*.sql" LogicalName="ISOFlow.Schema.Migrations.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\ISOFlow.Domain\DatabaseSchema\Programmability\*.sql" LogicalName="ISOFlow.Schema.Programmability.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\ISOFlow.Domain\DatabaseSchema\Seed\*.sql" LogicalName="ISOFlow.Schema.Seed.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <PropertyGroup>

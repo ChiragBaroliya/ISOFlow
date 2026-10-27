@@ -2,19 +2,30 @@
 
 This directory contains the PostgreSQL schema, stored procedures/functions, seed data and migrations for the **ISOFlow ISO Compliance Management Platform**. `ISOFlow.Api` accesses it through Dapper repositories in `ISOFlow.Infrastructure/Repositories`.
 
+The scripts are embedded into `ISOFlow.Infrastructure` and applied by **`DatabaseMigrator`** (DbUp). You don't run them by hand.
+
 ---
 
 ## 📁 Directory Structure
 
 ```
 ISOFlow.Domain/DatabaseSchema/
-├── 01_Tables_And_Constraints.sql            # DROPs and recreates all 24 tables, keys, constraints and indexes
-├── 02_Stored_Procedures.sql                 # sp_* functions: CRUD, paged lists, SoA, risk heat map, related counts
-├── 03_Functions.sql                         # fn_* helpers: risk score/level, overdue tasks, standard compliance summary
-├── 04_Seed_Data.sql                         # DEV ONLY: demo organizations, users, standards and the golden-scenario chain
-├── 05_Migration_Security_And_Snapshots.sql  # One-time upgrade for databases created before password hashing / compliance_snapshots
+├── Migrations/                          # Run ONCE each, in name order; recorded in the schemaversions table
+│   ├── 0001_Initial_Schema.sql          #   all 24 tables, keys, constraints, indexes, audit-log triggers (no DROPs)
+│   └── 0002_Security_And_Snapshots.sql  #   password hashing, reset-token expiry, compliance_snapshots (no-op on fresh DBs)
+├── Programmability/                     # Re-applied on EVERY run (CREATE OR REPLACE), so they always match the code
+│   ├── 0001_Stored_Procedures.sql       #   sp_*: CRUD, paged lists, SoA, risk heat map, related counts
+│   └── 0002_Functions.sql               #   fn_*: risk score/level, overdue tasks, standard compliance summary
+├── Seed/                                # DEV ONLY, run once, never outside the Development environment
+│   └── 0001_Demo_Data.sql               #   demo organizations, users, standards and the golden-scenario chain
 └── DatabaseSchemaReadme.md
 ```
+
+### Changing the schema
+
+- **Never edit a released migration.** Add the next numbered file to `Migrations/` (e.g. `0003_Add_File_Storage.sql`). It is picked up automatically.
+- Change procedures and functions in place in `Programmability/`. They're re-applied on every run. A `CREATE OR REPLACE` can't change a function's return columns; for that, add a `DROP FUNCTION IF EXISTS …` before it.
+- Migrations must be safe to run inside a transaction and must not depend on seed data.
 
 ---
 
@@ -35,34 +46,44 @@ Not every query goes through a procedure: some repositories use parameterized in
 
 ## 🚀 Setting Up a Database (PostgreSQL 12+)
 
-Run the scripts in order with `psql`. `01` **drops all existing tables**, so only run it against a database you intend to reset.
+### Development
+
+Set the connection string once, then just start the API:
 
 ```bash
-psql -h localhost -U postgres -c "CREATE DATABASE isoflow;"
-
-psql -h localhost -U postgres -d isoflow -v ON_ERROR_STOP=1 -f 01_Tables_And_Constraints.sql
-psql -h localhost -U postgres -d isoflow -v ON_ERROR_STOP=1 -f 02_Stored_Procedures.sql
-psql -h localhost -U postgres -d isoflow -v ON_ERROR_STOP=1 -f 03_Functions.sql
-psql -h localhost -U postgres -d isoflow -v ON_ERROR_STOP=1 -f 04_Seed_Data.sql   # development only
+cd ISOFlow.Api
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=isoflow;Username=postgres;Password=<password>"
+dotnet run
 ```
 
-Then point `ConnectionStrings:DefaultConnection` in `ISOFlow.Api` at it (use User Secrets or an environment variable for the password).
+`appsettings.Development.json` enables `Database:ApplyMigrationsOnStartup`, `CreateIfMissing` and `SeedDemoData`. On first start, the API creates the `isoflow` database, applies all migrations and procedures, and loads the demo data.
 
-**Seed accounts (development only):** `superadmin@isoflow.com`, `alex.morgan@acme.com`, `sarah.chen@acme.com`, all with password `Test@123` (stored hashed). Never run `04_Seed_Data.sql` against production.
+**Seed accounts (development only):** `superadmin@isoflow.com`, `alex.morgan@acme.com`, `sarah.chen@acme.com`, all with password `Test@123` (stored hashed).
 
-### Upgrading an existing database
+### Production / other environments
 
-A database created from an older version of `01_Tables_And_Constraints.sql` needs `05_Migration_Security_And_Snapshots.sql` once (it is idempotent):
+Startup migrations are **off** by default. Apply them as a deploy step, before starting the new version:
 
 ```bash
-psql -h localhost -U postgres -d isoflow -v ON_ERROR_STOP=1 -f 05_Migration_Security_And_Snapshots.sql
+ConnectionStrings__DefaultConnection="Host=…;Database=isoflow;Username=…;Password=…" \
+  dotnet ISOFlow.Api.dll --migrate
 ```
 
-It converts plain-text `Test@123` passwords to their hash, adds `reset_token_expires_at`, invalidates old reset tokens, removes `sp_user_validate_login`, and creates `compliance_snapshots`. It lists any user whose password is still not hashed; those users must use *Forgot password*.
+`--migrate` applies pending migrations, re-applies procedures and functions, and exits. It doesn't need the JWT secret. Demo seed data is **never** applied outside the Development environment, even if `Database:SeedDemoData` is set.
+
+| Setting | Default | Development |
+|---|---|---|
+| `Database:ApplyMigrationsOnStartup` | `false` | `true` |
+| `Database:CreateIfMissing` | `false` | `true` |
+| `Database:SeedDemoData` | `false` | `true` |
+
+### Databases created before DbUp
+
+A database built with the old hand-run scripts has tables but no `schemaversions` journal. On its first migration run, `0001` is recorded as applied **without running**, and `0002` then upgrades it. That upgrade converts plain-text `Test@123` passwords to their hash, adds `reset_token_expires_at`, invalidates old reset tokens, removes `sp_user_validate_login`, and creates `compliance_snapshots`. No data is lost. Users whose password was some other plain-text value must use *Forgot password*.
 
 ### Integration-test database
 
-The test suite rebuilds its own database from scripts `01`–`04` on every run. Create a dedicated database whose name contains `test` and set `ISOFLOW_TEST_DB`:
+The test suite resets its own database (drops the `public` schema) and rebuilds it with `DatabaseMigrator` on every run. Create a dedicated database whose name contains `test` and set `ISOFLOW_TEST_DB`:
 
 ```bash
 psql -h localhost -U postgres -c "CREATE DATABASE isoflow_test;"
