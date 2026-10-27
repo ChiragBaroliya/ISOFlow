@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <UserSecretsId>isoflow-api-084285a4-1b05-4f0e-801c-ccf9baa21948</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,5 +1,4 @@
 using System.Data;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 
@@ -11,50 +10,38 @@ public interface IDbConnectionFactory
     Task<IDbConnection> CreateOpenConnectionAsync();
 }
 
+/// <summary>Creates PostgreSQL (Npgsql) connections.</summary>
 public class DbConnectionFactory : IDbConnectionFactory
 {
     private readonly string _connectionString;
-    private readonly bool _isPostgres;
 
+    /// <summary>
+    /// Reads <c>ConnectionStrings:DefaultConnection</c>. It is never committed with credentials: supply it via
+    /// User Secrets (development) or the <c>ConnectionStrings__DefaultConnection</c> environment variable.
+    /// </summary>
     public DbConnectionFactory(IConfiguration configuration)
+        : this(configuration.GetConnectionString("DefaultConnection") ?? string.Empty)
     {
-        _connectionString = configuration.GetConnectionString("DefaultConnection") 
-            ?? "Host=localhost;Database=isoflow;Username=postgres;Password=postgres;";
-        
-        // Auto-detect PostgreSQL vs SQL Server
-        _isPostgres = _connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase)
-                   || _connectionString.Contains("Port=", StringComparison.OrdinalIgnoreCase)
-                   || _connectionString.Contains("Username=", StringComparison.OrdinalIgnoreCase)
-                   || _connectionString.Contains("User Id=postgres", StringComparison.OrdinalIgnoreCase)
-                   || !_connectionString.Contains("Trusted_Connection=", StringComparison.OrdinalIgnoreCase);
     }
 
-    public DbConnectionFactory(string connectionString, bool isPostgres = true)
+    public DbConnectionFactory(string connectionString)
     {
-        _connectionString = connectionString;
-        _isPostgres = isPostgres;
-    }
-
-    public IDbConnection CreateConnection()
-    {
-        if (_isPostgres)
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
-            return new NpgsqlConnection(_connectionString);
+            throw new InvalidOperationException(
+                "ConnectionStrings:DefaultConnection is not configured. Set it with " +
+                "'dotnet user-secrets set \"ConnectionStrings:DefaultConnection\" \"Host=...;Database=...;Username=...;Password=...\"' " +
+                "or the ConnectionStrings__DefaultConnection environment variable.");
         }
-        return new SqlConnection(_connectionString);
+        _connectionString = connectionString;
     }
+
+    public IDbConnection CreateConnection() => new NpgsqlConnection(_connectionString);
 
     public async Task<IDbConnection> CreateOpenConnectionAsync()
     {
-        IDbConnection connection = CreateConnection();
-        if (connection is System.Data.Common.DbConnection dbConn)
-        {
-            await dbConn.OpenAsync();
-        }
-        else
-        {
-            connection.Open();
-        }
+        var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
         return connection;
     }
 }

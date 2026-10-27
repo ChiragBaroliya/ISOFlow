@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using ISOFlow.Api;
 using ISOFlow.Api.Auditing;
 using ISOFlow.Api.Controllers;
 using ISOFlow.Api.Hubs;
@@ -12,7 +13,9 @@ using ISOFlow.Infrastructure.Data;
 using ISOFlow.Infrastructure.Repositories;
 using ISOFlow.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Serilog;
@@ -50,8 +53,22 @@ try
     // Use Serilog
     builder.Host.UseSerilog();
 
-    // Bind JWT Configuration Settings
+    // Bind JWT Configuration Settings. Secrets are never committed: they come from User Secrets in
+    // development and from environment variables elsewhere. Fail fast rather than run with a weak or missing key.
     var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
+    if (string.IsNullOrWhiteSpace(jwtSettings.Secret) || jwtSettings.Secret.Length < JwtSettings.MinimumSecretLength)
+    {
+        throw new InvalidOperationException(
+            $"JwtSettings:Secret must be configured and at least {JwtSettings.MinimumSecretLength} characters. " +
+            "Set it with 'dotnet user-secrets set \"JwtSettings:Secret\" \"<random value>\"' (development) " +
+            "or the JwtSettings__Secret environment variable.");
+    }
+    if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("DefaultConnection")))
+    {
+        throw new InvalidOperationException(
+            "ConnectionStrings:DefaultConnection must be configured via User Secrets (development) " +
+            "or the ConnectionStrings__DefaultConnection environment variable.");
+    }
     builder.Services.AddSingleton(jwtSettings);
 
     // Add MemoryCache & SignalR
@@ -61,7 +78,11 @@ try
     // Register Database Connection Factory
     builder.Services.AddSingleton<IDbConnectionFactory, DbConnectionFactory>();
 
-    // Register Repositories
+    // Register Repositories.
+    // Singleton is safe here: repositories and services hold no per-request state (only the connection
+    // factory and other singletons), each call opens and disposes its own connection, and the shared audit
+    // transaction lives in AmbientDbContext's AsyncLocal, which flows per request rather than per instance.
+    // Anything that needs per-request state (e.g. HttpContext) must not be added as a singleton.
     builder.Services.AddSingleton<IOrganizationRepository, OrganizationRepository>();
     builder.Services.AddSingleton<IUserRepository, UserRepository>();
     builder.Services.AddSingleton<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -265,12 +286,42 @@ try
         c.OperationFilter<ISOFlow.Api.Filters.SwaggerResponseDeduplicationFilter>();
     });
 
+    // CORS: only explicitly configured browser origins (Cors:AllowedOrigins). ISOFlow.Web calls the API
+    // server-to-server, so production can leave the list empty; add the Web origin only if pages call the
+    // API from the browser (e.g. SignalR).
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
     builder.Services.AddCors(options =>
     {
         options.AddDefaultPolicy(policy =>
         {
-            policy.AllowAnyHeader().AllowAnyMethod().AllowCredentials().SetIsOriginAllowed(_ => true);
+            if (allowedOrigins.Length > 0)
+            {
+                policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+            }
         });
+    });
+
+    // Rate limiting for anonymous credential endpoints (login, token refresh, password reset), per client IP.
+    builder.Services.AddRateLimiter(options =>
+    {
+        var permitLimit = builder.Configuration.GetValue("RateLimiting:Auth:PermitLimit", 10);
+        var window = TimeSpan.FromSeconds(builder.Configuration.GetValue("RateLimiting:Auth:WindowSeconds", 60));
+
+        options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = window, QueueLimit = 0 }));
+
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.OnRejected = async (context, cancellationToken) =>
+        {
+            if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                ApiResponse<object>.FailureResponse("Too many requests. Please wait and try again."),
+                cancellationToken);
+        };
     });
 
     var app = builder.Build();
@@ -278,17 +329,22 @@ try
     // Global Error Management Middleware
     app.UseMiddleware<GlobalExceptionMiddleware>();
 
-    // Enable Swagger in All Environments
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
+    // Swagger is opt-in (Swagger:Enabled, on in appsettings.Development.json) so production doesn't publish the API surface.
+    var swaggerEnabled = builder.Configuration.GetValue<bool>("Swagger:Enabled");
+    if (swaggerEnabled)
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "ISOFlow Compliance API v1");
-        c.RoutePrefix = "swagger";
-        c.DocumentTitle = "ISOFlow Compliance API Explorer";
-    });
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
+        {
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "ISOFlow Compliance API v1");
+            c.RoutePrefix = "swagger";
+            c.DocumentTitle = "ISOFlow Compliance API Explorer";
+        });
+    }
 
     app.UseCors();
     app.UseRouting();
+    app.UseRateLimiter();
 
     // Authentication & Authorization Middlewares
     app.UseAuthentication();
@@ -297,8 +353,11 @@ try
     app.MapControllers();
     app.MapHub<ComplianceHub>("/hubs/compliance");
 
-    // Redirect root to Swagger UI
-    app.MapGet("/", () => Results.Redirect("/swagger/index.html")).AllowAnonymous();
+    // Redirect root to Swagger UI when it is enabled
+    if (swaggerEnabled)
+    {
+        app.MapGet("/", () => Results.Redirect("/swagger/index.html")).AllowAnonymous();
+    }
 
     app.Run();
 }

@@ -129,11 +129,22 @@ is still hardcoded in the places below.
 
 ## 4. Security & configuration
 
-- [ ] Move secrets out of `ISOFlow.Api/appsettings*.json` (JWT `Secret`, DB `Password=postgres`) into User Secrets / environment variables
-- [ ] Remove the unused `Microsoft.Data.SqlClient` package from `ISOFlow.Infrastructure.csproj`, or document why it's needed (the DB is PostgreSQL/Npgsql)
-- [ ] Review CORS policy for production
-- [ ] Add rate limiting on `/api/auth/login` and `/api/auth/forgot-password`
-- [ ] Review repository lifetimes: every repository and service is registered as `Singleton` in `ISOFlow.Api/Program.cs`. Confirm this is safe with `AmbientDbContext`, or switch to `Scoped`.
+- [x] Secrets removed from `appsettings*.json` (API and Web), and the hardcoded fallbacks removed from `JwtSettings` and `DbConnectionFactory`. The API now **refuses to start** without `JwtSettings:Secret` (32+ chars) and `ConnectionStrings:DefaultConnection`.
+  - Development: User Secrets (`UserSecretsId` added to `ISOFlow.Api.csproj`)
+  - Elsewhere: environment variables `JwtSettings__Secret` and `ConnectionStrings__DefaultConnection`
+  - Local setup:
+    ```bash
+    cd ISOFlow.Api
+    dotnet user-secrets set "JwtSettings:Secret" "<64 random chars>"
+    dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=isoflow;Username=postgres;Password=<password>"
+    ```
+- [x] **JWT secret rotated for development.** The old secrets are still in git history (treat them as public). A new random 64-char secret is in this machine's User Secrets. **Any other environment must also be given a fresh secret.**
+- [x] Removed the unused `Microsoft.Data.SqlClient` package and the SQL Server code path in `DbConnectionFactory`
+- [x] CORS — was "any origin with credentials". Now only `Cors:AllowedOrigins`: empty by default; Development lists the Web app's local origins (needed later for SignalR). Verified: a foreign origin gets no `Access-Control-Allow-Origin`.
+- [x] Swagger — was on in every environment. Now only when `Swagger:Enabled` is true (set in `appsettings.Development.json`); the root redirect follows the same setting. Verified off in Production.
+- [x] Rate limiting — built-in limiter, fixed window per client IP (`RateLimiting:Auth`, default 10 requests per 60 s), shared across `auth/login`, `auth/refresh`, `users/login`, `users/forgot-password` and `users/reset-password`. Returns 429 with `Retry-After` and an `ApiResponse` body. Verified on the running API.
+  - [ ] Follow-up: behind a reverse proxy, enable forwarded headers so the limiter sees the real client IP
+- [x] Repository lifetimes reviewed: singletons are **safe**. They hold no per-request state, each call opens and disposes its own connection, and `AmbientDbContext` uses `AsyncLocal` (per request flow). Documented in `Program.cs`.
 
 ---
 

@@ -8,6 +8,7 @@ using ISOFlow.Domain.Entities;
 using ISOFlow.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ISOFlow.Api.Controllers;
 
@@ -254,6 +255,7 @@ public class UsersController : ControllerBase
     /// Authenticate User credentials
     /// </summary>
     [HttpPost("login")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<LoginResponseDto>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 401)]
@@ -277,6 +279,7 @@ public class UsersController : ControllerBase
     /// elsewhere it must be delivered out-of-band (email delivery is pending).
     /// </summary>
     [HttpPost("forgot-password")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<string>), 200)]
     public async Task<ActionResult<ApiResponse<string>>> ForgotPassword([FromBody] ForgotPasswordDto dto)
@@ -295,6 +298,7 @@ public class UsersController : ControllerBase
     /// Reset password using reset token
     /// </summary>
     [HttpPost("reset-password")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 400)]

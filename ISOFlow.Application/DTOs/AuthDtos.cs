@@ -10,7 +10,14 @@ public class JwtSettings
 {
     public const string SectionName = "JwtSettings";
 
-    public string Secret { get; set; } = "ISOFlow_Super_Secure_JWT_Secret_Key_At_Least_32_Bytes_2026";
+    /// <summary>HMAC-SHA256 needs a key of at least 256 bits.</summary>
+    public const int MinimumSecretLength = 32;
+
+    /// <summary>
+    /// Signing key. Never committed: supply it via User Secrets (development) or the
+    /// <c>JwtSettings__Secret</c> environment variable. The API refuses to start without it.
+    /// </summary>
+    public string Secret { get; set; } = string.Empty;
     public string Issuer { get; set; } = "ISOFlowApi";
     public string Audience { get; set; } = "ISOFlowClient";
     public int AccessTokenExpirationMinutes { get; set; } = 15;

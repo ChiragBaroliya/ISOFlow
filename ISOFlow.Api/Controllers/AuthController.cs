@@ -3,6 +3,7 @@ using ISOFlow.Application.DTOs;
 using ISOFlow.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ISOFlow.Api.Controllers;
 
@@ -30,6 +31,7 @@ public class AuthController : ControllerBase
     /// Validates user email and password against stored PBKDF2 hashes. Returns a signed JWT Bearer access token (15-minute default validity) and a refresh token (7-day validity).
     /// </remarks>
     [HttpPost("login")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<LoginResponseDto>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 400)]
@@ -52,6 +54,7 @@ public class AuthController : ControllerBase
     /// Validates the refresh token hash, invalidates the used token, checks against replay/reuse attacks, and issues a new access token and rotated refresh token.
     /// </remarks>
     [HttpPost("refresh")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<TokenResponseDto>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 400)]
