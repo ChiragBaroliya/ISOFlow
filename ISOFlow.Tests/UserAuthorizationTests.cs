@@ -11,6 +11,7 @@ using ISOFlow.Infrastructure.Repositories;
 using ISOFlow.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using ISOFlow.Tests.Infrastructure;
 using Xunit;
 
@@ -28,6 +29,7 @@ public class UserAuthorizationTests
     private const string OtherOrg = "2";
 
     private readonly MockUserRepository _userRepository = new();
+    private readonly RecordingEmailSender _emailSender = new();
     private readonly UsersController _controller;
 
     public UserAuthorizationTests()
@@ -43,7 +45,8 @@ public class UserAuthorizationTests
         var refreshTokenRepository = new InMemoryRefreshTokenRepository();
         var authService = new AuthService(_userRepository, refreshTokenRepository, jwtService, jwtSettings);
 
-        _controller = new UsersController(_userRepository, authService, jwtService);
+        _controller = new UsersController(_userRepository, authService, jwtService, _emailSender,
+            new WebAppSettings { BaseUrl = "https://isoflow.test" }, NullLogger<UsersController>.Instance);
     }
 
     private static void ActAs(UsersController controller, string userId, SystemRole role, string organizationId)
@@ -239,6 +242,47 @@ public class UserAuthorizationTests
 
         Assert.IsType<ForbidResult>(result.Result);
         Assert.NotNull(_userRepository.Get("sarah-id")); // untouched
+    }
+
+    // ── Forgot password: emailed link, never the token in the response, no enumeration ──────────
+
+    [Fact]
+    public async Task ForgotPassword_KnownEmail_EmailsResetLink_AndNeverReturnsToken()
+    {
+        var result = await _controller.ForgotPassword(new ForgotPasswordDto { Email = "sarah.chen@acme.com" });
+
+        var response = Assert.IsType<ApiResponse<string>>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Null(response.Data);
+
+        var email = Assert.Single(_emailSender.Sent);
+        Assert.Equal("sarah.chen@acme.com", email.ToAddress);
+        Assert.Contains("https://isoflow.test/Account/ResetPassword?token=RESET123", email.TextBody);
+        Assert.Contains("https://isoflow.test/Account/ResetPassword?token=RESET123", email.HtmlBody);
+    }
+
+    [Fact]
+    public async Task ForgotPassword_UnknownEmail_SendsNothing_AndRespondsIdentically()
+    {
+        var known = await _controller.ForgotPassword(new ForgotPasswordDto { Email = "sarah.chen@acme.com" });
+        _emailSender.Sent.Clear();
+
+        var unknown = await _controller.ForgotPassword(new ForgotPasswordDto { Email = "nobody@acme.com" });
+
+        Assert.Empty(_emailSender.Sent);
+        var knownBody = (ApiResponse<string>)((OkObjectResult)known.Result!).Value!;
+        var unknownBody = (ApiResponse<string>)((OkObjectResult)unknown.Result!).Value!;
+        Assert.Equal(knownBody.Message, unknownBody.Message);
+        Assert.Equal(knownBody.Data, unknownBody.Data);
+    }
+
+    [Fact]
+    public async Task ForgotPassword_EmailDeliveryFailure_IsNotRevealedToCaller()
+    {
+        _emailSender.FailWith = new InvalidOperationException("SMTP down");
+
+        var result = await _controller.ForgotPassword(new ForgotPasswordDto { Email = "sarah.chen@acme.com" });
+
+        Assert.IsType<OkObjectResult>(result.Result);
     }
 
     // ── Password storage: hashed on every write, required on create ─────────────────────────────

@@ -6,7 +6,8 @@ namespace ISOFlow.Web.Services.Auth;
 public interface IAuthApiClient
 {
     Task<LoginResponseDto?> LoginAsync(string email, string password);
-    Task<string?> ForgotPasswordAsync(string email);
+    /// <summary>Requests a reset link by email. The API never returns the token.</summary>
+    Task ForgotPasswordAsync(string email);
     Task<bool> ResetPasswordAsync(string token, string newPassword);
     Task<bool> LogoutAsync(string refreshToken);
 }
@@ -23,7 +24,7 @@ public class AuthApiClient : IAuthApiClient
     public async Task<LoginResponseDto?> LoginAsync(string email, string password) =>
         await _api.PostAsync<LoginResponseDto>("api/auth/login", new { Email = email, Password = password });
 
-    public async Task<string?> ForgotPasswordAsync(string email) =>
+    public async Task ForgotPasswordAsync(string email) =>
         await _api.PostAsync<string>("api/users/forgot-password", new { Email = email });
 
     public async Task<bool> ResetPasswordAsync(string token, string newPassword) =>

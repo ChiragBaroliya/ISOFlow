@@ -180,10 +180,9 @@ public class AccountController : Controller
             return View();
         }
 
-        var token = await _authClient.ForgotPasswordAsync(email.Trim());
+        await _authClient.ForgotPasswordAsync(email.Trim());
 
         ViewBag.EmailSent = true;
-        ViewBag.DevResetToken = token; // only non-null in the Development environment
         ViewBag.Email     = email.Trim();
         return View();
     }

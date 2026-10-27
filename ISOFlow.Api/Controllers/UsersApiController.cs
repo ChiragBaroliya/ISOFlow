@@ -24,15 +24,24 @@ public class UsersController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IAuthService _authService;
     private readonly IJwtService _jwtService;
+    private readonly IEmailSender _emailSender;
+    private readonly WebAppSettings _webApp;
+    private readonly ILogger<UsersController> _logger;
 
     public UsersController(
         IUserRepository userRepository,
         IAuthService authService,
-        IJwtService jwtService)
+        IJwtService jwtService,
+        IEmailSender emailSender,
+        WebAppSettings webApp,
+        ILogger<UsersController> logger)
     {
         _userRepository = userRepository;
         _authService = authService;
         _jwtService = jwtService;
+        _emailSender = emailSender;
+        _webApp = webApp;
+        _logger = logger;
     }
 
     /// <summary>
@@ -274,9 +283,8 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Request a password reset token. The response is the same whether or not the email is registered
-    /// (no account enumeration). The token itself is only returned in the Development environment;
-    /// elsewhere it must be delivered out-of-band (email delivery is pending).
+    /// Request a password reset. If the email belongs to an account, a single-use reset link is emailed to it.
+    /// The response is identical either way (no account enumeration) and never contains the token.
     /// </summary>
     [HttpPost("forgot-password")]
     [EnableRateLimiting(RateLimitPolicies.Auth)]
@@ -284,14 +292,25 @@ public class UsersController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<string>), 200)]
     public async Task<ActionResult<ApiResponse<string>>> ForgotPassword([FromBody] ForgotPasswordDto dto)
     {
-        var token = await _userRepository.GenerateResetTokenAsync(dto.Email);
+        const string genericMessage = "If the email is registered, a password reset link has been sent to it.";
 
-        var environment = HttpContext?.RequestServices?.GetService(typeof(IWebHostEnvironment)) as IWebHostEnvironment;
-        var exposeToken = environment?.IsDevelopment() == true;
+        var user = await _userRepository.GetUserByEmailAsync(dto.Email.Trim());
+        if (user == null)
+            return Ok(ApiResponse<string>.SuccessResponse(null!, genericMessage));
 
-        return Ok(ApiResponse<string>.SuccessResponse(
-            exposeToken ? token! : null!,
-            "If the email is registered, a password reset token has been issued."));
+        var token = await _userRepository.GenerateResetTokenAsync(user.Email);
+        try
+        {
+            await _emailSender.SendAsync(EmailTemplates.PasswordReset(
+                user.Email, user.Name, _webApp.PasswordResetUrl(token!), PasswordSecurityHelper.ResetTokenLifetime));
+        }
+        catch (Exception ex)
+        {
+            // Don't reveal delivery problems (or account existence) to the caller; operators see the log.
+            _logger.LogError(ex, "Password reset email could not be sent to user {UserId}.", user.Id);
+        }
+
+        return Ok(ApiResponse<string>.SuccessResponse(null!, genericMessage));
     }
 
     /// <summary>

@@ -10,6 +10,9 @@ public static class PasswordSecurityHelper
     private const int Iterations = 100000;
     private static readonly HashAlgorithmName Algorithm = HashAlgorithmName.SHA256;
 
+    /// <summary>How long a password-reset token stays valid after it is issued.</summary>
+    public static readonly TimeSpan ResetTokenLifetime = TimeSpan.FromMinutes(30);
+
     /// <summary>
     /// Hashes a plain-text password using PBKDF2-HMAC-SHA256 with a unique cryptographic salt.
     /// Format: $pbkdf2-sha256$i=100000$[salt_base64]$[hash_base64]

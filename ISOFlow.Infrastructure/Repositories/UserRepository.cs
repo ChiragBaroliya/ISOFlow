@@ -10,9 +10,6 @@ namespace ISOFlow.Infrastructure.Repositories;
 
 public class UserRepository : BaseRepository, IUserRepository
 {
-    /// <summary>How long a password-reset token stays valid after it is issued.</summary>
-    private static readonly TimeSpan ResetTokenLifetime = TimeSpan.FromMinutes(30);
-
     private const string UserColumns =
         "id, organization_id, name, email, password_hash, system_role, role, department, location, avatar_url, phone, bio, reset_token, reset_token_expires_at";
 
@@ -172,7 +169,7 @@ public class UserRepository : BaseRepository, IUserRepository
 
         var token = PasswordSecurityHelper.GenerateResetToken();
         var tokenHash = PasswordSecurityHelper.HashResetToken(token);
-        var expiresAt = DateTime.UtcNow.Add(ResetTokenLifetime);
+        var expiresAt = DateTime.UtcNow.Add(PasswordSecurityHelper.ResetTokenLifetime);
 
         await ExecuteAsync(
             "UPDATE users SET reset_token = @tokenHash, reset_token_expires_at = @expiresAt, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id = @id",

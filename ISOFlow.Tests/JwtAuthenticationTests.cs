@@ -396,7 +396,8 @@ public class JwtAuthenticationTests
     [Fact]
     public async Task UsersController_MeEndpoint_ReturnsUserProfile()
     {
-        var controller = new UsersController(_userRepository, _authService, _jwtService);
+        var controller = new UsersController(_userRepository, _authService, _jwtService, new RecordingEmailSender(),
+            new WebAppSettings(), Microsoft.Extensions.Logging.Abstractions.NullLogger<UsersController>.Instance);
 
         var claims = new List<Claim>
         {

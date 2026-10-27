@@ -4,6 +4,21 @@ using ISOFlow.Domain.Enums;
 namespace ISOFlow.Application.DTOs;
 
 /// <summary>
+/// "WebApp" settings: where ISOFlow.Web is reachable, used to build links in emails (e.g. password reset).
+/// </summary>
+public class WebAppSettings
+{
+    public const string SectionName = "WebApp";
+
+    /// <summary>Public base URL of ISOFlow.Web, e.g. https://isoflow.yourcompany.com</summary>
+    public string BaseUrl { get; set; } = string.Empty;
+
+    /// <summary>Link to the Web reset-password page with the token pre-filled.</summary>
+    public string PasswordResetUrl(string token) =>
+        $"{BaseUrl.TrimEnd('/')}/Account/ResetPassword?token={Uri.EscapeDataString(token)}";
+}
+
+/// <summary>
 /// Strongly-typed JWT and Token Expiration settings
 /// </summary>
 public class JwtSettings

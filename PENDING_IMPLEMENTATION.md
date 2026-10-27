@@ -109,7 +109,14 @@ is still hardcoded in the places below.
 - [ ] **Dashboard**: the `GET /api/dashboard/traceability` endpoint isn't consumed by Web
 - [ ] **Evidence file upload**: the form takes a free-text `FileUrl`. Implement real upload/download storage (local disk or blob) with size and type validation.
 - [ ] **Policies file path**: same as Evidence. `FilePath` is free text.
-- [ ] **Forgot / reset password**: email delivery service (SMTP/SendGrid), hashed single-use token with expiry
+- [x] **Forgot / reset password (§2a):** email delivery via `IEmailSender`
+  - SMTP implementation uses MailKit 4.18.2. 4.8.0 was rejected because of advisory GHSA-9j88-vvj5-vhgr.
+  - Works with any SMTP provider, including Office 365, Gmail and SendGrid's SMTP relay. Configure `Email:FromAddress` and `Email:Smtp:*`; put the password in User Secrets or `Email__Smtp__Password`.
+  - Development without SMTP writes emails, including the reset link, to the log. Elsewhere without SMTP, sending fails and startup logs a warning.
+  - `forgot-password` emails a single-use link (`WebApp:BaseUrl` + `/Account/ResetPassword?token=…`, 30-minute expiry) and **never returns the token**, in any environment. The response is identical for unknown emails and for delivery failures.
+  - Web: the token display is removed; the page says to check the inbox.
+  - Tests: 3 new controller tests. Verified live: request, link in log, reset, reuse rejected, login with the new password.
+  - [ ] Follow-up: send the email in the background so response time doesn't hint whether an account exists
 - [ ] **Recurring tasks**: `TaskTemplate` + `TaskFrequencyExtensions` exist. Add a background job (`IHostedService`) that generates tasks from templates.
 - [ ] **Overdue detection**: background job that flags overdue tasks and evidence expiry, then raises notifications
 - [ ] Free-text cross-reference inputs (`ControlId`, `RequirementId`, `AuditId`, `FindingId`, `TaskId`, `Owner`…). Replace them with dropdowns or autocomplete fed by the API.

@@ -12,6 +12,7 @@ using ISOFlow.Application.Services;
 using ISOFlow.Infrastructure.Data;
 using ISOFlow.Infrastructure.Repositories;
 using ISOFlow.Infrastructure.Services;
+using ISOFlow.Infrastructure.Services.Email;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
@@ -98,6 +99,25 @@ try
     }
 
     builder.Services.AddSingleton(jwtSettings);
+
+    // Email: SMTP when configured; in Development without SMTP, emails are written to the log instead;
+    // elsewhere without SMTP, sending fails loudly (and is reported at startup).
+    var emailSettings = builder.Configuration.GetSection(EmailSettings.SectionName).Get<EmailSettings>() ?? new EmailSettings();
+    builder.Services.AddSingleton(emailSettings);
+    if (emailSettings.IsSmtpConfigured)
+        builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+    else if (builder.Environment.IsDevelopment())
+        builder.Services.AddSingleton<IEmailSender, DevelopmentLogEmailSender>();
+    else
+    {
+        Log.Warning("Email is not configured (Email:FromAddress / Email:Smtp:Host): password reset emails cannot be delivered.");
+        builder.Services.AddSingleton<IEmailSender, UnconfiguredEmailSender>();
+    }
+
+    var webAppSettings = builder.Configuration.GetSection(WebAppSettings.SectionName).Get<WebAppSettings>() ?? new WebAppSettings();
+    if (string.IsNullOrWhiteSpace(webAppSettings.BaseUrl))
+        Log.Warning("WebApp:BaseUrl is not configured: links in emails (e.g. password reset) will be relative and unusable.");
+    builder.Services.AddSingleton(webAppSettings);
 
     // Add MemoryCache & SignalR
     builder.Services.AddMemoryCache();
