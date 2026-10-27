@@ -8,6 +8,11 @@ namespace ISOFlow.Infrastructure.Repositories;
 
 public class StandardRepository : BaseRepository, IStandardRepository
 {
+    private static readonly JsonListColumn<Requirement>[] RequirementLists =
+    {
+        new("related_control_ids_json", r => r.RelatedControlIds, (r, v) => r.RelatedControlIds = v)
+    };
+
     public StandardRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
     public Task<List<Standard>> GetAllStandardsAsync(int? organizationId)
@@ -83,13 +88,13 @@ public class StandardRepository : BaseRepository, IStandardRepository
             parameters);
     }
 
-    public Task<List<Requirement>> GetRequirementsByStandardIdAsync(string standardId, int? organizationId)
+    public async Task<List<Requirement>> GetRequirementsByStandardIdAsync(string standardId, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("standardId", standardId);
         parameters.Add("p_organization_id", organizationId);
 
-        return QueryMappedListAsync(
+        var result = await QueryMappedListAsync(
             "SELECT * FROM sp_requirements_get_by_standard_id(@standardId, @p_organization_id)",
             r => new Requirement
             {
@@ -103,9 +108,11 @@ public class StandardRepository : BaseRepository, IStandardRepository
                 CompliancePercentage = (double)r.compliance_percentage
             },
             parameters);
+        await LoadJsonListsAsync("requirements", result, x => x.Id, RequirementLists);
+        return result;
     }
 
-    public Task<PagedResponse<Requirement>> GetPagedRequirementsByStandardIdAsync(string standardId, PagedRequestDto request, int? organizationId)
+    public async Task<PagedResponse<Requirement>> GetPagedRequirementsByStandardIdAsync(string standardId, PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_standard_id", standardId);
@@ -114,7 +121,7 @@ public class StandardRepository : BaseRepository, IStandardRepository
         parameters.Add("p_organization_id", organizationId);
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
 
-        return QueryPagedAsync(
+        var result = await QueryPagedAsync(
             "SELECT * FROM sp_requirements_get_paged_by_standard_id(@p_standard_id, @p_page_number, @p_page_size, @p_organization_id, @p_search_term)",
             r => new Requirement
             {
@@ -130,15 +137,17 @@ public class StandardRepository : BaseRepository, IStandardRepository
             parameters,
             request.PageNumber,
             request.PageSize);
+        await LoadJsonListsAsync("requirements", result.Items, x => x.Id, RequirementLists);
+        return result;
     }
 
-    public Task<Requirement?> GetRequirementByIdAsync(string id, int? organizationId)
+    public async Task<Requirement?> GetRequirementByIdAsync(string id, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("id", id);
         parameters.Add("p_organization_id", organizationId);
 
-        return QueryMappedFirstOrDefaultAsync(
+        var result = await QueryMappedFirstOrDefaultAsync(
             "SELECT * FROM sp_requirements_get_by_id(@id, @p_organization_id)",
             r => new Requirement
             {
@@ -152,6 +161,8 @@ public class StandardRepository : BaseRepository, IStandardRepository
                 CompliancePercentage = (double)r.compliance_percentage
             },
             parameters);
+        if (result != null) await LoadJsonListsAsync("requirements", new[] { result }, x => x.Id, RequirementLists);
+        return result;
     }
 
     public async Task<Standard> CreateStandardAsync(Standard standard)
@@ -206,6 +217,7 @@ public class StandardRepository : BaseRepository, IStandardRepository
 
         var insertedId = await QuerySingleAsync<int>("SELECT sp_requirements_create(@p_organization_id, @p_standard_id, @p_clause, @p_title, @p_description, @p_category, @p_compliance_percentage)", parameters);
         requirement.Id = insertedId.ToString();
+        await SaveJsonListsAsync("requirements", requirement.Id, requirement.OrganizationId, requirement, RequirementLists);
         return requirement;
     }
 
@@ -221,7 +233,9 @@ public class StandardRepository : BaseRepository, IStandardRepository
         parameters.Add("p_compliance_percentage", requirement.CompliancePercentage);
 
         var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_requirements_update(@p_id, @p_organization_id, @p_clause, @p_title, @p_description, @p_category, @p_compliance_percentage)", parameters);
-        return updated ? requirement : null;
+        if (!updated) return null;
+        await SaveJsonListsAsync("requirements", requirement.Id, organizationId, requirement, RequirementLists);
+        return requirement;
     }
 
     public async Task<bool> DeleteRequirementAsync(string id, int organizationId)

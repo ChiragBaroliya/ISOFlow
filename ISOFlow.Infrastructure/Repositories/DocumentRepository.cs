@@ -8,11 +8,23 @@ namespace ISOFlow.Infrastructure.Repositories;
 
 public class DocumentRepository : BaseRepository, IDocumentRepository
 {
+    private static readonly JsonListColumn<Policy>[] PolicyLists =
+    {
+        new("linked_control_ids_json", p => p.LinkedControlIds, (p, v) => p.LinkedControlIds = v),
+        new("linked_process_ids_json", p => p.LinkedProcessIds, (p, v) => p.LinkedProcessIds = v)
+    };
+
+    private static readonly JsonListColumn<Process>[] ProcessLists =
+    {
+        new("steps_json", p => p.Steps, (p, v) => p.Steps = v),
+        new("control_ids_json", p => p.ControlIds, (p, v) => p.ControlIds = v)
+    };
+
     public DocumentRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
-    public Task<List<Policy>> GetAllPoliciesAsync(int? organizationId)
+    public async Task<List<Policy>> GetAllPoliciesAsync(int? organizationId)
     {
-        return QueryMappedListAsync("SELECT * FROM sp_policies_get_all(@organizationId)", r => new Policy
+        var result = await QueryMappedListAsync("SELECT * FROM sp_policies_get_all(@organizationId)", r => new Policy
         {
             Id = r.id.ToString(),
             OrganizationId = (int)r.organization_id,
@@ -25,9 +37,11 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
             Status = (string)r.status,
             FilePath = (string)r.file_path ?? string.Empty
         }, new { organizationId });
+        await LoadJsonListsAsync("policies", result, p => p.Id, PolicyLists);
+        return result;
     }
 
-    public Task<PagedResponse<Policy>> GetPagedPoliciesAsync(PagedRequestDto request, int? organizationId)
+    public async Task<PagedResponse<Policy>> GetPagedPoliciesAsync(PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
@@ -36,7 +50,7 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
         parameters.Add("p_status", string.IsNullOrWhiteSpace(request.StatusFilter) ? null : request.StatusFilter.Trim());
 
-        return QueryPagedAsync(
+        var result = await QueryPagedAsync(
             "SELECT * FROM sp_policies_get_paged(@p_page_number, @p_page_size, @p_organization_id, @p_search_term, @p_status)",
             r => new Policy
             {
@@ -54,11 +68,13 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
             parameters,
             request.PageNumber,
             request.PageSize);
+        await LoadJsonListsAsync("policies", result.Items, p => p.Id, PolicyLists);
+        return result;
     }
 
-    public Task<Policy?> GetPolicyByIdAsync(string id, int? organizationId)
+    public async Task<Policy?> GetPolicyByIdAsync(string id, int? organizationId)
     {
-        return QueryMappedFirstOrDefaultAsync(
+        var result = await QueryMappedFirstOrDefaultAsync(
             "SELECT * FROM sp_policies_get_by_id(@id, @organizationId)",
             r => new Policy
             {
@@ -74,6 +90,8 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
                 FilePath = (string)r.file_path ?? string.Empty
             },
             new { id, organizationId });
+        if (result != null) await LoadJsonListsAsync("policies", new[] { result }, p => p.Id, PolicyLists);
+        return result;
     }
 
     public async Task<Policy> CreatePolicyAsync(Policy policy)
@@ -91,6 +109,7 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
 
         var insertedId = await QuerySingleAsync<int>("SELECT sp_policies_create(@p_organization_id, @p_code, @p_title, @p_version, @p_owner, @p_effective_date, @p_next_review_date, @p_status, @p_file_path)", parameters);
         policy.Id = insertedId.ToString();
+        await SaveJsonListsAsync("policies", policy.Id, policy.OrganizationId, policy, PolicyLists);
         return policy;
     }
 
@@ -108,7 +127,9 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
         parameters.Add("p_file_path", policy.FilePath);
 
         var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_policies_update(@p_id, @p_organization_id, @p_title, @p_version, @p_owner, @p_effective_date, @p_next_review_date, @p_status, @p_file_path)", parameters);
-        return updated ? policy : null;
+        if (!updated) return null;
+        await SaveJsonListsAsync("policies", policy.Id, organizationId, policy, PolicyLists);
+        return policy;
     }
 
     public async Task<bool> DeletePolicyAsync(string id, int organizationId)
@@ -116,9 +137,9 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
         return await QuerySingleOrDefaultAsync<bool>("SELECT sp_policies_delete(@id, @organizationId)", new { id, organizationId });
     }
 
-    public Task<List<Process>> GetAllProcessesAsync(int? organizationId)
+    public async Task<List<Process>> GetAllProcessesAsync(int? organizationId)
     {
-        return QueryMappedListAsync(
+        var result = await QueryMappedListAsync(
             "SELECT id, organization_id, code, title, category, owner, description, version, status, policy_id FROM processes WHERE (@organizationId IS NULL OR organization_id = @organizationId) ORDER BY id ASC",
             pr => new Process
             {
@@ -134,9 +155,11 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
                 PolicyId = pr.policy_id != null ? pr.policy_id.ToString() : string.Empty
             },
             new { organizationId });
+        await LoadJsonListsAsync("processes", result, p => p.Id, ProcessLists);
+        return result;
     }
 
-    public Task<PagedResponse<Process>> GetPagedProcessesAsync(PagedRequestDto request, int? organizationId)
+    public async Task<PagedResponse<Process>> GetPagedProcessesAsync(PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
@@ -146,7 +169,7 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
         parameters.Add("p_category", string.IsNullOrWhiteSpace(request.CategoryFilter) ? null : request.CategoryFilter.Trim());
         parameters.Add("p_status", string.IsNullOrWhiteSpace(request.StatusFilter) ? null : request.StatusFilter.Trim());
 
-        return QueryPagedAsync(
+        var result = await QueryPagedAsync(
             "SELECT * FROM sp_processes_get_paged(@p_page_number, @p_page_size, @p_organization_id, @p_search_term, @p_category, @p_status)",
             pr => new Process
             {
@@ -164,11 +187,13 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
             parameters,
             request.PageNumber,
             request.PageSize);
+        await LoadJsonListsAsync("processes", result.Items, p => p.Id, ProcessLists);
+        return result;
     }
 
-    public Task<Process?> GetProcessByIdAsync(string id, int? organizationId)
+    public async Task<Process?> GetProcessByIdAsync(string id, int? organizationId)
     {
-        return QueryMappedFirstOrDefaultAsync(
+        var result = await QueryMappedFirstOrDefaultAsync(
             "SELECT id, organization_id, code, title, category, owner, description, version, status, policy_id FROM processes WHERE (id::VARCHAR = @id OR LOWER(code) = LOWER(@id)) AND (@organizationId IS NULL OR organization_id = @organizationId)",
             pr => new Process
             {
@@ -184,6 +209,8 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
                 PolicyId = pr.policy_id != null ? pr.policy_id.ToString() : string.Empty
             },
             new { id, organizationId });
+        if (result != null) await LoadJsonListsAsync("processes", new[] { result }, p => p.Id, ProcessLists);
+        return result;
     }
 
     public async Task<Process> CreateProcessAsync(Process process)
@@ -202,6 +229,7 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
 
         var insertedId = await QuerySingleAsync<int>("INSERT INTO processes (organization_id, code, title, category, owner, description, version, status, policy_id) VALUES (@p_organization_id, @p_code, @p_title, @p_category, @p_owner, @p_description, @p_version, @p_status, @p_policy_id) RETURNING id", parameters);
         process.Id = insertedId.ToString();
+        await SaveJsonListsAsync("processes", process.Id, process.OrganizationId, process, ProcessLists);
         return process;
     }
 
@@ -220,7 +248,9 @@ public class DocumentRepository : BaseRepository, IDocumentRepository
         parameters.Add("p_policy_id", polId > 0 ? (int?)polId : null);
 
         var rows = await ExecuteAsync("UPDATE processes SET title = @p_title, category = @p_category, owner = @p_owner, description = @p_description, version = @p_version, status = @p_status, policy_id = @p_policy_id, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE (id::VARCHAR = @p_id OR LOWER(code) = LOWER(@p_id)) AND organization_id = @p_organization_id", parameters);
-        return rows > 0 ? process : null;
+        if (rows == 0) return null;
+        await SaveJsonListsAsync("processes", process.Id, organizationId, process, ProcessLists, idMayBeCode: true);
+        return process;
     }
 
     public async Task<bool> ArchiveProcessAsync(string id, int organizationId)

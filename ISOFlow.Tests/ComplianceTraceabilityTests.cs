@@ -5,15 +5,18 @@ using ISOFlow.Infrastructure.Data;
 using ISOFlow.Infrastructure.Repositories;
 using ISOFlow.Infrastructure.Services;
 using Microsoft.Extensions.Caching.Memory;
+using ISOFlow.Tests.Infrastructure;
 using Xunit;
 
 namespace ISOFlow.Tests;
 
+[Collection(DatabaseCollection.Name)]
 public class ComplianceTraceabilityTests
 {
-    private readonly IDbConnectionFactory _dbFactory = new DbConnectionFactory("Host=localhost;Database=isoflow;Username=postgres;Password=postgres;");
+    // Resolved lazily so the non-database tests in this class still run when no test database is configured.
+    private static IDbConnectionFactory _dbFactory => TestDatabase.CreateFactory();
 
-    [Fact]
+    [DatabaseFact]
     public async Task GetGoldenScenarioTraceability_ShouldReturn14StepsChain()
     {
         // Arrange
@@ -44,7 +47,7 @@ public class ComplianceTraceabilityTests
         Assert.Contains(result.Steps, s => s.Code == "IMP-001");
     }
 
-    [Fact]
+    [DatabaseFact]
     public async Task TraceabilityRepository_UnknownEntity_ReturnsEmptyChainNotDemoData()
     {
         var traceRepo = new TraceabilityRepository(_dbFactory);
@@ -54,7 +57,7 @@ public class ComplianceTraceabilityTests
         Assert.Empty(result.Steps);
     }
 
-    [Fact]
+    [DatabaseFact]
     public async Task TraceabilityRepository_FindingRoot_ResolvesItsControlAndMarksFindingActive()
     {
         var traceRepo = new TraceabilityRepository(_dbFactory);

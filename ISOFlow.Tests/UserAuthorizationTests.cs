@@ -11,6 +11,7 @@ using ISOFlow.Infrastructure.Repositories;
 using ISOFlow.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ISOFlow.Tests.Infrastructure;
 using Xunit;
 
 namespace ISOFlow.Tests;
@@ -39,8 +40,7 @@ public class UserAuthorizationTests
             AccessTokenExpirationMinutes = 15
         };
         var jwtService = new JwtService(jwtSettings);
-        var dbFactory = new DbConnectionFactory("Host=localhost;Database=isoflow_mock;Username=postgres;Password=postgres;");
-        var refreshTokenRepository = new RefreshTokenRepository(dbFactory);
+        var refreshTokenRepository = new InMemoryRefreshTokenRepository();
         var authService = new AuthService(_userRepository, refreshTokenRepository, jwtService, jwtSettings);
 
         _controller = new UsersController(_userRepository, authService, jwtService);

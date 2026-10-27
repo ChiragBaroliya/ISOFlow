@@ -8,11 +8,16 @@ namespace ISOFlow.Infrastructure.Repositories;
 
 public class OrganizationRepository : BaseRepository, IOrganizationRepository
 {
+    private static readonly JsonListColumn<Organization>[] OrganizationLists =
+    {
+        new("locations_json", o => o.Locations, (o, v) => o.Locations = v)
+    };
+
     public OrganizationRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
-    public Task<List<Organization>> GetAllOrganizationsAsync()
+    public async Task<List<Organization>> GetAllOrganizationsAsync()
     {
-        return QueryMappedListAsync("SELECT * FROM sp_organizations_get_all()", r => new Organization
+        var result = await QueryMappedListAsync("SELECT * FROM sp_organizations_get_all()", r => new Organization
         {
             Id = (int)r.id,
             Code = (string)r.code,
@@ -25,9 +30,11 @@ public class OrganizationRepository : BaseRepository, IOrganizationRepository
             ContactEmail = (string)r.contact_email,
             CreatedAt = (DateTime)r.created_at
         });
+        await LoadJsonListsAsync("organizations", result, x => x.Id.ToString(), OrganizationLists);
+        return result;
     }
 
-    public Task<PagedResponse<Organization>> GetPagedOrganizationsAsync(PagedRequestDto request)
+    public async Task<PagedResponse<Organization>> GetPagedOrganizationsAsync(PagedRequestDto request)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
@@ -35,7 +42,7 @@ public class OrganizationRepository : BaseRepository, IOrganizationRepository
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
         parameters.Add("p_status", string.IsNullOrWhiteSpace(request.StatusFilter) ? null : request.StatusFilter.Trim());
 
-        return QueryPagedAsync(
+        var result = await QueryPagedAsync(
             "SELECT * FROM sp_organizations_get_paged(@p_page_number, @p_page_size, @p_search_term, @p_status)",
             r => new Organization
             {
@@ -53,11 +60,13 @@ public class OrganizationRepository : BaseRepository, IOrganizationRepository
             parameters,
             request.PageNumber,
             request.PageSize);
+        await LoadJsonListsAsync("organizations", result.Items, x => x.Id.ToString(), OrganizationLists);
+        return result;
     }
 
-    public Task<Organization?> GetOrganizationByIdAsync(string id)
+    public async Task<Organization?> GetOrganizationByIdAsync(string id)
     {
-        return QueryMappedFirstOrDefaultAsync(
+        var result = await QueryMappedFirstOrDefaultAsync(
             "SELECT id, code, name, industry, employees, primary_standard, status, compliance_percentage, contact_email, created_at FROM organizations WHERE id::VARCHAR = @id OR LOWER(code) = LOWER(@id)",
             r => new Organization
             {
@@ -73,6 +82,8 @@ public class OrganizationRepository : BaseRepository, IOrganizationRepository
                 CreatedAt = (DateTime)r.created_at
             },
             new { id });
+        if (result != null) await LoadJsonListsAsync("organizations", new[] { result }, x => x.Id.ToString(), OrganizationLists);
+        return result;
     }
 
     public async Task<Organization> CreateOrganizationAsync(Organization organization)
@@ -92,6 +103,7 @@ public class OrganizationRepository : BaseRepository, IOrganizationRepository
             parameters);
 
         organization.Id = insertedId;
+        await SaveJsonListsAsync("organizations", organization.Id.ToString(), null, organization, OrganizationLists);
         return organization;
     }
 
@@ -111,7 +123,9 @@ public class OrganizationRepository : BaseRepository, IOrganizationRepository
             "UPDATE organizations SET name = @p_name, industry = @p_industry, employees = @p_employees, primary_standard = @p_primary_standard, status = @p_status, compliance_percentage = @p_compliance_percentage, contact_email = @p_contact_email, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata') WHERE id::VARCHAR = @p_id OR LOWER(code) = LOWER(@p_id)",
             parameters);
 
-        return rows > 0 ? organization : null;
+        if (rows == 0) return null;
+        await SaveJsonListsAsync("organizations", organization.Id.ToString(), null, organization, OrganizationLists, idMayBeCode: true);
+        return organization;
     }
 
     public async Task<bool> DeleteOrganizationAsync(string id)

@@ -12,7 +12,6 @@ namespace ISOFlow.Tests;
 
 public class ApiAndDomainEnhancementTests
 {
-    private readonly IDbConnectionFactory _dbFactory = new DbConnectionFactory("Host=localhost;Database=isoflow;Username=postgres;Password=postgres;");
 
     [Fact]
     public void PagedResponse_CalculatesMetadataCorrectly()

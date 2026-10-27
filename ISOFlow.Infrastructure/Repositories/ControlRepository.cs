@@ -9,14 +9,30 @@ namespace ISOFlow.Infrastructure.Repositories;
 
 public class ControlRepository : BaseRepository, IControlRepository
 {
+    private static readonly JsonListColumn<Control>[] ControlLists =
+    {
+        new("related_requirement_ids_json", c => c.RelatedRequirementIds, (c, v) => c.RelatedRequirementIds = v),
+        new("related_risk_ids_json", c => c.RelatedRiskIds, (c, v) => c.RelatedRiskIds = v),
+        new("related_treatment_ids_json", c => c.RelatedTreatmentIds, (c, v) => c.RelatedTreatmentIds = v),
+        new("related_policy_ids_json", c => c.RelatedPolicyIds, (c, v) => c.RelatedPolicyIds = v),
+        new("related_process_ids_json", c => c.RelatedProcessIds, (c, v) => c.RelatedProcessIds = v),
+        new("related_task_ids_json", c => c.RelatedTaskIds, (c, v) => c.RelatedTaskIds = v),
+        new("related_evidence_ids_json", c => c.RelatedEvidenceIds, (c, v) => c.RelatedEvidenceIds = v),
+        new("related_audit_ids_json", c => c.RelatedAuditIds, (c, v) => c.RelatedAuditIds = v),
+        new("related_finding_ids_json", c => c.RelatedFindingIds, (c, v) => c.RelatedFindingIds = v),
+        new("related_capa_ids_json", c => c.RelatedCapaIds, (c, v) => c.RelatedCapaIds = v),
+        new("related_management_review_ids_json", c => c.RelatedManagementReviewIds, (c, v) => c.RelatedManagementReviewIds = v),
+        new("related_improvement_ids_json", c => c.RelatedImprovementIds, (c, v) => c.RelatedImprovementIds = v)
+    };
+
     public ControlRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
-    public Task<List<Control>> GetAllControlsAsync(int? organizationId)
+    public async Task<List<Control>> GetAllControlsAsync(int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_organization_id", organizationId);
 
-        return QueryMappedListAsync("SELECT * FROM sp_controls_get_all(@p_organization_id)", r => new Control
+        var result = await QueryMappedListAsync("SELECT * FROM sp_controls_get_all(@p_organization_id)", r => new Control
         {
             Id = r.id.ToString(),
             OrganizationId = (int)r.organization_id,
@@ -30,9 +46,11 @@ public class ControlRepository : BaseRepository, IControlRepository
             IsApplicable = (bool)r.is_applicable,
             Justification = (string)r.justification ?? string.Empty
         }, parameters);
+        await LoadJsonListsAsync("controls", result, x => x.Id, ControlLists);
+        return result;
     }
 
-    public Task<PagedResponse<Control>> GetPagedControlsAsync(PagedRequestDto request, int? organizationId)
+    public async Task<PagedResponse<Control>> GetPagedControlsAsync(PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
@@ -42,7 +60,7 @@ public class ControlRepository : BaseRepository, IControlRepository
         parameters.Add("p_category", string.IsNullOrWhiteSpace(request.CategoryFilter) ? null : request.CategoryFilter.Trim());
         parameters.Add("p_status", int.TryParse(request.StatusFilter, out var st) ? st : (int?)null);
 
-        return QueryPagedAsync(
+        var result = await QueryPagedAsync(
             "SELECT * FROM sp_controls_get_paged(@p_page_number, @p_page_size, @p_organization_id, @p_search_term, @p_category, @p_status)",
             r => new Control
             {
@@ -61,15 +79,17 @@ public class ControlRepository : BaseRepository, IControlRepository
             parameters,
             request.PageNumber,
             request.PageSize);
+        await LoadJsonListsAsync("controls", result.Items, x => x.Id, ControlLists);
+        return result;
     }
 
-    public Task<Control?> GetControlByIdAsync(string id, int? organizationId)
+    public async Task<Control?> GetControlByIdAsync(string id, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("id", id);
         parameters.Add("p_organization_id", organizationId);
 
-        return QueryMappedFirstOrDefaultAsync(
+        var result = await QueryMappedFirstOrDefaultAsync(
             "SELECT * FROM sp_controls_get_by_id(@id, @p_organization_id)",
             row => new Control
             {
@@ -86,6 +106,8 @@ public class ControlRepository : BaseRepository, IControlRepository
                 Justification = (string)row.justification ?? string.Empty
             },
             parameters);
+        if (result != null) await LoadJsonListsAsync("controls", new[] { result }, x => x.Id, ControlLists);
+        return result;
     }
 
     public async Task<Control> CreateControlAsync(Control control)
@@ -104,6 +126,7 @@ public class ControlRepository : BaseRepository, IControlRepository
 
         var insertedId = await QuerySingleAsync<int>("SELECT sp_controls_create(@p_organization_id, @p_code, @p_title, @p_category, @p_description, @p_status, @p_owner, @p_compliance_percentage, @p_is_applicable, @p_justification)", parameters);
         control.Id = insertedId.ToString();
+        await SaveJsonListsAsync("controls", control.Id, control.OrganizationId, control, ControlLists);
         return control;
     }
 
@@ -122,7 +145,9 @@ public class ControlRepository : BaseRepository, IControlRepository
         parameters.Add("p_justification", control.Justification);
 
         var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_controls_update(@p_id, @p_organization_id, @p_title, @p_category, @p_description, @p_status, @p_owner, @p_compliance_percentage, @p_is_applicable, @p_justification)", parameters);
-        return updated ? control : null;
+        if (!updated) return null;
+        await SaveJsonListsAsync("controls", control.Id, organizationId, control, ControlLists);
+        return control;
     }
 
     public async Task<bool> DeleteControlAsync(string id, int organizationId)

@@ -7,11 +7,13 @@ using ISOFlow.Infrastructure.Data;
 using ISOFlow.Infrastructure.Repositories;
 using ISOFlow.Infrastructure.Services;
 using Microsoft.Extensions.Caching.Memory;
+using ISOFlow.Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace ISOFlow.Tests;
 
+[Collection(DatabaseCollection.Name)]
 public class DatabaseCrudTests
 {
     private readonly ITestOutputHelper _output;
@@ -20,10 +22,10 @@ public class DatabaseCrudTests
     public DatabaseCrudTests(ITestOutputHelper output)
     {
         _output = output;
-        _dbFactory = new DbConnectionFactory("Host=localhost;Database=isoflow;Username=postgres;Password=postgres;");
+        _dbFactory = TestDatabase.IsConfigured ? TestDatabase.CreateFactory() : null!;
     }
 
-    [Fact]
+    [DatabaseFact]
     public async Task StandardRepository_DatabaseCrud_Operations_Succeed()
     {
         var repo = new StandardRepository(_dbFactory);
@@ -68,7 +70,7 @@ public class DatabaseCrudTests
         Assert.Null(verifyDeleted);
     }
 
-    [Fact]
+    [DatabaseFact]
     public async Task ControlRepository_DatabaseCrud_Operations_Succeed()
     {
         var repo = new ControlRepository(_dbFactory);
@@ -114,7 +116,7 @@ public class DatabaseCrudTests
         _output.WriteLine("Deleted test control from DB.");
     }
 
-    [Fact]
+    [DatabaseFact]
     public async Task RiskRepository_DatabaseCrud_Operations_Succeed()
     {
         var repo = new RiskRepository(_dbFactory);
@@ -153,7 +155,7 @@ public class DatabaseCrudTests
         _output.WriteLine("Deleted test risk from DB.");
     }
 
-    [Fact]
+    [DatabaseFact]
     public async Task TaskRepository_DatabaseCrud_Operations_Succeed()
     {
         var repo = new TaskRepository(_dbFactory);
@@ -188,7 +190,7 @@ public class DatabaseCrudTests
         _output.WriteLine("Deleted test task from DB.");
     }
 
-    [Fact]
+    [DatabaseFact]
     public async Task TraceabilityRepository_QueriesDatabaseDynamically()
     {
         var repo = new TraceabilityRepository(_dbFactory);
@@ -203,7 +205,7 @@ public class DatabaseCrudTests
         _output.WriteLine("Traceability chain successfully loaded 14 steps dynamically from PostgreSQL database!");
     }
 
-    [Fact]
+    [DatabaseFact]
     public async Task DashboardService_CalculatesMetricsFromDatabase()
     {
         var controlRepo = new ControlRepository(_dbFactory);

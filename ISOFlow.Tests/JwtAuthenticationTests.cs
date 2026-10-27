@@ -13,6 +13,7 @@ using ISOFlow.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using ISOFlow.Tests.Infrastructure;
 using Xunit;
 
 namespace ISOFlow.Tests;
@@ -22,7 +23,7 @@ public class JwtAuthenticationTests
     private readonly JwtSettings _jwtSettings;
     private readonly JwtService _jwtService;
     private readonly MockUserRepository _userRepository;
-    private readonly RefreshTokenRepository _refreshTokenRepository;
+    private readonly InMemoryRefreshTokenRepository _refreshTokenRepository;
     private readonly AuthService _authService;
 
     public JwtAuthenticationTests()
@@ -38,8 +39,7 @@ public class JwtAuthenticationTests
 
         _jwtService = new JwtService(_jwtSettings);
         _userRepository = new MockUserRepository();
-        var dbFactory = new DbConnectionFactory("Host=localhost;Database=isoflow_mock;Username=postgres;Password=postgres;");
-        _refreshTokenRepository = new RefreshTokenRepository(dbFactory);
+        _refreshTokenRepository = new InMemoryRefreshTokenRepository();
         _authService = new AuthService(_userRepository, _refreshTokenRepository, _jwtService, _jwtSettings);
     }
 

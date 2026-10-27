@@ -9,14 +9,19 @@ namespace ISOFlow.Infrastructure.Repositories;
 
 public class ManagementReviewRepository : BaseRepository, IManagementReviewRepository
 {
+    private static readonly JsonListColumn<ManagementReview>[] ReviewLists =
+    {
+        new("attendees_json", r => r.Attendees, (r, v) => r.Attendees = v)
+    };
+
     public ManagementReviewRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
-    public Task<List<ManagementReview>> GetAllReviewsAsync(int? organizationId)
+    public async Task<List<ManagementReview>> GetAllReviewsAsync(int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_organization_id", organizationId);
 
-        return QueryMappedListAsync("SELECT * FROM sp_management_reviews_get_all(@p_organization_id)", r => new ManagementReview
+        var result = await QueryMappedListAsync("SELECT * FROM sp_management_reviews_get_all(@p_organization_id)", r => new ManagementReview
         {
             Id = r.id.ToString(),
             OrganizationId = (int)r.organization_id,
@@ -28,9 +33,11 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
             Summary = (string)r.summary ?? string.Empty,
             Status = (string)r.status
         }, parameters);
+        await LoadJsonListsAsync("management_reviews", result, x => x.Id, ReviewLists);
+        return result;
     }
 
-    public Task<PagedResponse<ManagementReview>> GetPagedReviewsAsync(PagedRequestDto request, int? organizationId)
+    public async Task<PagedResponse<ManagementReview>> GetPagedReviewsAsync(PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
@@ -39,7 +46,7 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
         parameters.Add("p_status", string.IsNullOrWhiteSpace(request.StatusFilter) ? null : request.StatusFilter.Trim());
 
-        return QueryPagedAsync(
+        var result = await QueryPagedAsync(
             "SELECT * FROM sp_management_reviews_get_paged(@p_page_number, @p_page_size, @p_organization_id, @p_search_term, @p_status)",
             r => new ManagementReview
             {
@@ -56,15 +63,17 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
             parameters,
             request.PageNumber,
             request.PageSize);
+        await LoadJsonListsAsync("management_reviews", result.Items, x => x.Id, ReviewLists);
+        return result;
     }
 
-    public Task<ManagementReview?> GetReviewByIdAsync(string id, int? organizationId)
+    public async Task<ManagementReview?> GetReviewByIdAsync(string id, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("id", id);
         parameters.Add("p_organization_id", organizationId);
 
-        return QueryMappedFirstOrDefaultAsync(
+        var result = await QueryMappedFirstOrDefaultAsync(
             "SELECT * FROM sp_management_reviews_get_by_id(@id, @p_organization_id)",
             r => new ManagementReview
             {
@@ -79,6 +88,8 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
                 Status = (string)r.status
             },
             parameters);
+        if (result != null) await LoadJsonListsAsync("management_reviews", new[] { result }, x => x.Id, ReviewLists);
+        return result;
     }
 
     public async Task<ManagementReview> CreateReviewAsync(ManagementReview review)
@@ -95,6 +106,7 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
 
         var insertedId = await QuerySingleAsync<int>("SELECT sp_management_reviews_create(@p_organization_id, @p_code, @p_title, @p_period, @p_review_date, @p_chair_person, @p_summary, @p_status)", parameters);
         review.Id = insertedId.ToString();
+        await SaveJsonListsAsync("management_reviews", review.Id, review.OrganizationId, review, ReviewLists);
         return review;
     }
 
@@ -109,7 +121,9 @@ public class ManagementReviewRepository : BaseRepository, IManagementReviewRepos
         parameters.Add("p_status", review.Status);
 
         var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_management_reviews_update(@p_id, @p_organization_id, @p_title, @p_chair_person, @p_summary, @p_status)", parameters);
-        return updated ? review : null;
+        if (!updated) return null;
+        await SaveJsonListsAsync("management_reviews", review.Id, organizationId, review, ReviewLists);
+        return review;
     }
 
     public async Task<bool> DeleteReviewAsync(string id, int organizationId)

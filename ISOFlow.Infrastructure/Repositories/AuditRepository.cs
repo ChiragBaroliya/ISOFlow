@@ -9,6 +9,12 @@ namespace ISOFlow.Infrastructure.Repositories;
 
 public class AuditRepository : BaseRepository, IAuditRepository
 {
+    private static readonly JsonListColumn<Audit>[] AuditLists =
+    {
+        new("check_list_control_ids_json", a => a.CheckListControlIds, (a, v) => a.CheckListControlIds = v),
+        new("finding_ids_json", a => a.FindingIds, (a, v) => a.FindingIds = v)
+    };
+
     public AuditRepository(IDbConnectionFactory dbConnectionFactory) : base(dbConnectionFactory) { }
 
     public Task<List<AuditProgram>> GetAuditProgramsAsync()
@@ -33,12 +39,12 @@ public class AuditRepository : BaseRepository, IAuditRepository
         return new PagedResponse<AuditProgram>(paged, total, request.PageNumber, request.PageSize);
     }
 
-    public Task<List<Audit>> GetAllAuditsAsync(int? organizationId)
+    public async Task<List<Audit>> GetAllAuditsAsync(int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_organization_id", organizationId);
 
-        return QueryMappedListAsync("SELECT * FROM sp_audits_get_all(@p_organization_id)", r => new Audit
+        var result = await QueryMappedListAsync("SELECT * FROM sp_audits_get_all(@p_organization_id)", r => new Audit
         {
             Id = r.id.ToString(),
             OrganizationId = (int)r.organization_id,
@@ -52,9 +58,11 @@ public class AuditRepository : BaseRepository, IAuditRepository
             CompletionPercentage = (int)r.completion_percentage,
             Scope = (string)r.scope ?? string.Empty
         }, parameters);
+        await LoadJsonListsAsync("audits", result, x => x.Id, AuditLists);
+        return result;
     }
 
-    public Task<PagedResponse<Audit>> GetPagedAuditsAsync(PagedRequestDto request, int? organizationId)
+    public async Task<PagedResponse<Audit>> GetPagedAuditsAsync(PagedRequestDto request, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("p_page_number", request.PageNumber);
@@ -63,7 +71,7 @@ public class AuditRepository : BaseRepository, IAuditRepository
         parameters.Add("p_search_term", string.IsNullOrWhiteSpace(request.SearchTerm) ? null : request.SearchTerm.Trim());
         parameters.Add("p_status", int.TryParse(request.StatusFilter, out var st) ? st : (int?)null);
 
-        return QueryPagedAsync(
+        var result = await QueryPagedAsync(
             "SELECT * FROM sp_audits_get_paged(@p_page_number, @p_page_size, @p_organization_id, @p_search_term, @p_status)",
             r => new Audit
             {
@@ -82,15 +90,17 @@ public class AuditRepository : BaseRepository, IAuditRepository
             parameters,
             request.PageNumber,
             request.PageSize);
+        await LoadJsonListsAsync("audits", result.Items, x => x.Id, AuditLists);
+        return result;
     }
 
-    public Task<Audit?> GetAuditByIdAsync(string id, int? organizationId)
+    public async Task<Audit?> GetAuditByIdAsync(string id, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("id", id);
         parameters.Add("p_organization_id", organizationId);
 
-        return QueryMappedFirstOrDefaultAsync(
+        var result = await QueryMappedFirstOrDefaultAsync(
             "SELECT * FROM sp_audits_get_by_id(@id, @p_organization_id)",
             r => new Audit
             {
@@ -107,6 +117,8 @@ public class AuditRepository : BaseRepository, IAuditRepository
                 Scope = (string)r.scope ?? string.Empty
             },
             parameters);
+        if (result != null) await LoadJsonListsAsync("audits", new[] { result }, x => x.Id, AuditLists);
+        return result;
     }
 
     public async Task<Audit> CreateAuditAsync(Audit audit)
@@ -126,6 +138,7 @@ public class AuditRepository : BaseRepository, IAuditRepository
 
         var insertedId = await QuerySingleAsync<int>("SELECT sp_audits_create(@p_organization_id, @p_code, @p_title, @p_standard_id, @p_lead_auditor, @p_start_date, @p_end_date, @p_status, @p_completion_percentage, @p_scope)", parameters);
         audit.Id = insertedId.ToString();
+        await SaveJsonListsAsync("audits", audit.Id, audit.OrganizationId, audit, AuditLists);
         return audit;
     }
 
@@ -143,7 +156,9 @@ public class AuditRepository : BaseRepository, IAuditRepository
         parameters.Add("p_scope", audit.Scope);
 
         var updated = await QuerySingleOrDefaultAsync<bool>("SELECT sp_audits_update(@p_id, @p_organization_id, @p_title, @p_lead_auditor, @p_start_date, @p_end_date, @p_status, @p_completion_percentage, @p_scope)", parameters);
-        return updated ? audit : null;
+        if (!updated) return null;
+        await SaveJsonListsAsync("audits", audit.Id, organizationId, audit, AuditLists);
+        return audit;
     }
 
     public async Task<bool> DeleteAuditAsync(string id, int organizationId)

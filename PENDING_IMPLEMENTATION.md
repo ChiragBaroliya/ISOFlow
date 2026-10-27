@@ -18,7 +18,7 @@ _Last reviewed: 2026-10-26 (against `master` @ `3158cd0`)_
   - [x] Renamed the API class `LogsApiController` → `LogsController`, so its route is `/api/logs` like the other controllers (it was `/api/LogsApi`). Updated `JwtAuthenticationTests`.
   - [x] `dotnet build ISOFlow.slnx` passes: 0 errors, 0 warnings
 - [x] Ran `dotnet test ISOFlow.slnx`: **73 passed, 7 failed**. All 7 failures are `28P01: password authentication failed for user "postgres"`, because the tests hardcode `Password=postgres` (`UnitTest1.cs:23`, `ComplianceTraceabilityTests.cs:14`).
-  - [ ] Move the test connection string to config or an environment variable (see §1.3), then re-run against a seeded PostgreSQL database
+  - [x] Moved the test connection string to the `ISOFLOW_TEST_DB` environment variable (§1.3); all tests pass against a seeded PostgreSQL database
 
 ---
 
@@ -75,8 +75,16 @@ is still hardcoded in the places below.
 
 ### 1.3 Tests
 
-- [ ] `ISOFlow.Tests/JwtAuthenticationTests.cs:41` and `UserAuthorizationTests.cs:41` — `Database=isoflow_mock` connection string. Move it to test configuration or use Testcontainers PostgreSQL.
-- [ ] In-memory test doubles (`MockUserRepository`, `FakeAuditLogRepository`) are fine for unit tests. Add **integration tests** against a real PostgreSQL database for every repository.
+- [x] Hardcoded test connection strings removed. Database tests read `ISOFLOW_TEST_DB` and are **skipped** (not failed) when it's unset, via `[DatabaseFact]` in `ISOFlow.Tests/Infrastructure/TestDatabase.cs`.
+  - The `DatabaseFixture` rebuilds the test database from scripts 01–04 once per run. It refuses any database whose name doesn't contain `test`.
+  - All database tests share one serial xUnit collection.
+  - Local setup: create `isoflow_test`, then set `ISOFLOW_TEST_DB=Host=localhost;Port=5432;Database=isoflow_test;Username=postgres;Password=…`
+- [x] Integration tests for every repository (`RepositoryIntegrationTests.cs`, 15 tests): users (hashing, login, change and reset with expiry), refresh tokens, organizations, audits/findings (tenant isolation), CAPA plus action items, evidence, policies/processes, reviews/improvements, notifications, audit log, compliance snapshots, and requirement/control link lists
+- [x] Results: **102/102 pass** against PostgreSQL 18.3; without a database, 78 pass and 24 are skipped
+- **Bugs found and fixed by these tests:**
+  - [x] **`RefreshTokenRepository` was a mock in production.** It kept a static in-memory store and swallowed every database error, so failed logouts and revocations reported success. It's now database-only and errors propagate; the unit tests use `InMemoryRefreshTokenRepository`.
+  - [x] **JSON list columns were never saved or loaded.** Affected: policy linked controls and processes, process steps and controls, audit checklist and findings, requirement links, all 12 control link lists, review attendees, and organization locations. Every list entered in the UI was silently dropped. New `BaseRepository.SaveJsonListsAsync` / `LoadJsonListsAsync` helpers now cover all 13 columns.
+  - [x] **CAPA action items were saved but never loaded** (`GetCapaByIdAsync` now loads them)
 
 ### 1.4 Documentation
 
@@ -136,8 +144,8 @@ is still hardcoded in the places below.
 
 ## 6. Testing & verification
 
-- [ ] Fix the build (§0), then make `dotnet test` green
-- [ ] Integration tests for all repositories against PostgreSQL
+- [x] Fix the build (§0), then make `dotnet test` green
+- [x] Integration tests for all repositories against PostgreSQL (§1.3)
 - [ ] API controller tests for every module (only Users/Auth/AuditLogs are covered today)
 - [ ] Manual check: every page shows **only** database data after the seed script is truncated (an empty DB should render empty states, not demo values)
 - [ ] Manual check: create/edit/delete for each module persists via the API

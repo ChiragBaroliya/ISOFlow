@@ -62,13 +62,13 @@ public class CapaRepository : BaseRepository, ICapaRepository
             request.PageSize);
     }
 
-    public Task<CAPA?> GetCapaByIdAsync(string id, int? organizationId)
+    public async Task<CAPA?> GetCapaByIdAsync(string id, int? organizationId)
     {
         var parameters = new DynamicParameters();
         parameters.Add("id", id);
         parameters.Add("p_organization_id", organizationId);
 
-        return QueryMappedFirstOrDefaultAsync(
+        var capa = await QueryMappedFirstOrDefaultAsync(
             "SELECT * FROM sp_capas_get_by_id(@id, @p_organization_id)",
             r => new CAPA
             {
@@ -85,6 +85,24 @@ public class CapaRepository : BaseRepository, ICapaRepository
                 EffectivenessVerification = (string)r.effectiveness_verification ?? string.Empty
             },
             parameters);
+
+        if (capa != null)
+        {
+            capa.ActionItems = await QueryMappedListAsync(
+                "SELECT * FROM sp_capa_action_items_get_by_capa_id(@capaId, @p_organization_id)",
+                a => new CapaActionItem
+                {
+                    Id = a.id.ToString(),
+                    OrganizationId = (int)a.organization_id,
+                    CapaId = a.capa_id.ToString(),
+                    Title = (string)a.title,
+                    AssignedTo = (string)a.assigned_to ?? string.Empty,
+                    DueDate = (DateTime)a.due_date,
+                    IsCompleted = (bool)a.is_completed
+                },
+                new { capaId = capa.Id, p_organization_id = organizationId });
+        }
+        return capa;
     }
 
     public async Task<CAPA> CreateCapaAsync(CAPA capa)
